@@ -1,0 +1,191 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+=================================================
+NIPA - Netdev Infrastructure for Patch Automation
+=================================================
+
+Patches are not tested reliably against existing tests.
+
+Goals
+=====
+
+The main goal of NIPA is to minimize the amount of time
+netdev and BPF maintainers have to spend validating patches.
+
+As soon as patches hit the mailing list NIPA needs to validate
+them and report errors to authors and patchwork. If patch is
+deemed bad maintainers can simply discard it from patchwork
+and no further action is needed.
+
+The system also needs to be easily run by individual developers.
+The intention is to package it as a container in due course.
+Having everyone test their patches locally allows for better
+scaling (no need for big central infrastructure) and hopefully
+creates an incentive for contributing.
+
+Configuration
+=============
+
+Configuration is read from the *config.json* file in main project
+directory.
+
+TODO: not any more
+
+result-dir
+----------
+
+Directory to which test results will be emitted.
+
+logtype
+-------
+
+String, log output format. NIPA can produce Org mode ("org") or XML
+("xml") logs.
+
+**Default:** *org*
+
+logfile
+-------
+
+String, log output file.
+
+**Default:** *log.org*
+
+Architecture
+============
+
+NIPA does not currently use any existing CI system, although
+it should be relatively easy to replace the test backend with
+something more complex, if need be.
+
+The architecture consists of three fundamental parts:
+ - front ends
+ - core
+ - tests
+
+Front ends
+----------
+
+Front ends ingest patches and create internal objects to represent them.
+Those objects can then be fed into the test.
+Once tests are done front ends are also responsible for presenting
+the results to the users.
+
+Currently two front ends exist *ingest_mdir.py* and *pw_poller.py*.
+Former is a command line tool which reads patches from a directory,
+latter is a daemon which connects to a *Patchwork* instance and
+periodically polls it for new patches.
+
+Core
+----
+
+Core contains all the internals, and patch representation.
+The three main classes are Tree, Tester, Series and Patch.
+Series contains Patches which are tested by Tester on the Tree.
+
+Tester loads Tests and generates results automatically.
+
+Please refer to the sources for in depth information.
+
+Tests
+-----
+
+
+
+Tests
+=====
+
+Common
+------
+
+subject_prefix
+~~~~~~~~~~~~~~
+
+Check if subject prefix contains the tree name.
+
+Series tests
+------------
+
+patch_count
+~~~~~~~~~~~
+
+Check if number of patches in the series is not larger than 15.
+
+cover_letter
+~~~~~~~~~~~~
+
+Check if series has a cover letter (require one only if there
+are more than two patches, otherwise the series is trivial).
+
+fixes_present
+~~~~~~~~~~~~~
+
+Check if any of the patches in the series contains a Fixes
+tag.
+
+If the tree name does not contain "next" in it assume that
+the patches are targeting current release cycle, therefore
+they are fixes.
+
+Patch tests
+-----------
+
+verify_signedoff
+~~~~~~~~~~~~~~~~
+
+Check that the Signed-off-by tag matches the From field.
+This test was taken from GregKH's repo, but there's a number
+of versions of this check circulating.
+
+The check may be a little looser than some may expect, because
+it's satisfied if authors name **or** email address match between
+From and Signed-off-by, not necessarily both of them.
+
+The original test validates the committer had signed-off
+the commit as well as the author, which is obviously meaningless
+when the test infra applies the patches to the tree by itself.
+
+verify_fixes
+~~~~~~~~~~~~
+
+Check that the Fixes tag is correct.
+This test was taken from GregKH's repo, but there's a number
+of versions of this check circulating.
+
+The hash is expected to be present in the tree to which patch
+is being applied. This is a slight departure from GregKH's
+original where the hash is checked against Linus's tree.
+
+source_inline
+~~~~~~~~~~~~~
+
+Check if there are any *inline* keywords in the C source files.
+
+checkpatch
+~~~~~~~~~~
+
+Run selected tests of kernel's *scripts/checkpatch.pl* on the
+patches.
+
+build_allmodconfig
+~~~~~~~~~~~~~~~~~~
+
+Check if *allmodconfig*-configured kernel builds with the patch.
+Catch new errors and warnings.
+
+For now comparison is only by warning count, so warnings may get
+silently replaced by a different one.
+
+build_verbose
+~~~~~~~~~~~~~
+
+Check if *allmodconfig*-configured kernel builds with *W=1 C=1*
+flags (extra warnings and sparse checks enabled).
+
+This check is separate from the normal build test to allow more
+leniency as needed.
+
+TODO
+====
+
+32 bit build

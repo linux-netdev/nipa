@@ -1,0 +1,4 @@
+{
+  "source": "https://raw.githubusercontent.com/gregkh/gregkh-linux/master/work/verify_signedoff.sh",
+  "run": "verify_signedoff.sh HEAD~..HEAD"
+}

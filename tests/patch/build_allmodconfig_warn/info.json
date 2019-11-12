@@ -1,0 +1,5 @@
+{
+  "prep": "prep.sh",
+  "run": "build_allmodconfig.sh",
+  "disabled": false
+}
