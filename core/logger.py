@@ -44,12 +44,12 @@ class Logger:
     log_data()
         Create a new log file section with given header and contents.
     """
-    def __init__(self, path):
+    def __init__(self, path=None):
         self.printer = pprint.PrettyPrinter()
         self._path = path
         self._level = 0
 
-        self._log_file = open(self._path, "w+")
+        self._log_open_init()
         self._log_open()
 
     def fini(self):
@@ -58,12 +58,12 @@ class Logger:
     def open_sec(self, header):
         self._level += 1
         self._sec_start(self._escape(header))
-        self._log_file.flush()
+        self._log_flush()
 
     def end_sec(self):
         self._sec_end()
         self._level -= 1
-        self._log_file.flush()
+        self._log_flush()
 
         self._maybe_close()
 
@@ -76,7 +76,7 @@ class Logger:
         self._log_data(self._escape(data))
 
         self.end_sec()
-        self._log_file.flush()
+        self._log_flush()
 
     def _maybe_close(self):
         if self._level:
@@ -86,7 +86,7 @@ class Logger:
 
         # close the old log off
         self._log_close()
-        self._log_file.flush()
+        self._log_flush()
         self._log_file.close()
         self._log_file = None
 
@@ -104,6 +104,9 @@ class Logger:
         self._log_file = open(self._path, "w+")
         self._log_open()
 
+    def _log_open_init(self):
+        self._log_file = open(self._path, "w+")
+
     def _log_open(self):
         pass
 
@@ -111,7 +114,7 @@ class Logger:
         pass
 
     def _escape(self, data):
-        pass
+        return data
 
     def _sec_start(self, header):
         pass
@@ -120,6 +123,28 @@ class Logger:
         pass
 
     def _log_data(self, data):
+        pass
+
+    def _log_flush(self):
+        self._log_file.flush()
+
+
+class StdoutLogger(Logger):
+    def _log_open_init(self):
+        pass
+
+    def _maybe_close(self):
+        pass
+
+    def _sec_start(self, header):
+        for line in header.strip().split('\n'):
+            print(' ' * (self._level - 1) + line)
+
+    def _log_data(self, data):
+        for line in data.strip().split('\n'):
+            print(' ' * self._level + line)
+
+    def _log_flush(self):
         pass
 
 
@@ -179,7 +204,9 @@ class OrgLogger(Logger):
 def log_init(name, path):
     global logger
 
-    if name.lower() == "org":
+    if name.lower() == 'stdout':
+        logger = StdoutLogger()
+    elif name.lower() == "org":
         logger = OrgLogger(path)
     elif name.lower() == "xml":
         logger = XmlLogger(path)
