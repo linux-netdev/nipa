@@ -17,11 +17,11 @@ from pw import Patchwork
 from pw import PwSeries
 
 
-def worker_done(series_dir, worker, summary=None, status=0):
+def series_worker_done(series_dir, worker, summary=None, status=0):
     if summary is None:
         summary = worker + " finished with status " + str(status)
 
-    worker_dir = os.path.join(series_dir, worker)
+    worker_dir = os.path.join(series_dir, 'all', worker)
 
     summary_file = os.path.join(worker_dir, "summary")
     status_file = os.path.join(worker_dir, "status")
@@ -46,7 +46,8 @@ def write_raw(directory, contents):
 def write_out_series(result_dir, series):
     series_dir = os.path.join(result_dir, str(series.id))
 
-    load_dir = os.path.join(series_dir, "load")
+    all_dir = os.path.join(series_dir, "all")
+    load_dir = os.path.join(all_dir, "load")
     done_file = os.path.join(load_dir, 'done')
 
     if os.path.exists(series_dir):
@@ -56,6 +57,7 @@ def write_out_series(result_dir, series):
 
         shutil.rmtree(series_dir)
     os.mkdir(series_dir)
+    os.mkdir(all_dir)
     os.mkdir(load_dir)
 
     if series.cover_letter:
@@ -70,7 +72,7 @@ def write_out_series(result_dir, series):
         os.mkdir(patch_dir)
         write_raw(patch_dir, patch.raw_patch)
 
-    worker_done(series_dir, "load")
+    series_worker_done(series_dir, "load")
 
 
 # Init state
