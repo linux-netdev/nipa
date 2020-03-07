@@ -25,11 +25,14 @@ def worker_done(series_dir, worker, summary=None, status=0):
 
     summary_file = os.path.join(worker_dir, "summary")
     status_file = os.path.join(worker_dir, "status")
+    done_file = os.path.join(worker_dir, "done")
 
     with open(summary_file, 'w') as fp:
         fp.write(summary)
     with open(status_file, 'w') as fp:
         fp.write(str(status))
+
+    os.mknod(done_file)
 
 
 def write_raw(directory, contents):
@@ -44,10 +47,10 @@ def write_out_series(result_dir, series):
     series_dir = os.path.join(result_dir, str(series.id))
 
     load_dir = os.path.join(series_dir, "load")
-    status_file = os.path.join(load_dir, 'status')
+    done_file = os.path.join(load_dir, 'done')
 
     if os.path.exists(series_dir):
-        if os.path.exists(status_file):
+        if os.path.exists(done_file):
             log(f"Series {pw_series['id']} already downloaded", "")
             return
 
