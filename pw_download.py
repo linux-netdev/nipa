@@ -19,10 +19,7 @@ from pw import PwSeries
 
 def worker_done(series_dir, worker, summary=None, status=0):
     if summary is None:
-        if status == 0:
-            summary = "[OKAY] " + worker
-        else:
-            summary = "[FAIL] " + worker + " status: " + str(status)
+        summary = worker + " finished with status " + str(status)
 
     worker_dir = os.path.join(series_dir, worker)
 
