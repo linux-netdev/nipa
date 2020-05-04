@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0
 #
 # Copyright (C) 2019 Netronome Systems, Inc.
+# Copyright (c) 2020 Facebook
 
 import configparser
 import os
@@ -27,10 +28,9 @@ def is_int(s):
         return False
 
 
-def _pw_upload_results(series_dir, pw, config):
-    series = os.path.basename(series_dir)
+def _pw_upload_results(task_dir, pw, config):
     result_server = config.get('results', 'server', fallback='file:///')
-    for root, dirs, _ in os.walk(series_dir):
+    for root, dirs, _ in os.walk(task_dir):
         for patch in dirs:
             # TODO: do something with series checks
             if not is_int(patch):
@@ -52,7 +52,7 @@ def _pw_upload_results(series_dir, pw, config):
                                   url=url, desc="Link")
         break
 
-    os.mknod(os.path.join(series_dir, ".pw_done"))
+    os.mknod(os.path.join(task_dir, ".pw_done"))
 
 
 def pw_upload_results(series_dir, pw, config):
@@ -63,17 +63,24 @@ def pw_upload_results(series_dir, pw, config):
         log_end_sec()
 
 
-def _initial_scan(results_dir, pw, config):
-    for root, dirs, _ in os.walk(results_dir):
-        for d in dirs:
-            path = os.path.join(root, d)
-            if not os.path.exists(os.path.join(path, '.tester_done')):
-                log(f"Test for {d} not done")
+def _initial_scan_series(series_root, pw, config):
+    for root, dirs, _ in os.walk(series_root):
+        for task in dirs:
+            path = os.path.join(root, task)
+            if not os.path.exists(os.path.join(path, 'done')):
+                log(f"No task result for {task}")
                 continue
-            if os.path.exists(os.path.join(path, '.pw_done')):
-                log(f"Already uploaded {d}")
+            if os.path.exists(os.path.join(path, 'done_pw')):
+                log(f"Already uploaded {task}")
                 continue
             pw_upload_results(path, pw, config)
+        break
+
+
+def _initial_scan(results_dir, pw, config):
+    for root, dirs, _ in os.walk(results_dir):
+        for series in dirs:
+            _initial_scan_series(series, pw, config)
         break
 
 
@@ -88,9 +95,9 @@ def initial_scan(results_dir, pw, config):
 def on_created(event):
     global PW
 
-    series_dir = os.path.dirname(event.src_path)
+    task_dir = os.path.dirname(event.src_path)
     log('Async event for ' + event.src_path)
-    pw_upload_results(series_dir, PW, CONFIG)
+    pw_upload_results(task_dir, PW, CONFIG)
 
 
 def watch_scan(results_dir, pw, config):
@@ -99,7 +106,7 @@ def watch_scan(results_dir, pw, config):
     PW = pw
     CONFIG = config
 
-    event_handler = PatternMatchingEventHandler(patterns=['*.tester_done'],
+    event_handler = PatternMatchingEventHandler(patterns=['*done'],
                                                 ignore_patterns=[],
                                                 ignore_directories=True,
                                                 case_sensitive=True)
