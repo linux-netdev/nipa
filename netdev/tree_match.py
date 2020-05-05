@@ -10,7 +10,7 @@ from core import log, log_open_sec, log_end_sec
 
 
 def series_tree_name_direct(series):
-    for t in ['net-next', 'net', 'bpf-next', 'bpf']:
+    for t in ['net-next', 'net']:
         if re.match(r'\[.*{pfx}.*\]'.format(pfx=t), series.subject):
             return t
 
@@ -40,13 +40,9 @@ def _tree_name_should_be_local_files(raw_email):
     }
     required_files = {
         'net/',
-        'kernel/bpf/',
         'drivers/net/',
         'drivers/net/ethernet/',
-        'tools/bpf/'
-        'tools/lib/bpf/',
-        'tools/testing/selftests/net/',
-        'tools/testing/selftests/bpf/'
+        'tools/testing/selftests/net/'
     }
     excluded_files = {
         'drivers/net/wireless/',

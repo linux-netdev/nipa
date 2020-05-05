@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0
 #
 # Copyright (C) 2019 Netronome Systems, Inc.
+# Copyright (c) 2020 Facebook
 
 import configparser
 import datetime
@@ -28,15 +29,13 @@ log_init(config.get('log', 'type', fallback='org'),
                                                          "poller.org")))
 
 state = {
-    'last_poll': str(datetime.datetime.utcnow() - datetime.timedelta(days=3)),
+    'last_poll': str(datetime.datetime.utcnow() - datetime.timedelta(hours=2)),
     'last_id': 0,
 }
 
 trees = {
-    "net-next": Tree("net-next", "net-next", "net-next", "net-next"),
-    "bpf-next": Tree("bpf-next", "bpf-next", "bpf-next", "bpf-next"),
-    "net": Tree("net", "net", "net", "net"),
-    "bpf": Tree("bpf", "bpf", "bpf", "bpf")
+    "net-next": Tree("net-next", "net-next", "../net-next", "net-next"),
+    "net": Tree("net", "net", "../net", "net"),
 }
 
 tester = Tester(config.get('results', 'dir',
@@ -125,8 +124,6 @@ try:
                     log_open_sec('Series should have had a tree designation')
                     if netdev.series_is_a_fix_for(s, trees["net"]):
                         s.tree_name = "net"
-                    elif netdev.series_is_a_fix_for(s, trees["bpf"]):
-                        s.tree_name = "bpf"
                     elif trees["net-next"].check_applies(s):
                         s.tree_name = "net-next"
 
