@@ -9,6 +9,7 @@ import datetime
 import json
 import os
 import time
+from typing import Dict
 
 from core import NIPA_DIR
 from core import log, log_open_sec, log_end_sec, log_init
@@ -19,141 +20,158 @@ from pw import PwSeries
 import netdev
 
 
-# Init state
-
-config = configparser.ConfigParser()
-config.read(['nipa.config', 'pw.config', 'poller.config'])
-
-log_init(config.get('log', 'type', fallback='org'),
-         config.get('log', 'file', fallback=os.path.join(NIPA_DIR,
-                                                         "poller.org")))
-
-state = {
-    'last_poll': (datetime.datetime.utcnow() - datetime.timedelta(hours=2)).timestamp(),
-    'last_id': 0,
-}
-
-trees = {
-    "net-next": Tree("net-next", "net-next", "../net-next", "net-next"),
-    "net": Tree("net", "net", "../net", "net"),
-}
-
-tester = Tester(config.get('results', 'dir',
-                           fallback=os.path.join(NIPA_DIR, "results")))
-
-# Read the state file
-try:
-    with open('poller.state', 'r') as f:
-        loaded = json.load(f)
-
-        for k in state.keys():
-            state[k] = loaded[k]
-except FileNotFoundError:
+class IncompleteSeries(Exception):
     pass
 
-# Prep
-pw = Patchwork(config)
 
-partial_series = 0
-partial_series_id = 0
-prev_time = state['last_poll']
+class PwPoller:
+    def __init__(self) -> None:
+        config = configparser.ConfigParser()
+        config.read(['nipa.config', 'pw.config', 'poller.config'])
 
-# Loop
-try:
-    while True:
-        poll_ival = 120
-        prev_time = state['last_poll']
-        prev_time_obj = datetime.datetime.fromtimestamp(prev_time)
-        since = prev_time_obj - datetime.timedelta(minutes=4)
-        state['last_poll'] = datetime.datetime.utcnow().timestamp()
+        log_init(config.get('log', 'type', fallback='org'),
+                 config.get('log', 'file', fallback=os.path.join(NIPA_DIR,
+                                                                 "poller.org")))
 
-        log_open_sec(f"Checking at {state['last_poll']} since {since}")
+        # TODO: make this non-static / read from a config
+        self._trees = {
+            "net-next": Tree("net-next", "net-next", "../net-next", "net-next"),
+            "net": Tree("net", "net", "../net", "net"),
+        }
 
-        json_resp = pw.get_series_all(since=since)
-        log(f"Loaded {len(json_resp)} series", "")
+        self._tester = Tester(config.get('results', 'dir',
+                                         fallback=os.path.join(NIPA_DIR, "results")))
 
-        pw_series = {}
-        for pw_series in json_resp:
-            log_open_sec(f"Checking series {pw_series['id']} " +
-                         f"with {pw_series['total']} patches")
+        self._pw = Patchwork(config)
 
-            if pw_series['id'] <= state['last_id']:
-                log(f"Already seen {pw_series['id']}", "")
-                log_end_sec()
-                continue
+        self._state = {
+            'last_poll': (datetime.datetime.utcnow() - datetime.timedelta(hours=2)).timestamp(),
+            'last_id': 0,
+        }
+        self.init_state_from_disk()
 
-            s = PwSeries(pw, pw_series)
+    def init_state_from_disk(self) -> None:
+        try:
+            with open('poller.state', 'r') as f:
+                loaded = json.load(f)
 
-            log("Series info",
-                f"Series ID {s['id']}\n" +
-                f"Series title {s['name']}\n" +
-                f"Author {s['submitter']['name']}\n" +
-                f"Date {s['date']}")
-            log_open_sec('Patches')
-            for p in s['patches']:
-                log(p['name'], "")
+                for k in self._state.keys():
+                    self._state[k] = loaded[k]
+        except FileNotFoundError:
+            pass
+
+    def process_series(self, pw_series) -> None:
+        log_open_sec(f"Checking series {pw_series['id']} " +
+                     f"with {pw_series['total']} patches")
+
+        if pw_series['id'] <= self._state['last_id']:
+            log(f"Already seen {pw_series['id']}", "")
             log_end_sec()
+            return
 
-            if not s['received_all']:
-                if partial_series < 4 or partial_series_id != s['id']:
-                    log("Partial series, retrying later", "")
-                    try:
-                        series_time = datetime.datetime.strptime(s['date'], '%Y-%m-%dT%H:%M:%S')
-                        state['last_poll'] = \
-                            (series_time - datetime.timedelta(minutes=4)).timestamp()
-                    except:
-                        state['last_poll'] = prev_time
-                    poll_ival = 30
-                    log_end_sec()
-                    break
-                else:
-                    log("Partial series, happened too many times, ignoring", "")
-                    log_end_sec()
-                    continue
+        s = PwSeries(self._pw, pw_series)
 
-            log_open_sec('Determining the tree')
-            s.tree_name = netdev.series_tree_name_direct(s)
-            s.tree_marked = False
-            if s.tree_name:
-                log(f'Series is clearly designated for: {s.tree_name}', "")
-                s.tree_marked = True
-            elif netdev.series_tree_name_should_be_local(s):
-                if netdev.series_ignore_missing_tree_name(s):
-                    log('Okay to ignore lack of tree in subject', "")
-                else:
-                    log_open_sec('Series should have had a tree designation')
-                    if netdev.series_is_a_fix_for(s, trees["net"]):
-                        s.tree_name = "net"
-                    elif trees["net-next"].check_applies(s):
-                        s.tree_name = "net-next"
-
-                    if s.tree_name:
-                        log(f"Target tree - {s.tree_name}", "")
-                    else:
-                        log("Target tree not found", "")
-                    log_end_sec()
-            else:
-                log("No tree designation found or guessed", "")
-            log_end_sec()
-
-            if s.tree_name:
-                series_ret, patch_ret = \
-                    tester.test_series(trees[s.tree_name], s)
-            log_end_sec()
-
-            state['last_id'] = s['id']
-
-        if state['last_poll'] == prev_time:
-            partial_series += 1
-            partial_series_id = pw_series['id']
-        else:
-            partial_series = 0
-
-        time.sleep(poll_ival)
+        log("Series info",
+            f"Series ID {s['id']}\n" +
+            f"Series title {s['name']}\n" +
+            f"Author {s['submitter']['name']}\n" +
+            f"Date {s['date']}")
+        log_open_sec('Patches')
+        for p in s['patches']:
+            log(p['name'], "")
         log_end_sec()
-finally:
-    # We may have not completed the last poll
-    state['last_poll'] = prev_time
-    # Dump state
-    with open('poller.state', 'w') as f:
-        loaded = json.dump(state, f)
+
+        if not s['received_all']:
+            raise IncompleteSeries
+
+        log_open_sec('Determining the tree')
+        s.tree_name = netdev.series_tree_name_direct(s)
+        s.tree_marked = False
+        if s.tree_name:
+            log(f'Series is clearly designated for: {s.tree_name}', "")
+            s.tree_marked = True
+        elif netdev.series_tree_name_should_be_local(s):
+            if netdev.series_ignore_missing_tree_name(s):
+                log('Okay to ignore lack of tree in subject', "")
+            else:
+                log_open_sec('Series should have had a tree designation')
+                if netdev.series_is_a_fix_for(s, self._trees["net"]):
+                    s.tree_name = "net"
+                elif self._trees["net-next"].check_applies(s):
+                    s.tree_name = "net-next"
+
+                if s.tree_name:
+                    log(f"Target tree - {s.tree_name}", "")
+                else:
+                    log("Target tree not found", "")
+                log_end_sec()
+        else:
+            log("No tree designation found or guessed", "")
+        log_end_sec()
+
+        if s.tree_name:
+            series_ret, patch_ret = \
+                self._tester.test_series(self._trees[s.tree_name], s)
+        log_end_sec()
+
+        self._state['last_id'] = s['id']
+
+    def run(self) -> None:
+        partial_series = 0
+        partial_series_id = 0
+        prev_time = self._state['last_poll']
+
+        # Loop
+        try:
+            while True:
+                poll_ival = 120
+                prev_time = self._state['last_poll']
+                prev_time_obj = datetime.datetime.fromtimestamp(prev_time)
+                since = prev_time_obj - datetime.timedelta(minutes=4)
+                self._state['last_poll'] = datetime.datetime.utcnow().timestamp()
+
+                log_open_sec(f"Checking at {self._state['last_poll']} since {since}")
+
+                json_resp = self._pw.get_series_all(since=since)
+                log(f"Loaded {len(json_resp)} series", "")
+
+                pw_series = {}
+                for pw_series in json_resp:
+                    try:
+                        self.process_series(pw_series)
+                    except IncompleteSeries:
+                        if partial_series < 4 or partial_series_id != pw_series['id']:
+                            log("Partial series, retrying later", "")
+                            try:
+                                series_time = datetime.datetime.strptime(pw_series['date'], '%Y-%m-%dT%H:%M:%S')
+                                self._state['last_poll'] = \
+                                    (series_time - datetime.timedelta(minutes=4)).timestamp()
+                            except:
+                                self._state['last_poll'] = prev_time
+                            poll_ival = 30
+                            log_end_sec()
+                            break
+                        else:
+                            log("Partial series, happened too many times, ignoring", "")
+                            log_end_sec()
+                            continue
+
+                if self._state['last_poll'] == prev_time:
+                    partial_series += 1
+                    partial_series_id = pw_series['id']
+                else:
+                    partial_series = 0
+
+                time.sleep(poll_ival)
+                log_end_sec()
+        finally:
+            # We may have not completed the last poll
+            self._state['last_poll'] = prev_time
+            # Dump state
+            with open('poller.state', 'w') as f:
+                json.dump(self._state, f)
+
+
+if __name__ == "__main__":
+    poller = PwPoller()
+    poller.run()
