@@ -1,4 +1,5 @@
-pooler.state*
+poller.state*
+*.config
+*.org
 __pycache__/
 results/
-log.org
