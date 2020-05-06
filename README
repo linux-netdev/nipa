@@ -6,6 +6,8 @@ NIPA - Netdev Infrastructure for Patch Automation
 
 Patches are not tested reliably against existing tests.
 
+# TODO: make sure we don't do code exec (e.g. don't run checkpatch if patch touches it)
+
 Goals
 =====
 
