@@ -140,7 +140,7 @@ class PwPoller:
                     try:
                         self.process_series(pw_series)
                     except IncompleteSeries:
-                        if partial_series < 4 or partial_series_id != pw_series['id']:
+                        if partial_series < 10 or partial_series_id != pw_series['id']:
                             log("Partial series, retrying later", "")
                             try:
                                 series_time = datetime.datetime.strptime(pw_series['date'], '%Y-%m-%dT%H:%M:%S')
