@@ -29,7 +29,7 @@ def is_int(s):
 
 def _pw_upload_results(series_dir, pw, config):
     series = os.path.basename(series_dir)
-    result_server = config.get('results', 'server', fallback='file:///')
+    result_server = config.get('results', 'server', fallback='https://google.com')
     for root, dirs, _ in os.walk(series_dir):
         for patch in dirs:
             # TODO: do something with series checks
