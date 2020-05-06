@@ -29,7 +29,7 @@ log_init(config.get('log', 'type', fallback='org'),
                                                          "poller.org")))
 
 state = {
-    'last_poll': str(datetime.datetime.utcnow() - datetime.timedelta(hours=2)),
+    'last_poll': (datetime.datetime.utcnow() - datetime.timedelta(hours=2)).timestamp(),
     'last_id': 0,
 }
 
@@ -63,9 +63,9 @@ try:
     while True:
         poll_ival = 120
         prev_time = state['last_poll']
-        prev_time_obj = datetime.datetime.fromisoformat(prev_time)
+        prev_time_obj = datetime.datetime.fromtimestamp(prev_time)
         since = prev_time_obj - datetime.timedelta(minutes=4)
-        state['last_poll'] = str(datetime.datetime.utcnow())
+        state['last_poll'] = datetime.datetime.utcnow().timestamp()
 
         log_open_sec(f"Checking at {state['last_poll']} since {since}")
 
@@ -98,9 +98,9 @@ try:
                 if partial_series < 4 or partial_series_id != s['id']:
                     log("Partial series, retrying later", "")
                     try:
-                        series_time = datetime.datetime.fromisoformat(s['date'])
+                        series_time = datetime.datetime.strptime(s['date'], '%Y-%m-%dT%H:%M:%S')
                         state['last_poll'] = \
-                            str(series_time - datetime.timedelta(minutes=4))
+                            (series_time - datetime.timedelta(minutes=4)).timestamp()
                     except:
                         state['last_poll'] = prev_time
                     poll_ival = 30
