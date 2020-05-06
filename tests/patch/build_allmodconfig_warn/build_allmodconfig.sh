@@ -3,7 +3,7 @@
 #
 # Copyright (C) 2019 Netronome Systems, Inc.
 
-cc="ccache gcc-9"
+cc="ccache gcc"
 output_dir=build_allmodconfig_warn/
 ncpu=$(grep -c processor /proc/cpuinfo)
 build_flags="-j $ncpu W=1 C=1"
