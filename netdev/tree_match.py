@@ -32,6 +32,11 @@ def _file_name_match_dotted(pfx, fn):
 
 
 def _tree_name_should_be_local_files(raw_email):
+    """
+    Returns True: patch should have been explicitly designated for local tree
+            False: patch has nothing to do with local trees
+            None: patch has mixed contents, it touches local code, but also code outside
+    """
     acceptable_files = {
         'CREDITS',
         'MAINTAINERS',
@@ -50,6 +55,7 @@ def _tree_name_should_be_local_files(raw_email):
     }
     all_files = acceptable_files.union(required_files)
     required_found = False
+    foreign_found = False
 
     lines = raw_email.split('\n')
     regex = re.compile(r'^\s*([-\w/._]+)\s+\|\s+\d+\s*[-+]*\s*$')
@@ -83,11 +89,14 @@ def _tree_name_should_be_local_files(raw_email):
         log_end_sec()
         if not found:
             log(f'File name {file_name} was not matched by any list', "")
-            return False
+            foreign_found = True
 
+    log(f'Required found: {required_found}, foreign_found: {foreign_found}', "")
     if not required_found:
-        log('No required files found', "")
-    return required_found
+        return False
+    if foreign_found:
+        return None
+    return True
 
 
 def _tree_name_should_be_local(raw_email):
@@ -97,10 +106,17 @@ def _tree_name_should_be_local(raw_email):
 def series_tree_name_should_be_local(series):
     if series.cover_letter:
         return _tree_name_should_be_local(series.cover_letter)
+
+    ret = True
     for p in series.patches:
-        if not _tree_name_should_be_local(p.raw_patch):
+        # Returns tri-state True, None, False. And works well:
+        #     True and None -> None
+        #     True and False -> False
+        #     False and None -> False
+        ret = ret and _tree_name_should_be_local(p.raw_patch)
+        if ret == False:
             return False
-    return True
+    return ret
 
 
 def _ignore_missing_tree_name(subject):

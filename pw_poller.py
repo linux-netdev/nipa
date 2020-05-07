@@ -60,6 +60,43 @@ class PwPoller:
         except FileNotFoundError:
             pass
 
+    def series_determine_tree(self, s: PwSeries) -> None:
+        log_open_sec('Determining the tree')
+        s.tree_name = netdev.series_tree_name_direct(s)
+        s.tree_mark_expected = True
+        s.tree_marked = bool(s.tree_name)
+
+        if s.tree_name:
+            log(f'Series is clearly designated for: {s.tree_name}', "")
+            log_end_sec()
+            return
+
+        s.tree_mark_expected = netdev.series_tree_name_should_be_local(s)
+        if s.tree_mark_expected == False:
+            log("No tree designation found or guessed", "")
+            log_end_sec()
+            return
+
+        if netdev.series_ignore_missing_tree_name(s):
+            s.tree_mark_expected = None
+            log('Okay to ignore lack of tree in subject, ignoring series', "")
+            log_end_sec()
+            return
+
+        log_open_sec('Series should have had a tree designation')
+        if netdev.series_is_a_fix_for(s, self._trees["net"]):
+            s.tree_name = "net"
+        elif self._trees["net-next"].check_applies(s):
+            s.tree_name = "net-next"
+
+        if s.tree_name:
+            log(f"Target tree - {s.tree_name}", "")
+        else:
+            log("Target tree not found", "")
+        log_end_sec()
+
+        log_end_sec()
+
     def process_series(self, pw_series) -> None:
         log_open_sec(f"Checking series {pw_series['id']} " +
                      f"with {pw_series['total']} patches")
@@ -84,32 +121,9 @@ class PwPoller:
         if not s['received_all']:
             raise IncompleteSeries
 
-        log_open_sec('Determining the tree')
-        s.tree_name = netdev.series_tree_name_direct(s)
-        s.tree_marked = False
-        if s.tree_name:
-            log(f'Series is clearly designated for: {s.tree_name}', "")
-            s.tree_marked = True
-        elif netdev.series_tree_name_should_be_local(s):
-            if netdev.series_ignore_missing_tree_name(s):
-                log('Okay to ignore lack of tree in subject', "")
-            else:
-                log_open_sec('Series should have had a tree designation')
-                if netdev.series_is_a_fix_for(s, self._trees["net"]):
-                    s.tree_name = "net"
-                elif self._trees["net-next"].check_applies(s):
-                    s.tree_name = "net-next"
+        self.series_determine_tree(s)
 
-                if s.tree_name:
-                    log(f"Target tree - {s.tree_name}", "")
-                else:
-                    log("Target tree not found", "")
-                log_end_sec()
-        else:
-            log("No tree designation found or guessed", "")
-        log_end_sec()
-
-        if s.tree_name:
+        if hasattr(s, 'tree_name') and s.tree_name:
             series_ret, patch_ret = \
                 self._tester.test_series(self._trees[s.tree_name], s)
         log_end_sec()
