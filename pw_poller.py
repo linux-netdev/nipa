@@ -61,6 +61,8 @@ class PwPoller:
             pass
 
     def series_determine_tree(self, s: PwSeries) -> None:
+        # TODO: upload tree selection as a result
+
         log_open_sec('Determining the tree')
         s.tree_name = netdev.series_tree_name_direct(s)
         s.tree_mark_expected = True
