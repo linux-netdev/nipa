@@ -66,8 +66,8 @@ def cmd_run(cmd, shell=True, include_stderr=False):
     core.log_open_sec("CMD " + process.args)
 
     stdout, stderr = process.communicate()
-    stdout = stdout.decode("utf-8")
-    stderr = stderr.decode("utf-8")
+    stdout = stdout.decode("utf-8", "ignore")
+    stderr = stderr.decode("utf-8", "ignore")
     process.stdout.close()
     process.stderr.close()
 
