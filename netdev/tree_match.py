@@ -104,6 +104,7 @@ def _tree_name_should_be_local(raw_email):
 
 
 def series_tree_name_should_be_local(series):
+    # TODO: always parse patches and match on the --- a/$path lines, to avoid the .../ problem
     if series.cover_letter:
         return _tree_name_should_be_local(series.cover_letter)
 
