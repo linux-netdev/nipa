@@ -30,11 +30,36 @@ def is_int(s):
 def _pw_upload_results(series_dir, pw, config):
     series = os.path.basename(series_dir)
     result_server = config.get('results', 'server', fallback='https://google.com')
+
+    # Collect series checks first
+    series_results = []
+    for root, dirs, _ in os.walk(series_dir):
+        for test in dirs:
+            if is_int(test):
+                continue
+
+            url = f"{result_server}/{series}/{test}"
+
+            state_path = os.path.join(series_dir, test, "retcode")
+            with open(state_path, "r") as f:
+                if f.read() == "0":
+                    state = PatchworkCheckState.SUCCESS
+                else:
+                    state = PatchworkCheckState.FAIL
+
+            series_results.append((test, state, url, "Link"))
+
     for root, dirs, _ in os.walk(series_dir):
         for patch in dirs:
-            # TODO: do something with series checks
             if not is_int(patch):
                 continue
+
+            for series_result in series_results:
+                pw.post_check(patch=patch,
+                              name=series_result[0],
+                              state=series_result[1],
+                              url=series_result[2],
+                              desc=series_result[3])
 
             patch_dir = os.path.join(root, patch)
             for _, test_dirs, _ in os.walk(patch_dir):
