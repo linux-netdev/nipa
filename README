@@ -187,7 +187,8 @@ flags (extra warnings and sparse checks enabled).
 This check is separate from the normal build test to allow more
 leniency as needed.
 
-TODO
-====
-
-32 bit build
+TODO: 32 bit build
+TODO: build one-by-one for diff
+TODO: summaries
+TODO: make checkpatch summarize failure types
+TODO: add a help thingie that determines stable tree automatically

@@ -140,6 +140,7 @@ class PwPoller:
         # Loop
         try:
             while True:
+                # TODO: keep series selection as a set, and check for series from last 12 hours every 3 hours
                 poll_ival = 120
                 prev_time = self._state['last_poll']
                 prev_time_obj = datetime.datetime.fromtimestamp(prev_time)
