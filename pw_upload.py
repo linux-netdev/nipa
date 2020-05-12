@@ -49,6 +49,8 @@ def _pw_upload_results(series_dir, pw, config):
 
             series_results.append((test, state, url, "Link"))
 
+        break
+
     for root, dirs, _ in os.walk(series_dir):
         for patch in dirs:
             if not is_int(patch):
