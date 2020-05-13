@@ -60,9 +60,7 @@ class PwPoller:
         except FileNotFoundError:
             pass
 
-    def series_determine_tree(self, s: PwSeries) -> None:
-        # TODO: upload tree selection as a result
-
+    def series_determine_tree(self, s: PwSeries) -> str:
         log_open_sec('Determining the tree')
         s.tree_name = netdev.series_tree_name_direct(s)
         s.tree_mark_expected = True
@@ -71,19 +69,19 @@ class PwPoller:
         if s.tree_name:
             log(f'Series is clearly designated for: {s.tree_name}', "")
             log_end_sec()
-            return
+            return f"Clearly marked for {s.tree_name}"
 
         s.tree_mark_expected = netdev.series_tree_name_should_be_local(s)
         if s.tree_mark_expected == False:
             log("No tree designation found or guessed", "")
             log_end_sec()
-            return
+            return "Not a local patch"
 
         if netdev.series_ignore_missing_tree_name(s):
             s.tree_mark_expected = None
             log('Okay to ignore lack of tree in subject, ignoring series', "")
             log_end_sec()
-            return
+            return "Series ignored based on subject"
 
         log_open_sec('Series should have had a tree designation')
         if netdev.series_is_a_fix_for(s, self._trees["net"]):
@@ -93,11 +91,14 @@ class PwPoller:
 
         if s.tree_name:
             log(f"Target tree - {s.tree_name}", "")
+            res = f"Guessed tree name to be {s.tree_name}"
         else:
             log("Target tree not found", "")
+            res = "Guessing tree name failed - patch did not apply"
         log_end_sec()
 
         log_end_sec()
+        return res
 
     def process_series(self, pw_series) -> None:
         log_open_sec(f"Checking series {pw_series['id']} " +
@@ -123,11 +124,21 @@ class PwPoller:
         if not s['received_all']:
             raise IncompleteSeries
 
-        self.series_determine_tree(s)
+        comment = self.series_determine_tree(s)
 
         if hasattr(s, 'tree_name') and s.tree_name:
             series_ret, patch_ret = \
                 self._tester.test_series(self._trees[s.tree_name], s)
+
+        tree_test_dir = os.path.join(self._tester.result_dir, str(s.id), "tree_selection")
+        if not os.path.exists(tree_test_dir):
+            os.makedirs(tree_test_dir)
+
+        with open(os.path.join(tree_test_dir, "retcode"), "w+") as fp:
+            fp.write("0")
+        with open(os.path.join(tree_test_dir, "desc"), "w+") as fp:
+            fp.write(comment)
+
         log_end_sec()
 
         self._state['last_id'] = s['id']

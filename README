@@ -190,5 +190,7 @@ leniency as needed.
 TODO: 32 bit build
 TODO: build one-by-one for diff
 TODO: summaries
+TODO: differentiate between errors and warnings
 TODO: make checkpatch summarize failure types
 TODO: add a help thingie that determines stable tree automatically
+TODO: make tree selection a proper test

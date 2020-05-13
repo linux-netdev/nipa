@@ -27,6 +27,27 @@ def is_int(s):
         return False
 
 
+class PwTestResult:
+    def __init__(self, test_name: str, root_dir: str, url: str):
+        self.test = test_name
+        self.url = url
+
+        try:
+            with open(os.path.join(root_dir, test_name, "retcode"), "r") as f:
+                if f.read() == "0":
+                    self.state = PatchworkCheckState.SUCCESS
+                else:
+                    self.state = PatchworkCheckState.FAIL
+        except FileNotFoundError:
+            self.state = PatchworkCheckState.FAIL
+
+        try:
+            with open(os.path.join(root_dir, test_name, "desc"), "r") as f:
+                self.desc = f.read()
+        except FileNotFoundError:
+            self.desc = "Link"
+
+
 def _pw_upload_results(series_dir, pw, config):
     series = os.path.basename(series_dir)
     result_server = config.get('results', 'server', fallback='https://google.com')
@@ -38,16 +59,8 @@ def _pw_upload_results(series_dir, pw, config):
             if is_int(test):
                 continue
 
-            url = f"{result_server}/{series}/{test}"
-
-            state_path = os.path.join(series_dir, test, "retcode")
-            with open(state_path, "r") as f:
-                if f.read() == "0":
-                    state = PatchworkCheckState.SUCCESS
-                else:
-                    state = PatchworkCheckState.FAIL
-
-            series_results.append((test, state, url, "Link"))
+            tr = PwTestResult(test, series_dir, f"{result_server}/{series}/{test}")
+            series_results.append(tr)
 
         break
 
@@ -56,27 +69,16 @@ def _pw_upload_results(series_dir, pw, config):
             if not is_int(patch):
                 continue
 
-            for series_result in series_results:
-                pw.post_check(patch=patch,
-                              name=series_result[0],
-                              state=series_result[1],
-                              url=series_result[2],
-                              desc=series_result[3])
+            for tr in series_results:
+                pw.post_check(patch=patch, name=tr.test, state=tr.state, url=tr.url, desc=tr.desc)
 
             patch_dir = os.path.join(root, patch)
             for _, test_dirs, _ in os.walk(patch_dir):
                 for test in test_dirs:
-                    url = f"{result_server}/{series}/{patch}/{test}"
 
-                    state_path = os.path.join(patch_dir, test, "retcode")
-                    with open(state_path, "r") as f:
-                        if f.read() == "0":
-                            state = PatchworkCheckState.SUCCESS
-                        else:
-                            state = PatchworkCheckState.FAIL
+                    tr = PwTestResult(test, patch_dir, f"{result_server}/{series}/{patch}/{test}")
+                    pw.post_check(patch=patch, name=tr.test, state=tr.state, url=tr.url, desc=tr.desc)
 
-                    pw.post_check(patch=patch, name=test, state=state,
-                                  url=url, desc="Link")
         break
 
     os.mknod(os.path.join(series_dir, ".pw_done"))
