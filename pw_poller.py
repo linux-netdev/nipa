@@ -139,6 +139,10 @@ class PwPoller:
         with open(os.path.join(tree_test_dir, "desc"), "w+") as fp:
             fp.write(comment)
 
+        done_file = os.path.join(self._tester.result_dir, str(s.id), ".tester_done")
+        if not os.path.exists(done_file):
+            os.mknod(done_file)
+
         log_end_sec()
 
         self._state['last_id'] = s['id']
