@@ -85,7 +85,7 @@ def _pw_upload_results(series_dir, pw, config):
 
 
 def pw_upload_results(series_dir, pw, config):
-    log_open_sec('Upload initial')
+    log_open_sec('Upload results')
     try:
         _pw_upload_results(series_dir, pw, config)
     finally:
