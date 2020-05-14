@@ -56,7 +56,7 @@ class PwPoller:
             with open('poller.state', 'r') as f:
                 loaded = json.load(f)
 
-                for k in self._state.keys():
+                for k in loaded.keys():
                     self._state[k] = loaded[k]
         except FileNotFoundError:
             pass
