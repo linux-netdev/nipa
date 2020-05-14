@@ -46,9 +46,10 @@ class PwPoller:
 
         self._state = {
             'last_poll': (datetime.datetime.utcnow() - datetime.timedelta(hours=2)).timestamp(),
-            'last_id': 0,
+            'seen_series': [],
         }
         self.init_state_from_disk()
+        self.seen_series = set(self._state['seen_series'])
 
     def init_state_from_disk(self) -> None:
         try:
@@ -128,7 +129,7 @@ class PwPoller:
         log_open_sec(f"Checking series {pw_series['id']} " +
                      f"with {pw_series['total']} patches")
 
-        if pw_series['id'] <= self._state['last_id']:
+        if pw_series['id'] in self.seen_series:
             log(f"Already seen {pw_series['id']}", "")
             log_end_sec()
             return
@@ -158,60 +159,64 @@ class PwPoller:
 
         log_end_sec()
 
-        self._state['last_id'] = s['id']
+        self.seen_series.add(s['id'])
 
     def run(self) -> None:
-        partial_series = 0
-        partial_series_id = 0
-        prev_time = self._state['last_poll']
+        partial_series = {}
 
-        # Loop
+        prev_big_scan = datetime.datetime.fromtimestamp(self._state['last_poll'])
+        prev_req_time = datetime.datetime.utcnow()
+
+        # We poll every 2 minutes, for series from last 4 minutes
+        # Every 3 hours we do a larger check of series of last 12 hours to make sure we didn't miss anything
+        # apparently patchwork uses the time from the email headers and people back date their emails, a lot
+        # We keep a history of the series we've seen in and since the last big poll to not process twice
         try:
             while True:
-                # TODO: keep series selection as a set, and check for series from last 12 hours every 3 hours
-                poll_ival = 120
-                prev_time = self._state['last_poll']
-                prev_time_obj = datetime.datetime.fromtimestamp(prev_time)
-                since = prev_time_obj - datetime.timedelta(minutes=4)
-                self._state['last_poll'] = datetime.datetime.utcnow().timestamp()
+                this_poll_seen = set()
+                req_time = datetime.datetime.utcnow()
 
-                log_open_sec(f"Checking at {self._state['last_poll']} since {since}")
+                # Decide if this is a normal 4 minute history poll or big scan of last 12 hours
+                if prev_big_scan + datetime.timedelta(hours=3) < req_time:
+                    big_scan = True
+                    since = prev_big_scan - datetime.timedelta(hours=9)
+                    log_open_sec(f"Big scan of last 12 hours at {self._state['last_poll']} since {since}")
+                else:
+                    big_scan = False
+                    since = prev_req_time - datetime.timedelta(minutes=4)
+                    log_open_sec(f"Checking at {self._state['last_poll']} since {since}")
 
                 json_resp = self._pw.get_series_all(since=since)
                 log(f"Loaded {len(json_resp)} series", "")
 
-                pw_series = {}
+                had_partial_series = False
                 for pw_series in json_resp:
                     try:
                         self.process_series(pw_series)
+                        this_poll_seen.add(pw_series['id'])
                     except IncompleteSeries:
-                        if partial_series < 10 or partial_series_id != pw_series['id']:
-                            log("Partial series, retrying later", "")
-                            try:
-                                series_time = datetime.datetime.strptime(pw_series['date'], '%Y-%m-%dT%H:%M:%S')
-                                self._state['last_poll'] = \
-                                    (series_time - datetime.timedelta(minutes=4)).timestamp()
-                            except:
-                                self._state['last_poll'] = prev_time
-                            poll_ival = 30
-                            log_end_sec()
-                            break
-                        else:
-                            log("Partial series, happened too many times, ignoring", "")
-                            log_end_sec()
-                            continue
+                        partial_series.setdefault(pw_series['id'], 0)
+                        if partial_series[pw_series['id']] < 5:
+                            had_partial_series = True
+                        partial_series[pw_series['id']] += 1
 
-                if self._state['last_poll'] == prev_time:
-                    partial_series += 1
-                    partial_series_id = pw_series['id']
+                        continue
+
+                if big_scan:
+                    prev_req_time = req_time
+                    prev_big_scan = req_time
+                    # Shorten the history of series we've seen to just the last 12 hours
+                    self.seen_series = this_poll_seen
+                elif had_partial_series:
+                    log("Partial series, not moving time forward", "")
                 else:
-                    partial_series = 0
+                    prev_req_time = req_time
 
-                time.sleep(poll_ival)
+                time.sleep(120)
                 log_end_sec()
         finally:
-            # We may have not completed the last poll
-            self._state['last_poll'] = prev_time
+            self._state['last_poll'] = prev_big_scan.timestamp()
+            self._state['seen_series'] = list(self.seen_series)
             # Dump state
             with open('poller.state', 'w') as f:
                 json.dump(self._state, f)
