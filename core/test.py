@@ -61,19 +61,26 @@ class Test(object):
         if not os.path.exists(test_dir):
             os.makedirs(test_dir)
 
-        retcode, out, err = self._exec(tree, thing, result_dir)
+        retcode, out, err, desc = self._exec(tree, thing, result_dir)
 
         # Write out the results
         with open(os.path.join(test_dir, "retcode"), "w+") as fp:
             fp.write(str(retcode))
-        with open(os.path.join(test_dir, "stdout"), "w+") as fp:
-            fp.write(out)
-        with open(os.path.join(test_dir, "stderr"), "w+") as fp:
-            fp.write(err)
+        if out:
+            with open(os.path.join(test_dir, "stdout"), "w+") as fp:
+                fp.write(out)
+        if err:
+            with open(os.path.join(test_dir, "stderr"), "w+") as fp:
+                fp.write(err)
+        if desc:
+            with open(os.path.join(test_dir, "desc"), "w+") as fp:
+                fp.write(err)
         with open(os.path.join(test_dir, "summary"), "w+") as fp:
             fp.write("==========\n")
             if retcode == 0:
                 fp.write("%s - OKAY\n" % (self.name, ))
+            elif retcode == 250:
+                fp.write("%s - WARNING\n" % (self.name, ))
             else:
                 fp.write("%s - FAILED\n" % (self.name,))
                 fp.write("\n")
@@ -94,7 +101,8 @@ class Test(object):
         if "run" in self.info:
             return self._exec_run(tree, thing, result_dir)
         elif "pymod" in self.info:
-            return self._exec_pyfunc(tree, thing, result_dir)
+            ret, desc = self._exec_pyfunc(tree, thing, result_dir)
+            return ret, "", "", desc
 
     def _exec_run(self, tree, thing, result_dir):
         retcode = 0
@@ -106,4 +114,4 @@ class Test(object):
             out = e.stdout
             err = e.stderr
 
-        return retcode, out, err
+        return retcode, out, err, ""

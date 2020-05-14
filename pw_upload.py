@@ -34,8 +34,11 @@ class PwTestResult:
 
         try:
             with open(os.path.join(root_dir, test_name, "retcode"), "r") as f:
-                if f.read() == "0":
+                retcode = f.read()
+                if retcode == "0":
                     self.state = PatchworkCheckState.SUCCESS
+                elif retcode == "250":
+                    self.state = PatchworkCheckState.WARNING
                 else:
                     self.state = PatchworkCheckState.FAIL
         except FileNotFoundError:

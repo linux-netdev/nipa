@@ -8,5 +8,5 @@
 
 def cover_letter(tree, thing, result_dir):
     if len(thing.patches) < 3 or thing.cover_letter:
-        return 0, "", ""
-    return 1, "", "Series does not have a cover letter"
+        return 0, ""
+    return 250, "Series does not have a cover letter"

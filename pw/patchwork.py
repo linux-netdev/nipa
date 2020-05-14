@@ -12,6 +12,7 @@ import core
 
 class PatchworkCheckState:
     SUCCESS = "success",
+    WARNING = "warning",
     FAIL = "fail"
 
 
