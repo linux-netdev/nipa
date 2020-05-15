@@ -121,10 +121,13 @@ def initial_scan(results_dir, pw, config):
 
 
 def on_created(event):
-    global PW
+    global PW, CONFIG
 
     series_dir = os.path.dirname(event.src_path)
     log('Async event for ' + event.src_path)
+    if os.path.exists(os.path.join(series_dir, '.pw_done')):
+        log(f"Already uploaded {os.path.basename(series_dir)}")
+        return
     pw_upload_results(series_dir, PW, CONFIG)
 
 
