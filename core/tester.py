@@ -52,6 +52,7 @@ class Tester(object):
         if not os.path.exists(series_dir):
             os.makedirs(series_dir)
         elif os.path.exists(done_file):
+            core.log_end_sec()
             raise TesterAlreadyTested
 
         if not tree.check_applies(series):
