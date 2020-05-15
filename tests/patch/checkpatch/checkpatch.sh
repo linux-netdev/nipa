@@ -13,8 +13,11 @@ tmpfile=$(mktemp)
 
 ./scripts/checkpatch.pl --strict --ignore=$IGNORED -g HEAD | tee $tmpfile
 
-grep '0 errors, 0 warnings, 0 checks' $tmpfile
+grep 'total: 0 errors, 0 warnings, 0 checks' $tmpfile
 ret=$?
+
+# return 250 (warning) if there are not errors
+[ $ret -ne 0 ] && grep -P 'total: 0 errors, \d+ warnings, \d+ checks' && ret=250
 
 rm $tmpfile
 
