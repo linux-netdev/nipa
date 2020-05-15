@@ -85,27 +85,23 @@ class PwPoller:
 
         os.mknod(done_file)
 
-    def series_determine_tree(self, s: PwSeries) -> str:
-        log_open_sec('Determining the tree')
+    def _series_determine_tree(self, s: PwSeries) -> str:
         s.tree_name = netdev.series_tree_name_direct(s)
         s.tree_mark_expected = True
         s.tree_marked = bool(s.tree_name)
 
         if s.tree_name:
             log(f'Series is clearly designated for: {s.tree_name}', "")
-            log_end_sec()
             return f"Clearly marked for {s.tree_name}"
 
         s.tree_mark_expected = netdev.series_tree_name_should_be_local(s)
         if s.tree_mark_expected == False:
             log("No tree designation found or guessed", "")
-            log_end_sec()
             return "Not a local patch"
 
         if netdev.series_ignore_missing_tree_name(s):
             s.tree_mark_expected = None
             log('Okay to ignore lack of tree in subject, ignoring series', "")
-            log_end_sec()
             return "Series ignored based on subject"
 
         log_open_sec('Series should have had a tree designation')
@@ -122,8 +118,16 @@ class PwPoller:
             res = "Guessing tree name failed - patch did not apply"
         log_end_sec()
 
-        log_end_sec()
         return res
+
+    def series_determine_tree(self, s: PwSeries) -> str:
+        log_open_sec('Determining the tree')
+        try:
+            ret = self._series_determine_tree(s)
+        finally:
+            log_end_sec()
+
+        return ret
 
     def _process_series(self, pw_series) -> None:
         if pw_series['id'] in self.seen_series:
