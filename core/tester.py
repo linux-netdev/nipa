@@ -48,22 +48,28 @@ class Tester(object):
                           (tree.name, series.title))
 
         series_dir = os.path.join(self.result_dir, str(series.id))
-        done_file = os.path.join(series_dir, ".tester_done")
         if not os.path.exists(series_dir):
             os.makedirs(series_dir)
-        elif os.path.exists(done_file):
+        elif os.path.exists(os.path.join(series_dir, ".tester_done")):
             core.log_end_sec()
             raise TesterAlreadyTested
 
         if not tree.check_applies(series):
+            series_apply = os.path.join(series_dir, "apply")
+            os.makedirs(series_apply)
+
             already_applied = tree.check_already_applied(series)
             if already_applied:
                 core.log("Series already applied", "")
-                with open(os.path.join(series_dir, "summary"), "w+") as fp:
+                with open(os.path.join(series_apply, "retcode"), "w+") as fp:
+                    fp.write("0")
+                with open(os.path.join(series_apply, "desc"), "w+") as fp:
                     fp.write(f"Patch already applied to {tree.name}")
             else:
                 core.log("Series does not apply", "")
-                with open(os.path.join(series_dir, "summary"), "w+") as fp:
+                with open(os.path.join(series_apply, "retcode"), "w+") as fp:
+                    fp.write("1")
+                with open(os.path.join(series_apply, "desc"), "w+") as fp:
                     fp.write(f"Patch does not apply to {tree.name}")
             core.log_end_sec()
             return [already_applied], [already_applied]
@@ -104,7 +110,5 @@ class Tester(object):
         finally:
             tree.leave()
             core.log_end_sec()
-
-        os.mknod(done_file)
 
         return series_ret, patch_ret
