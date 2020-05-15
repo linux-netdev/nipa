@@ -74,7 +74,7 @@ class Test(object):
                 fp.write(err)
         if desc:
             with open(os.path.join(test_dir, "desc"), "w+") as fp:
-                fp.write(err)
+                fp.write(desc)
         with open(os.path.join(test_dir, "summary"), "w+") as fp:
             fp.write("==========\n")
             if retcode == 0:
