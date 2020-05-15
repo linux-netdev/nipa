@@ -125,13 +125,9 @@ class PwPoller:
         log_end_sec()
         return res
 
-    def process_series(self, pw_series) -> None:
-        log_open_sec(f"Checking series {pw_series['id']} " +
-                     f"with {pw_series['total']} patches")
-
+    def _process_series(self, pw_series) -> None:
         if pw_series['id'] in self.seen_series:
             log(f"Already seen {pw_series['id']}", "")
-            log_end_sec()
             return
 
         s = PwSeries(self._pw, pw_series)
@@ -159,9 +155,14 @@ class PwPoller:
         except TesterAlreadyTested:
             log("Warning: series was already tested!")
 
-        log_end_sec()
-
         self.seen_series.add(s['id'])
+
+    def process_series(self, pw_series) -> None:
+        log_open_sec(f"Checking series {pw_series['id']} with {pw_series['total']} patches")
+        try:
+            self._process_series(pw_series)
+        finally:
+            log_end_sec()
 
     def run(self) -> None:
         partial_series = {}
