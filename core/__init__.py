@@ -22,7 +22,7 @@ import os
 from .logger import log, log_open_sec, log_end_sec, log_init
 from .patch import Patch
 from .test import Test
-from .tester import Tester
+from .tester import Tester, TesterAlreadyTested
 from .tree import Tree
 from .series import Series
 

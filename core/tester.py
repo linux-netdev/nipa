@@ -10,6 +10,10 @@ import core
 from core import Test
 
 
+class TesterAlreadyTested(Exception):
+    pass
+
+
 class Tester(object):
     """The main Test running class
 
@@ -44,8 +48,11 @@ class Tester(object):
                           (tree.name, series.title))
 
         series_dir = os.path.join(self.result_dir, str(series.id))
+        done_file = os.path.join(series_dir, ".tester_done")
         if not os.path.exists(series_dir):
             os.makedirs(series_dir)
+        elif os.path.exists(done_file):
+            raise TesterAlreadyTested
 
         if not tree.check_applies(series):
             already_applied = tree.check_already_applied(series)
@@ -97,6 +104,6 @@ class Tester(object):
             tree.leave()
             core.log_end_sec()
 
-        os.mknod(os.path.join(series_dir, ".tester_done"))
+        os.mknod(done_file)
 
         return series_ret, patch_ret

@@ -13,7 +13,7 @@ from typing import Dict
 
 from core import NIPA_DIR
 from core import log, log_open_sec, log_end_sec, log_init
-from core import Tester
+from core import Tester, TesterAlreadyTested
 from core import Tree
 from pw import Patchwork
 from pw import PwSeries
@@ -151,11 +151,13 @@ class PwPoller:
 
         comment = self.series_determine_tree(s)
 
-        if hasattr(s, 'tree_name') and s.tree_name:
-            series_ret, patch_ret = \
-                self._tester.test_series(self._trees[s.tree_name], s)
+        try:
+            if hasattr(s, 'tree_name') and s.tree_name:
+                series_ret, patch_ret = self._tester.test_series(self._trees[s.tree_name], s)
 
-        self.write_tree_selection_result(s, comment)
+            self.write_tree_selection_result(s, comment)
+        except TesterAlreadyTested:
+            log("Warning: series was already tested!")
 
         log_end_sec()
 
@@ -199,8 +201,6 @@ class PwPoller:
                         if partial_series[pw_series['id']] < 5:
                             had_partial_series = True
                         partial_series[pw_series['id']] += 1
-
-                        continue
 
                 if big_scan:
                     prev_req_time = req_time
