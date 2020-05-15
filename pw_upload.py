@@ -67,6 +67,8 @@ def _pw_upload_results(series_dir, pw, config):
 
         break
 
+    log(f"Found {len(series_results)} series results")
+
     for root, dirs, _ in os.walk(series_dir):
         for patch in dirs:
             if not is_int(patch):
@@ -78,17 +80,18 @@ def _pw_upload_results(series_dir, pw, config):
             patch_dir = os.path.join(root, patch)
             for _, test_dirs, _ in os.walk(patch_dir):
                 for test in test_dirs:
-
                     tr = PwTestResult(test, patch_dir, f"{result_server}/{series}/{patch}/{test}")
                     pw.post_check(patch=patch, name=tr.test, state=tr.state, url=tr.url, desc=tr.desc)
 
+                log(f"Patch {patch} - found {len(test_dirs)} results")
+                break
         break
 
     os.mknod(os.path.join(series_dir, ".pw_done"))
 
 
 def pw_upload_results(series_dir, pw, config):
-    log_open_sec('Upload results')
+    log_open_sec(f'Upload results for {os.path.basename(series_dir)}')
     try:
         _pw_upload_results(series_dir, pw, config)
     finally:
