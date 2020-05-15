@@ -17,7 +17,7 @@ grep 'total: 0 errors, 0 warnings, 0 checks' $tmpfile
 ret=$?
 
 # return 250 (warning) if there are not errors
-[ $ret -ne 0 ] && grep -P 'total: 0 errors, \d+ warnings, \d+ checks' && ret=250
+[ $ret -ne 0 ] && grep -P 'total: 0 errors, \d+ warnings, \d+ checks' $tmpfile && ret=250
 
 rm $tmpfile
 
