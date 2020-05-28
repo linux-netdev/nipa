@@ -5,6 +5,7 @@
 """ OS command running helpers"""
 
 import datetime
+import os
 import subprocess
 
 import core
@@ -34,7 +35,7 @@ class CmdError(Exception):
         self.stderr = stderr
 
 
-def cmd_run(cmd, shell=True, include_stderr=False, env=None, pass_fds=()):
+def cmd_run(cmd, shell=True, include_stderr=False, add_env=None, pass_fds=()):
     """Run a command.
 
     Run a command in subprocess and return the stdout;
@@ -48,7 +49,7 @@ def cmd_run(cmd, shell=True, include_stderr=False, env=None, pass_fds=()):
         invoke command in a full shell
     include_stderr : bool, optional
         return stderr as a second return value
-    env: dict, optional
+    add_env: dict, optional
         additional env variables
     pass_fds : iterable, optional
         pass extra file descriptors to the command
@@ -63,6 +64,9 @@ def cmd_run(cmd, shell=True, include_stderr=False, env=None, pass_fds=()):
     string
         the stdout, optionally stderr as well as a second string value
     """
+
+    env = os.environ.copy()
+    env.update(add_env)
 
     process = subprocess.Popen(cmd, shell=shell, stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE, env=env, pass_fds=pass_fds)
