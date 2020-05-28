@@ -34,7 +34,7 @@ class CmdError(Exception):
         self.stderr = stderr
 
 
-def cmd_run(cmd, shell=True, include_stderr=False):
+def cmd_run(cmd, shell=True, include_stderr=False, env=None, pass_fds=()):
     """Run a command.
 
     Run a command in subprocess and return the stdout;
@@ -48,6 +48,10 @@ def cmd_run(cmd, shell=True, include_stderr=False):
         invoke command in a full shell
     include_stderr : bool, optional
         return stderr as a second return value
+    env: dict, optional
+        additional env variables
+    pass_fds : iterable, optional
+        pass extra file descriptors to the command
 
     Raises
     ------
@@ -61,7 +65,7 @@ def cmd_run(cmd, shell=True, include_stderr=False):
     """
 
     process = subprocess.Popen(cmd, shell=shell, stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE)
+                               stderr=subprocess.PIPE, env=env, pass_fds=pass_fds)
 
     core.log_open_sec("CMD " + process.args)
 

@@ -105,13 +105,24 @@ class Test(object):
             return ret, "", "", desc
 
     def _exec_run(self, tree, thing, result_dir):
+        rfd, wfd = None, None
         retcode = 0
         try:
+            rfd, wfd = os.pipe()
+
             out, err = CMD.cmd_run(os.path.join(self.path, self.info["run"]),
-                                   include_stderr=True)
+                                   include_stderr=True, pass_fds=[wfd],
+                                   env={"DESC_FD": str(wfd)})
         except core.cmd.CmdError as e:
             retcode = e.retcode
             out = e.stdout
             err = e.stderr
 
-        return retcode, out, err, ""
+        desc = ""
+        if rfd is not None:
+            os.close(wfd)
+            read_file = os.fdopen(rfd)
+            desc = read_file.read()
+            read_file.close()
+
+        return retcode, out, err, desc
