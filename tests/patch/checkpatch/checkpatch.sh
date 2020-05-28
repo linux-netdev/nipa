@@ -13,7 +13,7 @@ tmpfile=$(mktemp)
 
 ./scripts/checkpatch.pl --strict --ignore=$IGNORED -g HEAD | tee $tmpfile
 
-grep 'total: ' >&$DESC_FD
+grep 'total: ' $tmpfile >&$DESC_FD
 
 grep 'total: 0 errors, 0 warnings, 0 checks' $tmpfile
 ret=$?
