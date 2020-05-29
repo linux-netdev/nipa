@@ -19,13 +19,13 @@ ret=$?
 # return 250 (warning) if there are not errors
 [ $ret -ne 0 ] && grep -P 'total: 0 errors, \d+ warnings, \d+ checks' $tmpfile && ret=250
 
-rm $tmpfile
-
 if [ $ret -ne 0 ]; then
   grep '\(WARNING\|ERROR\|CHECK\): ' $tmpfile | LC_COLLATE=C sort -u >&$DESC_FD
 else
   grep 'total: ' $tmpfile | LC_COLLATE=C sort -u >&$DESC_FD
 fi
+
+rm $tmpfile
 
 exit $ret
 
