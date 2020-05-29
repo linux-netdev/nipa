@@ -187,11 +187,11 @@ class PwPoller:
                 if prev_big_scan + datetime.timedelta(hours=3) < req_time:
                     big_scan = True
                     since = prev_big_scan - datetime.timedelta(hours=9)
-                    log_open_sec(f"Big scan of last 12 hours at {self._state['last_poll']} since {since}")
+                    log_open_sec(f"Big scan of last 12 hours at {req_time} since {since}")
                 else:
                     big_scan = False
                     since = prev_req_time - datetime.timedelta(minutes=4)
-                    log_open_sec(f"Checking at {self._state['last_poll']} since {since}")
+                    log_open_sec(f"Checking at {req_time} since {since}")
 
                 json_resp = self._pw.get_series_all(since=since)
                 log(f"Loaded {len(json_resp)} series", "")
