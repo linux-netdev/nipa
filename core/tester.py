@@ -13,6 +13,8 @@ from core import Test
 class TesterAlreadyTested(Exception):
     pass
 
+class TesterPrepFailed(Exception):
+    pass
 
 class Tester(object):
     """The main Test running class
@@ -86,7 +88,8 @@ class Tester(object):
                 series_ret.append(ret)
 
             for test in self.patch_tests:
-                test.prep()
+                if test.prep(os.path.join(series_dir, "test_prep")):
+                    raise TesterPrepFailed()
 
             for patch in series.patches:
                 core.log_open_sec("Testing patch " + patch.title)
@@ -107,6 +110,8 @@ class Tester(object):
                     core.log_end_sec()
 
                 patch_ret.append(current_patch_ret)
+        except TesterPrepFailed:
+            pass
         finally:
             tree.leave()
             core.log_end_sec()

@@ -43,27 +43,11 @@ class Test(object):
     def is_disabled(self):
         return "disabled" in self.info and self.info["disabled"]
 
-    def prep(self):
-        if "prep" not in self.info or self.is_disabled():
-            return
-        core.log_open_sec("Preparing for test %s" % (self.name,))
-        CMD.cmd_run(os.path.join(self.path, self.info["prep"]))
-        core.log_end_sec()
-
-    def exec(self, tree, thing, result_dir):
-        if self.is_disabled():
-            core.log(f"Skipping test {self.name} - disabled", "")
-            return True
-
-        core.log_open_sec(f"Running test {self.name}")
-
+    def write_result(self, result_dir, retcode=0, out="", err="", desc=""):
         test_dir = os.path.join(result_dir, self.name)
         if not os.path.exists(test_dir):
             os.makedirs(test_dir)
 
-        retcode, out, err, desc = self._exec(tree, thing, result_dir)
-
-        # Write out the results
         with open(os.path.join(test_dir, "retcode"), "w+") as fp:
             fp.write(str(retcode))
         if out:
@@ -92,6 +76,38 @@ class Test(object):
                     if out[:-1] != '\n':
                         out += '\n'
                     fp.write(out)
+
+    def prep(self, result_dir) -> bool:
+        if "prep" not in self.info or self.is_disabled():
+            return False
+
+        core.log_open_sec("Preparing for test %s" % (self.name,))
+        ret = False
+        try:
+            CMD.cmd_run(os.path.join(self.path, self.info["prep"]))
+        except CMD.CmdError as e:
+            self.write_result(result_dir, e.retcode, e.stdout, e.stderr,
+                              "test prep failed - ABORTING TESTING")
+            ret = True
+        finally:
+            core.log_end_sec()
+
+        return ret
+
+    def exec(self, tree, thing, result_dir):
+        if self.is_disabled():
+            core.log(f"Skipping test {self.name} - disabled", "")
+            return True
+
+        core.log_open_sec(f"Running test {self.name}")
+
+        test_dir = os.path.join(result_dir, self.name)
+        if not os.path.exists(test_dir):
+            os.makedirs(test_dir)
+
+        retcode, out, err, desc = self._exec(tree, thing, result_dir)
+
+        self.write_result(result_dir, retcode, out, err, desc)
 
         core.log_end_sec()
 
