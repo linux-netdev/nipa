@@ -2,11 +2,12 @@
 #
 # Copyright (C) 2019 Netronome Systems, Inc.
 
-""" Test representation """
-# TODO: document
+from typing import Tuple
+
+""" Test presence of the Fixes tag in non *-next patches """
 
 
-def fixes_present(tree, thing, result_dir):
+def fixes_present(tree, thing, result_dir) -> Tuple[int, str]:
     if tree.pfx.count("next"):
         return 0, ""
     for patch in thing.patches:

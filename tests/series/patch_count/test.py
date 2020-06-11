@@ -2,11 +2,12 @@
 #
 # Copyright (C) 2019 Netronome Systems, Inc.
 
-""" Test representation """
-# TODO: document
+from typing import Tuple
+
+""" Test number of patches, we have a 15 patch limit on netdev """
 
 
-def patch_count(tree, thing, result_dir):
+def patch_count(tree, thing, result_dir) -> Tuple[int, str]:
     if len(thing.patches) <= 15:
         return 0, ""
     return 1, "Series longer than 15 patches"

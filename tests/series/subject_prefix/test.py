@@ -2,12 +2,12 @@
 #
 # Copyright (C) 2019 Netronome Systems, Inc.
 
-# TODO: document
+from typing import Tuple
 
-import re
+""" Test if subject prefix (tree designation) is present """
 
 
-def subject_prefix(tree, thing, result_dir):
+def subject_prefix(tree, thing, result_dir) -> Tuple[int, str]:
     if thing.tree_mark_expected and not thing.tree_marked:
         return 250, "Target tree name not specified in the subject"
     return 0, ""
