@@ -36,6 +36,19 @@ if [ $current -gt $incumbent ]; then
   echo "Errors and warnings before: $incumbent this patch: $current" >&$DESC_FD
   echo "New errors added" 1>&2
   diff $tmpfile_o $tmpfile_n 1>&2
+
+  echo "Per-file breakdown" 1>&2
+  tmpfile_fo=$(mktemp)
+  tmpfile_fn=$(mktemp)
+
+  grep -i "\(warn\|error\)" $tmpfile_o | sed -n 's@\(^\.\./[/a-zA-Z0-9_.-]*.[ch]\):.*@\1@p' | sort | uniq -c \
+    > $tmpfile_fo
+  grep -i "\(warn\|error\)" $tmpfile_n | sed -n 's@\(^\.\./[/a-zA-Z0-9_.-]*.[ch]\):.*@\1@p' | sort | uniq -c \
+    > $tmpfile_fn
+
+  diff $tmpfile_fo $tmpfile_fn 1>&2
+  rm $tmpfile_fo $tmpfile_fn
+
   rc=1
 fi
 
