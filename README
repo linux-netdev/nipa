@@ -6,7 +6,7 @@ NIPA - Netdev Infrastructure for Patch Automation
 
 Patches are not tested reliably against existing tests.
 
-# TODO: make sure we don't do code exec (e.g. don't run checkpatch if patch touches it)
+Tester is also not safe against code execution from the patches.
 
 Goals
 =====
@@ -190,5 +190,4 @@ leniency as needed.
 TODO: 32 bit build
 TODO: build one-by-one for a PR
 TODO: summaries
-TODO: make checkpatch summarize failure types
 TODO: add a help thingie that determines stable tree automatically
