@@ -32,8 +32,9 @@ make CC="$cc" O=$output_dir $build_flags -j $ncpu 2> >(tee $tmpfile_n >&2) || rc
 
 current=$(grep -i -c "\(warn\|error\)" $tmpfile_n)
 
+echo "Errors and warnings before: $incumbent this patch: $current" >&$DESC_FD
+
 if [ $current -gt $incumbent ]; then
-  echo "Errors and warnings before: $incumbent this patch: $current" >&$DESC_FD
   echo "New errors added" 1>&2
   diff $tmpfile_o $tmpfile_n 1>&2
 
