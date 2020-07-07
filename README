@@ -192,3 +192,6 @@ TODO: better build error filtering
 TODO: build one-by-one for a PR
 TODO: descriptions of results from tests
 TODO: add a help thingie that determines stable tree automatically
+TODO: add tree aliases (bpf, bpf-next, ipsec, ipsec-next, etc.)
+TODO: run coccicheck
+TODO: rev xmas tree
