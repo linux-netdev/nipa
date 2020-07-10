@@ -187,6 +187,7 @@ flags (extra warnings and sparse checks enabled).
 This check is separate from the normal build test to allow more
 leniency as needed.
 
+TODO: make the tree selection less lenient (only success if recognized as something that we know to ignore)
 TODO: 32 bit build
 TODO: better build error filtering
 TODO: build one-by-one for a PR
