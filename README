@@ -196,3 +196,4 @@ TODO: add a help thingie that determines stable tree automatically
 TODO: add tree aliases (bpf, bpf-next, ipsec, ipsec-next, etc.)
 TODO: run coccicheck
 TODO: rev xmas tree
+TODO: make a better MAINTAINERS check than checkpatch

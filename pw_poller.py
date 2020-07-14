@@ -174,7 +174,7 @@ class PwPoller:
         prev_big_scan = datetime.datetime.fromtimestamp(self._state['last_poll'])
         prev_req_time = datetime.datetime.utcnow()
 
-        # We poll every 2 minutes, for series from last 4 minutes
+        # We poll every 2 minutes, for series from last 10 minutes
         # Every 3 hours we do a larger check of series of last 12 hours to make sure we didn't miss anything
         # apparently patchwork uses the time from the email headers and people back date their emails, a lot
         # We keep a history of the series we've seen in and since the last big poll to not process twice
@@ -190,7 +190,7 @@ class PwPoller:
                     log_open_sec(f"Big scan of last 12 hours at {req_time} since {since}")
                 else:
                     big_scan = False
-                    since = prev_req_time - datetime.timedelta(minutes=4)
+                    since = prev_req_time - datetime.timedelta(minutes=10)
                     log_open_sec(f"Checking at {req_time} since {since}")
 
                 json_resp = self._pw.get_series_all(since=since)
