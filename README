@@ -187,6 +187,7 @@ flags (extra warnings and sparse checks enabled).
 This check is separate from the normal build test to allow more
 leniency as needed.
 
+TODO: warn on module params
 TODO: make the tree selection less lenient (only success if recognized as something that we know to ignore)
 TODO: 32 bit build
 TODO: better build error filtering
@@ -198,3 +199,6 @@ TODO: run coccicheck
 TODO: rev xmas tree
 TODO: make a better MAINTAINERS check than checkpatch
 TODO: documentation patches to net do not need Fixes
+TODO: add a marker for patches with replies from buildbot
+
+TODO: on a pull fixes may point to the commits in the pull
