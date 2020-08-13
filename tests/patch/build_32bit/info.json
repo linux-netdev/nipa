@@ -1,0 +1,5 @@
+{
+  "prep": "prep.sh",
+  "run": "build_32bit.sh",
+  "disabled": false
+}
