@@ -5,6 +5,7 @@
 """ The git tree module """
 
 import os
+import re
 import tempfile
 import shlex
 
@@ -47,6 +48,7 @@ def git_reset(target, hard=False):
 
 
 def git_find_patch(needle, depth=1000):
+    needle = re.escape(needle)
     needle = shlex.quote(needle)
     return git(f"log --pretty=format:'%h' HEAD~{depth}..HEAD --grep={needle}")
 
