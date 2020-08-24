@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
-stable=$(git show -s | grep -i '^ *cc:.*stable')
+stable=$(git show -s | grep -i '^ *cc:.*stable@kernel.org')
 
 if [ -z "$stable" ]; then
   echo "Stable not CCed" >&$DESC_FD
