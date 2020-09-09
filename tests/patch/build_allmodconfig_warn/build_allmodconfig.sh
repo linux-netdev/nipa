@@ -15,6 +15,11 @@ echo "Using -j $ncpu redirect to $tmpfile_o and $tmpfile_n"
 
 HEAD=$(git rev-parse HEAD)
 
+echo "Baseline building the tree"
+
+make CC="$cc" O=$output_dir allmodconfig
+make CC="$cc" O=$output_dir $build_flags
+
 git checkout -q HEAD~
 
 echo "Building the tree before the patch"
