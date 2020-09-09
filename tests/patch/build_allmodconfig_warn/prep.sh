@@ -6,7 +6,7 @@
 cc="ccache gcc"
 output_dir=build_allmodconfig/
 ncpu=$(grep -c processor /proc/cpuinfo)
-build_flags="-j $ncpu"
+build_flags="-j $ncpu W=1 C=1"
 
 make CC="$cc" O=$output_dir allmodconfig
 make CC="$cc" O=$output_dir $build_flags
