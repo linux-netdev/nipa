@@ -87,10 +87,6 @@ class Tester(object):
                 ret = test.exec(tree, series, series_dir)
                 series_ret.append(ret)
 
-            for test in self.patch_tests:
-                if test.prep(os.path.join(series_dir, "test_prep")):
-                    raise TesterPrepFailed()
-
             for patch in series.patches:
                 core.log_open_sec("Testing patch " + patch.title)
 

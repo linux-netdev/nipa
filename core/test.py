@@ -77,23 +77,6 @@ class Test(object):
                         out += '\n'
                     fp.write(out)
 
-    def prep(self, result_dir) -> bool:
-        if "prep" not in self.info or self.is_disabled():
-            return False
-
-        core.log_open_sec("Preparing for test %s" % (self.name,))
-        ret = False
-        try:
-            CMD.cmd_run(os.path.join(self.path, self.info["prep"]))
-        except CMD.CmdError as e:
-            self.write_result(result_dir, e.retcode, e.stdout, e.stderr,
-                              "test prep failed - ABORTING TESTING")
-            ret = True
-        finally:
-            core.log_end_sec()
-
-        return ret
-
     def exec(self, tree, thing, result_dir):
         if self.is_disabled():
             core.log(f"Skipping test {self.name} - disabled", "")
