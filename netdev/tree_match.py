@@ -47,6 +47,7 @@ def _tree_name_should_be_local_files(raw_email):
         'include/net/',
         'net/',
         'drivers/net/',
+        'drivers/nfc/',
         'drivers/net/ethernet/',
         'tools/testing/selftests/net/'
     }
