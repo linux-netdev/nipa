@@ -48,9 +48,8 @@ def git_reset(target, hard=False):
 
 
 def git_find_patch(needle, depth=1000):
-    needle = re.escape(needle)
     needle = shlex.quote(needle)
-    return git(f"log --pretty=format:'%h' HEAD~{depth}..HEAD --grep={needle}")
+    return git(f"log --pretty=format:'%h' HEAD~{depth}..HEAD --grep={needle} --fixed-strings")
 
 
 # TODO: add patch and CmdError as init here
