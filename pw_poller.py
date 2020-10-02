@@ -9,11 +9,12 @@ import datetime
 import json
 import os
 import time
+import queue
 from typing import Dict
 
 from core import NIPA_DIR
 from core import log, log_open_sec, log_end_sec, log_init
-from core import Tester, TesterAlreadyTested
+from core import Tester
 from core import Tree
 from pw import Patchwork
 from pw import PwSeries
@@ -41,8 +42,11 @@ class PwPoller:
             "bpf": Tree("bpf", "bpf", "../bpf", "bpf"),
         }
 
-        self._tester = Tester(config.get('results', 'dir',
-                                         fallback=os.path.join(NIPA_DIR, "results")))
+        self.result_dir = config.get('results', 'dir', fallback=os.path.join(NIPA_DIR, "results"))
+        self._workers = {}
+        for k, tree in self._trees.items():
+            self._workers[k] = Tester(self.result_dir, tree, queue.Queue())
+            self._workers[k].start()
 
         self._pw = Patchwork(config)
 
@@ -64,7 +68,7 @@ class PwPoller:
             pass
 
     def write_tree_selection_result(self, s, comment):
-        series_dir = os.path.join(self._tester.result_dir, str(s.id))
+        series_dir = os.path.join(self.result_dir, str(s.id))
 
         tree_test_dir = os.path.join(series_dir, "tree_selection")
         if not os.path.exists(tree_test_dir):
@@ -153,13 +157,9 @@ class PwPoller:
 
         comment = self.series_determine_tree(s)
 
-        try:
-            if hasattr(s, 'tree_name') and s.tree_name:
-                series_ret, patch_ret = self._tester.test_series(self._trees[s.tree_name], s)
-
-            self.write_tree_selection_result(s, comment)
-        except TesterAlreadyTested:
-            log("Warning: series was already tested!")
+        if hasattr(s, 'tree_name') and s.tree_name:
+            self._workers[s.tree_name].queue.put(s)
+        self.write_tree_selection_result(s, comment)
 
         self.seen_series.add(s['id'])
 

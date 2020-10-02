@@ -19,6 +19,7 @@ import threading
 from xml.sax.saxutils import escape as xml_escape
 
 # TODO: document
+tls = threading.local()
 
 
 class Logger:
@@ -201,7 +202,7 @@ class OrgLogger(Logger):
 
 
 def log_init(name, path):
-    tls = threading.local()
+    global tls
 
     if name.lower() == 'stdout':
         tls.logger = StdoutLogger()
@@ -216,20 +217,24 @@ def log_init(name, path):
 
 
 def log_fini():
-    tls = threading.local()
+    global tls
+
     tls.logger.fini()
 
 
 def log_open_sec(header):
-    tls = threading.local()
+    global tls
+
     tls.logger.open_sec(header)
 
 
 def log_end_sec():
-    tls = threading.local()
+    global tls
+
     tls.logger.end_sec()
 
 
 def log(header, data=''):
-    tls = threading.local()
+    global tls
+
     tls.logger.log(header, data)
