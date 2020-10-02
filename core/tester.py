@@ -24,11 +24,12 @@ def load_tests(tests_dir, name):
 
 
 class Tester(threading.Thread):
-    def __init__(self, result_dir, tree, queue):
+    def __init__(self, result_dir, tree, queue, barrier):
         threading.Thread.__init__(self)
 
         self.tree = tree
         self.queue = queue
+        self.barrier = barrier
         self.should_die = False
         self.result_dir = result_dir
 
@@ -54,10 +55,15 @@ class Tester(threading.Thread):
         core.log_end_sec()
 
         while not self.should_die:
-            s = self.queue.get()
-            if s is None:
-                continue
-            self.test_series(self.tree, s)
+            self.barrier.wait()
+
+            while not self.should_die and not self.queue.empty():
+                s = self.queue.get()
+                if s is None:
+                    continue
+                self.test_series(self.tree, s)
+
+            self.barrier.wait()
 
     def test_series(self, tree, series):
         core.log_open_sec("Running tests in tree %s for %s" %

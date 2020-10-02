@@ -8,6 +8,7 @@ import configparser
 import datetime
 import json
 import os
+import threading
 import time
 import queue
 from typing import Dict
@@ -43,9 +44,10 @@ class PwPoller:
         }
 
         self.result_dir = config.get('results', 'dir', fallback=os.path.join(NIPA_DIR, "results"))
+        self._barrier = threading.Barrier(len(self._trees) + 1)
         self._workers = {}
         for k, tree in self._trees.items():
-            self._workers[k] = Tester(self.result_dir, tree, queue.Queue())
+            self._workers[k] = Tester(self.result_dir, tree, queue.Queue(), self._barrier)
             self._workers[k].start()
 
         self._pw = Patchwork(config)
@@ -219,10 +221,19 @@ class PwPoller:
                 else:
                     prev_req_time = req_time
 
-                time.sleep(120)
                 log_end_sec()
+
+                # Unleash all workers
+                self._barrier.wait()
+                # Wait for workers to come back
+                self._barrier.wait()
+
+                secs = 120 - (datetime.datetime.utcnow() - req_time).total_seconds()
+                if secs > 0:
+                    time.sleep(secs)
         finally:
             log_open_sec(f"Stopping threads")
+            self._barrier.abort()
             for _, worker in self._workers.items():
                 worker.should_die = True
                 worker.queue.put(None)
