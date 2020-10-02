@@ -222,6 +222,24 @@ class PwPoller:
                 time.sleep(120)
                 log_end_sec()
         finally:
+            log_open_sec(f"Stopping threads")
+            for _, worker in self._workers.items():
+                worker.should_die = True
+                worker.queue.put(None)
+            for _, worker in self._workers.items():
+                log(f"Waiting for worker {worker.tree.name} / {worker.name}")
+                worker.join()
+
+            for _, worker in self._workers.items():
+                while not worker.queue.empty():
+                    s = worker.queue.get()
+                    if s is None:
+                        continue
+                    log(f"Series id {s.id} was not tested")
+                    if s.id in self.seen_series:
+                        self.seen_series.remove(s.id)
+            log_end_sec()
+
             self._state['last_poll'] = prev_big_scan.timestamp()
             self._state['seen_series'] = list(self.seen_series)
             # Dump state

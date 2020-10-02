@@ -29,16 +29,21 @@ class Tester(threading.Thread):
 
         self.tree = tree
         self.queue = queue
+        self.should_die = False
+        self.result_dir = result_dir
 
+        self.series_tests = []
+        self.patch_tests = []
+
+    def run(self) -> None:
         config = configparser.ConfigParser()
         config.read(['nipa.config', 'pw.config', 'tester.config'])
 
         core.log_init(config.get('log', 'type', fallback='org'),
                       config.get('log', 'file', fallback=os.path.join(core.NIPA_DIR,
-                                                                      f"{tree.name}.org")))
+                                                                      f"{self.tree.name}.org")))
 
         core.log_open_sec("Tester init")
-        self.result_dir = result_dir
         if not os.path.exists(self.result_dir):
             os.makedirs(self.result_dir)
 
@@ -48,9 +53,10 @@ class Tester(threading.Thread):
         self.patch_tests = load_tests(tests_dir, "patch")
         core.log_end_sec()
 
-    def run(self) -> None:
-        while True:
+        while not self.should_die:
             s = self.queue.get()
+            if s is None:
+                continue
             self.test_series(self.tree, s)
 
     def test_series(self, tree, series):
