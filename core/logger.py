@@ -15,9 +15,8 @@ import datetime
 import lzma
 import os
 import pprint
+import threading
 from xml.sax.saxutils import escape as xml_escape
-
-logger = None  # pylint: disable-msg=C0103
 
 # TODO: document
 
@@ -202,14 +201,14 @@ class OrgLogger(Logger):
 
 
 def log_init(name, path):
-    global logger
+    tls = threading.local()
 
     if name.lower() == 'stdout':
-        logger = StdoutLogger()
+        tls.logger = StdoutLogger()
     elif name.lower() == "org":
-        logger = OrgLogger(path)
+        tls.logger = OrgLogger(path)
     elif name.lower() == "xml":
-        logger = XmlLogger(path)
+        tls.logger = XmlLogger(path)
     else:
         raise Exception("Logger type unknown", name)
 
@@ -217,24 +216,20 @@ def log_init(name, path):
 
 
 def log_fini():
-    global logger
-
-    logger.fini()
+    tls = threading.local()
+    tls.logger.fini()
 
 
 def log_open_sec(header):
-    global logger
-
-    logger.open_sec(header)
+    tls = threading.local()
+    tls.logger.open_sec(header)
 
 
 def log_end_sec():
-    global logger
-
-    logger.end_sec()
+    tls = threading.local()
+    tls.logger.end_sec()
 
 
 def log(header, data=''):
-    global logger
-
-    logger.log(header, data)
+    tls = threading.local()
+    tls.logger.log(header, data)
