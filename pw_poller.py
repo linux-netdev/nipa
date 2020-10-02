@@ -221,8 +221,6 @@ class PwPoller:
                 else:
                     prev_req_time = req_time
 
-                log_end_sec()
-
                 # Unleash all workers
                 log("Activate workers", "")
                 self._barrier.wait()
@@ -234,6 +232,7 @@ class PwPoller:
                 if secs > 0:
                     log("Sleep", secs)
                     time.sleep(secs)
+                log_end_sec()
         finally:
             log_open_sec(f"Stopping threads")
             self._barrier.abort()
