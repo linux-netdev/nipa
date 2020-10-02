@@ -37,6 +37,8 @@ class PwPoller:
         self._trees = {
             "net-next": Tree("net-next", "net-next", "../net-next", "net-next"),
             "net": Tree("net", "net", "../net", "net"),
+            "bpf-next": Tree("bpf-next", "bpf-next", "../bpf-next", "bpf-next"),
+            "bpf": Tree("bpf", "bpf", "../bpf", "bpf"),
         }
 
         self._tester = Tester(config.get('results', 'dir',
