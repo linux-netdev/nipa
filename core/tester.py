@@ -127,7 +127,6 @@ class Tester(threading.Thread):
 
         series_ret = []
         patch_ret = []
-        tree.enter()
         try:
             tree.reset()
 
@@ -155,7 +154,6 @@ class Tester(threading.Thread):
 
                 patch_ret.append(current_patch_ret)
         finally:
-            tree.leave()
             core.log_end_sec()
 
         return series_ret, patch_ret
