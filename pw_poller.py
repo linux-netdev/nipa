@@ -19,6 +19,7 @@ from core import Tester
 from core import Tree
 from pw import Patchwork
 from pw import PwSeries
+import core
 import netdev
 
 
@@ -68,30 +69,6 @@ class PwPoller:
                     self._state[k] = loaded[k]
         except FileNotFoundError:
             pass
-
-    def write_tree_selection_result(self, s, comment):
-        series_dir = os.path.join(self.result_dir, str(s.id))
-
-        tree_test_dir = os.path.join(series_dir, "tree_selection")
-        if not os.path.exists(tree_test_dir):
-            os.makedirs(tree_test_dir)
-
-        with open(os.path.join(tree_test_dir, "retcode"), "w+") as fp:
-            fp.write("0")
-        with open(os.path.join(tree_test_dir, "desc"), "w+") as fp:
-            fp.write(comment)
-
-        done_file = os.path.join(series_dir, ".tester_done")
-        if os.path.exists(done_file):
-            # Real tester has already run and created the real hierarchy
-            return
-
-        for patch in s.patches:
-            patch_dir = os.path.join(series_dir, str(patch.id))
-            if not os.path.exists(patch_dir):
-                os.makedirs(patch_dir)
-
-        os.mknod(done_file)
 
     def _series_determine_tree(self, s: PwSeries) -> str:
         s.tree_name = netdev.series_tree_name_direct(s)
@@ -160,8 +137,11 @@ class PwPoller:
         comment = self.series_determine_tree(s)
 
         if hasattr(s, 'tree_name') and s.tree_name:
+            s.tree_selection_comment = comment
             self._workers[s.tree_name].queue.put(s)
-        self.write_tree_selection_result(s, comment)
+        else:
+            core.write_tree_selection_result(self.result_dir, s, comment)
+            core.mark_done(self.result_dir, s)
 
         self.seen_series.add(s['id'])
 

@@ -23,6 +23,29 @@ def load_tests(tests_dir, name):
     return tests
 
 
+def write_tree_selection_result(result_dir, s, comment):
+    series_dir = os.path.join(result_dir, str(s.id))
+
+    tree_test_dir = os.path.join(series_dir, "tree_selection")
+    if not os.path.exists(tree_test_dir):
+        os.makedirs(tree_test_dir)
+
+    with open(os.path.join(tree_test_dir, "retcode"), "w+") as fp:
+        fp.write("0")
+    with open(os.path.join(tree_test_dir, "desc"), "w+") as fp:
+        fp.write(comment)
+
+    for patch in s.patches:
+        patch_dir = os.path.join(series_dir, str(patch.id))
+        if not os.path.exists(patch_dir):
+            os.makedirs(patch_dir)
+
+
+def mark_done(result_dir, series):
+    series_dir = os.path.join(result_dir, str(series.id))
+    os.mknod(os.path.join(series_dir, ".tester_done"))
+
+
 class Tester(threading.Thread):
     def __init__(self, result_dir, tree, queue, barrier):
         threading.Thread.__init__(self)
@@ -66,6 +89,11 @@ class Tester(threading.Thread):
             self.barrier.wait()
 
     def test_series(self, tree, series):
+        write_tree_selection_result(self.result_dir, series, series.tree_selection_comment)
+        self._test_series(tree, series)
+        mark_done(self.result_dir, series)
+
+    def _test_series(self, tree, series):
         core.log_open_sec("Running tests in tree %s for %s" %
                           (tree.name, series.title))
 
