@@ -198,5 +198,13 @@ TODO: rev xmas tree
 TODO: make a better MAINTAINERS check than checkpatch
 TODO: documentation patches to net do not need Fixes
 TODO: add a marker for patches with replies from buildbot
+TODO: check empty lines after fixes tag
 
 TODO: on a pull fixes may point to the commits in the pull
+
+TODO: more trees
+TODO: parallel builds
+TODO: multipler uploaders
+TODO: set delegate
+
+TODO: roll out verify signoff and fixes
