@@ -162,7 +162,8 @@ def main():
 
     log_init(config.get('log', 'type', fallback='org'),
              config.get('log', 'file', fallback=os.path.join(NIPA_DIR,
-                                                             "upload.org")))
+                                                             "upload.org")),
+             force_single_thread=True)
 
     results_dir = config.get('results', 'dir',
                              fallback=os.path.join(NIPA_DIR, "results"))
