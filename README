@@ -199,6 +199,7 @@ TODO: make a better MAINTAINERS check than checkpatch
 TODO: documentation patches to net do not need Fixes
 TODO: add a marker for patches with replies from buildbot
 TODO: check empty lines after fixes tag
+TODO: check headers to kdoc warnings
 
 TODO: on a pull fixes may point to the commits in the pull
 
