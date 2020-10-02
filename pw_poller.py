@@ -50,6 +50,7 @@ class PwPoller:
         for k, tree in self._trees.items():
             self._workers[k] = Tester(self.result_dir, tree, queue.Queue(), self._barrier)
             self._workers[k].start()
+            log(f"Started worker {self._workers[k].name} for {k}")
 
         self._pw = Patchwork(config)
 
