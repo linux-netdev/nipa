@@ -110,7 +110,7 @@ class Test(object):
             rfd, wfd = os.pipe()
 
             out, err = CMD.cmd_run(os.path.join(self.path, self.info["run"]),
-                                   include_stderr=True, pass_fds=[wfd],
+                                   include_stderr=True, cwd=tree.path, pass_fds=[wfd],
                                    add_env={"DESC_FD": str(wfd)})
         except core.cmd.CmdError as e:
             retcode = e.retcode
