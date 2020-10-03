@@ -10,7 +10,7 @@ from core import log, log_open_sec, log_end_sec
 
 
 def series_tree_name_direct(series):
-    for t in ['net-next', 'net']:
+    for t in ['net-next', 'net', 'bpf-next', 'bpf']:
         if re.match(r'\[.*{pfx}.*\]'.format(pfx=t), series.subject):
             return t
 
