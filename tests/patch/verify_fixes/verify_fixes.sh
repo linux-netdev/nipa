@@ -3,6 +3,7 @@
 #
 # Copyright (C) 2019 Stephen Rothwell <sfr@canb.auug.org.au>
 # Copyright (C) 2019 Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+# Copyright (c) 2020 Facebook
 #
 # Verify that the "Fixes:" tag is correct in a kernel commit
 #
@@ -75,6 +76,10 @@ verify_fixes()
 			sha=
 			subject=
 			msg=
+
+			if git log -1 --format='%B' "$c" | tr '\n' '#' | grep -qF "##$fline##"; then
+				msg="${msg:+${msg}${nl}}${tab}${tab}- empty lines surround the Fixes tag"
+			fi
 
 			if [[ "$f" =~ $split_re ]]; then
 				first="${BASH_REMATCH[1]}"
