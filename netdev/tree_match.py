@@ -59,9 +59,12 @@ def _tree_name_should_be_local_files(raw_email):
     foreign_found = False
 
     lines = raw_email.split('\n')
-    regex = re.compile(r'^\s*([-\w/._]+)\s+\|\s+\d+\s*[-+]*\s*$')
+    r_diffstat = re.compile(r'^\s*([-\w/._]+)\s+\|\s+\d+\s*[-+]*\s*$')
+    r_header = re.compile(r'\+\+\+ b/([-\w/._]+)$')
     for line in lines:
-        match = regex.match(line)
+        match = r_header.match(line)
+        if not match:
+            match = r_diffstat.match(line)
         if not match:
             continue
 
@@ -105,10 +108,6 @@ def _tree_name_should_be_local(raw_email):
 
 
 def series_tree_name_should_be_local(series):
-    # TODO: always parse patches and match on the --- a/$path lines, to avoid the .../ problem
-    if series.cover_letter:
-        return _tree_name_should_be_local(series.cover_letter)
-
     ret = True
     for p in series.patches:
         # Returns tri-state True, None, False. And works well:
