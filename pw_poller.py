@@ -46,9 +46,10 @@ class PwPoller:
 
         self.result_dir = config.get('results', 'dir', fallback=os.path.join(NIPA_DIR, "results"))
         self._barrier = threading.Barrier(len(self._trees) + 1)
+        self._done_queue = queue.Queue()
         self._workers = {}
         for k, tree in self._trees.items():
-            self._workers[k] = Tester(self.result_dir, tree, queue.Queue(), self._barrier)
+            self._workers[k] = Tester(self.result_dir, tree, queue.Queue(), self._done_queue, self._barrier)
             self._workers[k].start()
             log(f"Started worker {self._workers[k].name} for {k}")
 
@@ -56,10 +57,11 @@ class PwPoller:
 
         self._state = {
             'last_poll': (datetime.datetime.utcnow() - datetime.timedelta(hours=2)).timestamp(),
-            'seen_series': [],
+            'done_series': [],
         }
         self.init_state_from_disk()
-        self.seen_series = set(self._state['seen_series'])
+        self.seen_series = set(self._state['done_series'])
+        self.done_series = self.seen_series.copy()
 
     def init_state_from_disk(self) -> None:
         try:
@@ -197,6 +199,7 @@ class PwPoller:
                     prev_big_scan = req_time
                     # Shorten the history of series we've seen to just the last 12 hours
                     self.seen_series = this_poll_seen
+                    self.done_series &= self.seen_series
                 elif had_partial_series:
                     log("Partial series, not moving time forward", "")
                 else:
@@ -208,6 +211,11 @@ class PwPoller:
                 # Wait for workers to come back
                 log("Wait for workers", "")
                 self._barrier.wait()
+
+                while not self._done_queue.empty():
+                    s = self._done_queue.get()
+                    self.done_series.add(s['id'])
+                    log(f"Testing complete for series {s['id']}", "")
 
                 secs = 120 - (datetime.datetime.utcnow() - req_time).total_seconds()
                 if secs > 0:
@@ -223,19 +231,10 @@ class PwPoller:
             for _, worker in self._workers.items():
                 log(f"Waiting for worker {worker.tree.name} / {worker.name}")
                 worker.join()
-
-            for _, worker in self._workers.items():
-                while not worker.queue.empty():
-                    s = worker.queue.get()
-                    if s is None:
-                        continue
-                    log(f"Series id {s.id} was not tested")
-                    if s.id in self.seen_series:
-                        self.seen_series.remove(s.id)
             log_end_sec()
 
             self._state['last_poll'] = prev_big_scan.timestamp()
-            self._state['seen_series'] = list(self.seen_series)
+            self._state['done_series'] = list(self.seen_series)
             # Dump state
             with open('poller.state', 'w') as f:
                 json.dump(self._state, f)

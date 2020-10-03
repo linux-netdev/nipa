@@ -47,11 +47,12 @@ def mark_done(result_dir, series):
 
 
 class Tester(threading.Thread):
-    def __init__(self, result_dir, tree, queue, barrier):
+    def __init__(self, result_dir, tree, queue, done_queue, barrier):
         threading.Thread.__init__(self)
 
         self.tree = tree
         self.queue = queue
+        self.done_queue = done_queue
         self.barrier = barrier
         self.should_die = False
         self.result_dir = result_dir
@@ -85,6 +86,7 @@ class Tester(threading.Thread):
                 if s is None:
                     continue
                 self.test_series(self.tree, s)
+                self.done_queue.put(s)
 
             self.barrier.wait()
 
