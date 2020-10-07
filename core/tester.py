@@ -88,6 +88,11 @@ class Tester(threading.Thread):
                 self.test_series(self.tree, s)
                 self.done_queue.put(s)
 
+                # If we're the last worker with work to do - let the poller run
+                core.log(f"Checking barrier {self.barrier.n_waiting}/{self.barrier.parties} ")
+                if self.barrier.parties == self.barrier.n_waiting + 1:
+                    break
+
             self.barrier.wait()
 
     def test_series(self, tree, series):
