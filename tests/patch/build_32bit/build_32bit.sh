@@ -6,7 +6,7 @@
 cc="ccache gcc"
 output_dir=build_32bit/
 ncpu=$(grep -c processor /proc/cpuinfo)
-build_flags="-j $ncpu W=1 C=1"
+build_flags="-Oline -j $ncpu W=1 C=1"
 tmpfile_o=$(mktemp)
 tmpfile_n=$(mktemp)
 rc=0
