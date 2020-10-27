@@ -112,17 +112,18 @@ def _tree_name_should_be_local(raw_email):
 
 def series_tree_name_should_be_local(series):
     all_local = True
-    some_local = True
+    some_local = False
     for p in series.patches:
+        ret = _tree_name_should_be_local(p.raw_patch)
         # Returns tri-state True, None, False. And works well:
         #     True and None -> None
         #     True and False -> False
         #     False and None -> False
-        all_local = all_local and _tree_name_should_be_local(p.raw_patch)
+        all_local = all_local and ret
         #     True or None  -> True
         #     True or False -> True
         #     False or None -> False
-        some_local = some_local or _tree_name_should_be_local(p.raw_patch)
+        some_local = some_local or ret
     return all_local, some_local
 
 

@@ -92,7 +92,10 @@ class PwPoller:
             log('Okay to ignore lack of tree in subject, ignoring series', "")
             return "Series ignored based on subject"
 
-        log_open_sec('Series should have had a tree designation')
+        if s.tree_mark_expected:
+            log_open_sec('Series should have had a tree designation')
+        else:
+            log_open_sec('Series okay without a tree designation')
         if netdev.series_is_a_fix_for(s, self._trees["net"]):
             s.tree_name = "net"
         elif self._trees["net-next"].check_applies(s):
