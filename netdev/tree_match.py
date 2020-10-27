@@ -44,6 +44,8 @@ def _tree_name_should_be_local_files(raw_email):
         'include/',
     }
     required_files = {
+        'include/linux/netdevice.h',
+        'include/linux/skbuff.h',
         'include/net/',
         'net/',
         'drivers/net/',
@@ -109,16 +111,19 @@ def _tree_name_should_be_local(raw_email):
 
 
 def series_tree_name_should_be_local(series):
-    ret = True
+    all_local = True
+    some_local = True
     for p in series.patches:
         # Returns tri-state True, None, False. And works well:
         #     True and None -> None
         #     True and False -> False
         #     False and None -> False
-        ret = ret and _tree_name_should_be_local(p.raw_patch)
-        if ret == False:
-            return False
-    return ret
+        all_local = all_local and _tree_name_should_be_local(p.raw_patch)
+        #     True or None  -> True
+        #     True or False -> True
+        #     False or None -> False
+        some_local = some_local or _tree_name_should_be_local(p.raw_patch)
+    return all_local, some_local
 
 
 def _ignore_missing_tree_name(subject):

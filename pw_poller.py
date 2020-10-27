@@ -82,8 +82,8 @@ class PwPoller:
             log(f'Series is clearly designated for: {s.tree_name}', "")
             return f"Clearly marked for {s.tree_name}"
 
-        s.tree_mark_expected = netdev.series_tree_name_should_be_local(s)
-        if s.tree_mark_expected == False:
+        s.tree_mark_expected, should_test = netdev.series_tree_name_should_be_local(s)
+        if not should_test:
             log("No tree designation found or guessed", "")
             return "Not a local patch"
 
