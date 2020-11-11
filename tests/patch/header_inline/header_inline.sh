@@ -3,7 +3,7 @@
 #
 # Copyright (c) 2020 Facebook
 
-inlines=$(git show -- '*.h' | grep -C1 -P '^\+static (?!inline).*\)$')
+inlines=$(git show -- '*.h' | grep -C1 -P '^\+static (?!(__always_)?inline).*\(')
 
 if [ -z "$inlines" ]; then
   exit 0
