@@ -38,6 +38,7 @@ def _tree_name_should_be_local_files(raw_email):
             None: patch has mixed contents, it touches local code, but also code outside
     """
     acceptable_files = {
+        '.../',
         'CREDITS',
         'MAINTAINERS',
         'Documentation/',
