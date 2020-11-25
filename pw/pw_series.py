@@ -29,9 +29,29 @@ class PwSeries(Series):
             self.subject = ""
             self.title = ""
 
+        # Add patches to series
+        # Patchwork 2.2.2 orders them by arrival time
+        pids = []
         for p in self.pw_series['patches']:
-            raw_patch = pw.get_mbox('patch', p['id'])
-            self.patches.append(Patch(raw_patch.text, p['id']))
+            pids.append(p['id'])
+        total = self.pw_series['total']
+        if total == len(self.pw_series['patches']):
+            for i in range(total):
+                name = self.pw_series['patches'][i]['name']
+                pid = self.pw_series['patches'][i]['id']
+                for j in range(total):
+                    if name.find(f" {j}/{total}") >= 0 or \
+                       name.find(f"0{j}/{total}") >= 0:
+                        if pids[j] != pid:
+                            log(f"Patch order - reordering {i} => {j}")
+                            pids[j] = pid
+                        break
+        else:
+            log("Patch order - count does not add up?!", "")
+
+        for pid in pids:
+            raw_patch = pw.get_mbox('patch', pid)
+            self.patches.append(Patch(raw_patch.text, pid))
 
         if not pw_series['cover_letter'] and self.patches:
             self.fixup_pull_covers()
