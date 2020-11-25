@@ -2,8 +2,11 @@
 #
 # Copyright (C) 2019 Netronome Systems, Inc.
 
+import re
+
 from core import Series
 from core import Patch
+from core import log, log_open_sec, log_end_sec
 
 # TODO: document
 
@@ -29,6 +32,38 @@ class PwSeries(Series):
         for p in self.pw_series['patches']:
             raw_patch = pw.get_mbox('patch', p['id'])
             self.patches.append(Patch(raw_patch.text, p['id']))
+
+        if not pw_series['cover_letter'] and self.patches:
+            # For pull requests posted as series patchwork treats the cover letter
+            # as a patch so the cover is null. Try to figure that out but still
+            # use first patch for prefix, pulls don't have dependable subjects.
+            all_reply = None
+
+            log_open_sec("Searching for implicit cover/pull request")
+            for p in self.patches:
+                lines = p.raw_patch.split('\n')
+                r_in_reply = re.compile(r'^In-Reply-To: <(.*)>$')
+                reply_to = None
+
+                for line in lines:
+                    if line == "":  # end of headers
+                        if reply_to is None:
+                            log("Patch had no reply header", "")
+                            all_reply = False
+                        break
+                    match = r_in_reply.match(line)
+                    if not match:
+                        continue
+
+                    reply_to = match.group(1)
+                    log("Patch reply header", reply_to)
+                    if all_reply is None:
+                        all_reply = reply_to
+                    elif all_reply != reply_to:
+                        all_reply = False
+                        log("Mismatch in replies", "")
+            log("Result", all_reply)
+            log_end_sec()
 
     def __getitem__(self, key):
         return self.pw_series[key]

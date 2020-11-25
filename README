@@ -205,3 +205,6 @@ TODO: set delegate
 TODO: series ID injection
 TODO: check that maintainers are CCed
 TODO: misspell-fixer
+
+TODO: fix pulls don't have cover
+TODO: fix pulls are limited to 15 patches
