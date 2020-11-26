@@ -13,6 +13,7 @@ files=$(git show --pretty="" --name-only HEAD)
 HEAD=$(git rev-parse HEAD)
 
 echo "Checking the tree before the patch"
+git checkout -q HEAD~
 ./scripts/kernel-doc -none $files 2> >(tee $tmpfile_o >&2)
 
 incumbent=$(cat $tmpfile_o | wc -l)
