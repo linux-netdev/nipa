@@ -37,6 +37,7 @@ class PwSeries(Series):
         total = self.pw_series['total']
         if total == len(self.pw_series['patches']):
             for i in range(total):
+                found = False
                 name = self.pw_series['patches'][i]['name']
                 pid = self.pw_series['patches'][i]['id']
                 for j in range(total):
@@ -45,7 +46,14 @@ class PwSeries(Series):
                         if pids[j] != pid:
                             log(f"Patch order - reordering {i} => {j + 1}")
                             pids[j] = pid
+                        found = True
                         break
+                if not found:
+                    log("Patch order - not all patches were found!", "")
+                    pids = []
+                    for p in self.pw_series['patches']:
+                        pids.append(p['id'])
+                    break
         else:
             log("Patch order - count does not add up?!", "")
 
