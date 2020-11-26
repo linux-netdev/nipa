@@ -225,6 +225,9 @@ class PwPoller:
                     log("Sleep", secs)
                     time.sleep(secs)
                 log_end_sec()
+                if os.path.exists('poller.quit'):
+                    os.remove('poller.quit')
+                    break
         finally:
             log_open_sec(f"Stopping threads")
             self._barrier.abort()
