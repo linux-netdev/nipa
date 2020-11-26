@@ -40,10 +40,10 @@ class PwSeries(Series):
                 name = self.pw_series['patches'][i]['name']
                 pid = self.pw_series['patches'][i]['id']
                 for j in range(total):
-                    if name.find(f" {j}/{total}") >= 0 or \
-                       name.find(f"0{j}/{total}") >= 0:
+                    if name.find(f" {j + 1}/{total}") >= 0 or \
+                       name.find(f"0{j + 1}/{total}") >= 0:
                         if pids[j] != pid:
-                            log(f"Patch order - reordering {i} => {j}")
+                            log(f"Patch order - reordering {i} => {j + 1}")
                             pids[j] = pid
                         break
         else:
