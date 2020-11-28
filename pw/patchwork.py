@@ -55,6 +55,9 @@ class Patchwork(object):
     def get(self, object_type, identifier):
         return self._get(f'{object_type}/{identifier}/')
 
+    def get_by_msgid(self, object_type, msg_id):
+        return self._get(f'{object_type}/?msgid={msg_id}', api='1.2')
+
     def get_all(self, object_type, filters=None):
         if filters is None:
             filters = {}
@@ -89,11 +92,11 @@ class Patchwork(object):
         url = f'{self._proto}{self.server}/{object_type}/{identifier}/mbox/'
         return self._request(url)
 
-    def _get(self, req):
-        return self._request(f'{self._proto}{self.server}/api/1.1/{req}')
+    def _get(self, req, api='1.1'):
+        return self._request(f'{self._proto}{self.server}/api/{api}/{req}')
 
-    def _post(self, req, headers, data):
-        url = f'{self._proto}{self.server}/api/1.1/{req}'
+    def _post(self, req, headers, data, api='1.1'):
+        url = f'{self._proto}{self.server}/api/{api}/{req}'
         try:
             core.log_open_sec(f"Patchwork {self.server} post: {url}")
             ret = requests.post(url, headers=headers, data=data)

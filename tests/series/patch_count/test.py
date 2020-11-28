@@ -10,4 +10,6 @@ from typing import Tuple
 def patch_count(tree, thing, result_dir) -> Tuple[int, str]:
     if len(thing.patches) <= 15:
         return 0, ""
+    if thing.cover_pull:
+        return 250, "Series longer than 15 patches"
     return 1, "Series longer than 15 patches"

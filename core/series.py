@@ -17,6 +17,7 @@ class Series(object):
 
     def __init__(self, ident=None, title=""):
         self.cover_letter = None
+        self.cover_pull = None
         self.patches = []
         self.title = title
         self.subject = ""

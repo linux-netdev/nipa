@@ -109,4 +109,15 @@ class PwSeries(Series):
                     all_reply = False
                     log("Mismatch in replies", "")
         log("Result", all_reply)
+        if all_reply:
+            covers = self.pw.get_by_msgid('patches', all_reply)
+            if len(covers) != 1:
+                log('Unique cover letter not found', len(covers))
+            else:
+                cover = covers[0]
+                if 'pull_url' in cover and cover['pull_url']:
+                    self.cover_pull = cover
+                    log('Attached pull cover', '')
+                else:
+                    log('Pull URL not present in cover', '')
         log_end_sec()
