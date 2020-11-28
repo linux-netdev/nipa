@@ -30,6 +30,15 @@ class PwSeries(Series):
             self.title = ""
 
         # Add patches to series
+        #
+        # Fast path incomplete series
+        if not pw_series['received_all']:
+            for p in self.pw_series['patches']:
+                raw_patch = pw.get_mbox('patch', p['id'])
+                self.patches.append(Patch(raw_patch.text, p['id']))
+            return
+
+        # Do more magic around series which are complete
         # Patchwork 2.2.2 orders them by arrival time
         pids = []
         for p in self.pw_series['patches']:
