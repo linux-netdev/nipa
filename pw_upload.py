@@ -16,7 +16,8 @@ from pw import Patchwork, PatchworkCheckState
 # TODO: document
 should_stop = False
 
-def handler(signum, frame):
+
+def handler(signum, _):
     global should_stop
 
     print('Signal handler called with signal', signum)
