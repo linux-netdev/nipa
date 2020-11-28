@@ -73,7 +73,7 @@ class PwSeries(Series):
             raw_patch = pw.get_mbox('patch', pid)
             self.patches.append(Patch(raw_patch.text, pid))
 
-        if not pw_series['cover_letter'] and self.patches:
+        if not pw_series['cover_letter'] and len(self.patches) > 1:
             self.fixup_pull_covers()
 
     def __getitem__(self, key):
@@ -110,7 +110,8 @@ class PwSeries(Series):
                     log("Mismatch in replies", "")
         log("Result", all_reply)
         if all_reply:
-            covers = self.pw.get_by_msgid('patches', all_reply)
+            covers = self.pw.get_all('patches', filters={'msgid': all_reply},
+                                     api='1.2')
             if len(covers) != 1:
                 log('Unique cover letter not found', len(covers))
             else:

@@ -55,10 +55,7 @@ class Patchwork(object):
     def get(self, object_type, identifier):
         return self._get(f'{object_type}/{identifier}/')
 
-    def get_by_msgid(self, object_type, msg_id):
-        return self._get(f'{object_type}/?msgid={msg_id}', api='1.2')
-
-    def get_all(self, object_type, filters=None):
+    def get_all(self, object_type, filters=None, api='1.1'):
         if filters is None:
             filters = {}
         params = ''
@@ -68,7 +65,7 @@ class Patchwork(object):
 
         items = []
 
-        response = self._get(f'{object_type}/?{params}')
+        response = self._get(f'{object_type}/?{params}', api=api)
         # Handle paging, by chasing the "Link" elements
         while response:
             for o in response.json():
