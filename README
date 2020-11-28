@@ -187,10 +187,7 @@ flags (extra warnings and sparse checks enabled).
 This check is separate from the normal build test to allow more
 leniency as needed.
 
-TODO: better build error filtering
 TODO: build one-by-one for a PR
-TODO: descriptions of results from tests
-TODO: add a help thingie that determines stable tree automatically
 TODO: add tree aliases (bpf, bpf-next, ipsec, ipsec-next, etc.)
 TODO: run coccicheck
 TODO: rev xmas tree
@@ -199,7 +196,6 @@ TODO: add a marker for patches with replies from buildbot
 
 TODO: on a pull fixes may point to the commits in the pull
 
-TODO: set delegate
 TODO: series ID injection
 TODO: check that maintainers are CCed
 TODO: misspell-fixer
