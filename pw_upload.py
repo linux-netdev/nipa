@@ -2,21 +2,25 @@
 # SPDX-License-Identifier: GPL-2.0
 #
 # Copyright (C) 2019 Netronome Systems, Inc.
+# Copyright (c) 2020 Facebook
 
 import configparser
 import os
-import time
-from watchdog.observers import Observer
-from watchdog.events import PatternMatchingEventHandler
+import signal
+import inotify_simple as inotify
 
 from core import NIPA_DIR
 from core import log, log_open_sec, log_end_sec, log_init
 from pw import Patchwork, PatchworkCheckState
 
 # TODO: document
+should_stop = False
 
-PW = None
-CONFIG = None
+def handler(signum, frame):
+    global should_stop
+
+    print('Signal handler called with signal', signum)
+    should_stop = True
 
 
 def is_int(s):
@@ -87,8 +91,6 @@ def _pw_upload_results(series_dir, pw, config):
                 break
         break
 
-    os.mknod(os.path.join(series_dir, ".pw_done"))
-
 
 def pw_upload_results(series_dir, pw, config):
     log_open_sec(f'Upload results for {os.path.basename(series_dir)}')
@@ -98,61 +100,91 @@ def pw_upload_results(series_dir, pw, config):
         log_end_sec()
 
 
-def _initial_scan(results_dir, pw, config):
-    for root, dirs, _ in os.walk(results_dir):
-        for d in dirs:
-            path = os.path.join(root, d)
-            if not os.path.exists(os.path.join(path, '.tester_done')):
-                log(f"Test for {d} not done")
-                continue
-            if os.path.exists(os.path.join(path, '.pw_done')):
-                log(f"Already uploaded {d}")
-                continue
-            pw_upload_results(path, pw, config)
-        break
+def pw_upload_results_cb(series_dir, ctx):
+    pw_upload_results(series_dir, ctx['pw'], ctx['config'])
 
 
-def initial_scan(results_dir, pw, config):
-    log_open_sec('Upload initial')
-    try:
-        _initial_scan(results_dir, pw, config)
-    finally:
-        log_end_sec()
+class TestWatcher(object):
+    def __init__(self, base_path, trigger, complete, cb, cb_ctx):
+        self.base_path = base_path
+        self.trigger = trigger
+        self.complete = complete
+        self.cb = cb
+        self.cb_ctx = cb_ctx
 
+        self.wd2name = {}
+        self.inotify = inotify.INotify()
+        self.main_wd = None
 
-def on_created(event):
-    global PW, CONFIG
+    def _complete_dir(self, wd):
+        log(f"Dir {self.wd2name[wd]} ({wd}) has been processed", "")
+        self.inotify.rm_watch(wd)
+        self.wd2name.pop(wd)
 
-    series_dir = os.path.dirname(event.src_path)
-    log('Async event for ' + event.src_path)
-    if os.path.exists(os.path.join(series_dir, '.pw_done')):
-        log(f"Already uploaded {os.path.basename(series_dir)}")
-        return
-    pw_upload_results(series_dir, PW, CONFIG)
+    def _trigger_dir(self, name):
+        # Double check if completed, we can come here from notification
+        # after initial scan already processed the trigger
+        complete = os.path.join(self.base_path, name, self.complete)
+        if os.path.exists(complete):
+            log(f'Dir {name} already processed', '')
+            return
 
+        log(f"Trigger for dir {name}", "")
+        self.cb(os.path.join(self.base_path, name), self.cb_ctx)
+        os.mknod(complete)
 
-def watch_scan(results_dir, pw, config):
-    global PW, CONFIG
+    def _handle_new_dir(self, name):
+        path = os.path.join(self.base_path, name)
+        trigger = os.path.join(path, self.trigger)
+        complete = os.path.join(path, self.complete)
 
-    PW = pw
-    CONFIG = config
+        # Fast path already processed, assume we're the only entity
+        # creating 'complete' markers
+        if os.path.exists(complete):
+            log(f'Dir {name} already processed', '')
+            return
 
-    event_handler = PatternMatchingEventHandler(patterns=['*.tester_done'],
-                                                ignore_patterns=[],
-                                                ignore_directories=True,
-                                                case_sensitive=True)
-    event_handler.on_created = on_created
+        # Install the watch, to avoid race conditions with the check
+        wd = self.inotify.add_watch(path, inotify.flags.CREATE)
+        self.wd2name[wd] = name
+        log(f"New watch: {wd} => {name}", '')
 
-    observer = Observer()
-    observer.schedule(event_handler, results_dir, recursive=True)
+        if os.path.exists(trigger):
+            self._trigger_dir(name)
 
-    observer.start()
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        observer.stop()
-        observer.join()
+    def initial_scan(self):
+        # Install the watch first
+        flags = inotify.flags.CREATE | inotify.flags.ISDIR
+        self.main_wd = self.inotify.add_watch(self.base_path, flags)
+        self.wd2name[self.main_wd] = ''
+        # Then scan the fs tree
+        for root, dirs, _ in os.walk(self.base_path):
+            for d in dirs:
+                self._handle_new_dir(d)
+            break
+
+    def watch(self):
+        global should_stop
+
+        if self.main_wd is None:
+            raise Exception('Not initialized')
+
+        while not should_stop:
+            for event in self.inotify.read(timeout=1):
+                if event.mask & inotify.flags.IGNORED or \
+                   event.wd < 0 or \
+                   event.wd not in self.wd2name:
+                    continue
+
+                if event.wd == self.main_wd:
+                    if event.mask & inotify.flags.ISDIR:
+                        self._handle_new_dir(event.name)
+                else:  # subdir
+                    print(f'File event for {self.wd2name[event.wd]} => {event.name}')
+                    if event.name == self.trigger:
+                        self._trigger_dir(self.wd2name[event.wd])
+                    elif event.name == self.complete:
+                        self._complete_dir(event.wd)
 
 
 def main():
@@ -170,10 +202,12 @@ def main():
 
     pw = Patchwork(config)
 
-    # Initial walk
-    initial_scan(results_dir, pw, config)
-    # Watcher
-    watch_scan(results_dir, pw, config)
+    signal.signal(signal.SIGTERM, handler)
+    signal.signal(signal.SIGINT, handler)
+    tw = TestWatcher(results_dir, '.tester_done', '.pw_done',
+                     pw_upload_results_cb, {'pw': pw, 'config': config})
+    tw.initial_scan()
+    tw.watch()
 
 
 if __name__ == "__main__":
