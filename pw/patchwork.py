@@ -46,7 +46,7 @@ class Patchwork(object):
             try:
                 core.log("Response data", ret.json())
             except json.decoder.JSONDecodeError:
-                core.log("Response data", ret.text)
+                core.log("Response data", ret.content.decode())
         finally:
             core.log_end_sec()
 
