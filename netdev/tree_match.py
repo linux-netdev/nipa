@@ -45,13 +45,16 @@ def _tree_name_should_be_local_files(raw_email):
         'include/',
     }
     required_files = {
+        'Documentation/networking/',
         'include/linux/netdevice.h',
         'include/linux/skbuff.h',
         'include/net/',
+        'include/phy/',
         'net/',
         'drivers/net/',
         'drivers/dsa/',
         'drivers/nfc/',
+        'drivers/phy/',
         'drivers/net/ethernet/',
         'tools/testing/selftests/net/'
     }
