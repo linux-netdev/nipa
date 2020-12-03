@@ -87,7 +87,7 @@ class Patchwork(object):
 
     def get_mbox(self, object_type, identifier):
         url = f'{self._proto}{self.server}/{object_type}/{identifier}/mbox/'
-        return self._request(url)
+        return self._request(url).content.decode()
 
     def _get(self, req, api='1.1'):
         return self._request(f'{self._proto}{self.server}/api/{api}/{req}')
