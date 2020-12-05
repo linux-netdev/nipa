@@ -21,7 +21,7 @@ class PwSeries(Series):
         if pw_series['cover_letter']:
             pw_cover_letter = pw.get_mbox('cover',
                                           pw_series['cover_letter']['id'])
-            self.set_cover_letter(pw_cover_letter.text)
+            self.set_cover_letter(pw_cover_letter)
         elif self.pw_series['patches']:
             self.subject = self.pw_series['patches'][0]['name']
             self.title = self.pw_series['patches'][0]['name']
@@ -35,7 +35,7 @@ class PwSeries(Series):
         if not pw_series['received_all']:
             for p in self.pw_series['patches']:
                 raw_patch = pw.get_mbox('patch', p['id'])
-                self.patches.append(Patch(raw_patch.text, p['id']))
+                self.patches.append(Patch(raw_patch, p['id']))
             return
 
         # Do more magic around series which are complete
@@ -71,7 +71,7 @@ class PwSeries(Series):
 
         for pid in pids:
             raw_patch = pw.get_mbox('patch', pid)
-            self.patches.append(Patch(raw_patch.text, pid))
+            self.patches.append(Patch(raw_patch, pid))
 
         if not pw_series['cover_letter'] and len(self.patches) > 1:
             self.fixup_pull_covers()
