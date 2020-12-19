@@ -197,5 +197,5 @@ TODO: add a marker for patches with replies from buildbot
 TODO: on a pull fixes may point to the commits in the pull
 
 TODO: series ID injection
-TODO: check that maintainers are CCed (and author of a patch for Fixes)
+TODO: check that author of a patch for Fixes is CCed
 TODO: misspell-fixer
