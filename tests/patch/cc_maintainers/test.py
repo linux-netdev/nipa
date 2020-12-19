@@ -19,6 +19,7 @@ def cc_maintainers(tree, thing, result_dir) -> Tuple[int, str]:
     msg = email.message_from_string(patch.raw_patch)
     addrs = msg['to'].split(',')
     addrs += msg['cc'].split(',')
+    addrs += msg['from'].split(',')
     included = set()
     for a in addrs:
         match = emailpat.search(a)
@@ -42,7 +43,8 @@ def cc_maintainers(tree, thing, result_dir) -> Tuple[int, str]:
     if 'linux-kernel@vger.kernel.org' in expected:
         expected.remove('linux-kernel@vger.kernel.org')
 
+    found = expected.intersection(included)
     missing = expected.difference(included)
     if len(missing):
-        return 250, f"{len(missing)} maintainers not CCed: {''.join(missing)}"
-    return 0, ""
+        return 250, f"{len(missing)} maintainers not CCed: {' '.join(missing)}"
+    return 0, f"CCed {len(found)} of {len(expected)} maintainers"
