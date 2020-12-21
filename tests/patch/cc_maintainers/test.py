@@ -40,8 +40,9 @@ def cc_maintainers(tree, thing, result_dir) -> Tuple[int, str]:
             p.wait()
 
     # Don't expect people to CC LKML on everything
-    if 'linux-kernel@vger.kernel.org' in expected:
-        expected.remove('linux-kernel@vger.kernel.org')
+    expected.discard('linux-kernel@vger.kernel.org')
+    # For new files NIPA will get marked as committer
+    expected.discard('nipa@patchwork.hopto.org')
 
     found = expected.intersection(included)
     missing = expected.difference(included)
