@@ -47,5 +47,6 @@ def cc_maintainers(tree, thing, result_dir) -> Tuple[int, str]:
     found = expected.intersection(included)
     missing = expected.difference(included)
     if len(missing):
-        return 250, f"{len(missing)} maintainers not CCed: {' '.join(missing)}"
+        ret = 250 if len(found) > 1 else 1
+        return ret, f"{len(missing)} maintainers not CCed: {' '.join(missing)}"
     return 0, f"CCed {len(found)} of {len(expected)} maintainers"
