@@ -4,27 +4,24 @@
 
 from typing import Tuple
 import email
+import email.utils
 import subprocess
 import tempfile
 import re
 
 """ Test if relevant maintainers were CCed """
 
-emailpat = re.compile(r'([^ <]*@[^ >]*)')
+emailpat = re.compile(r'([^ <"]*@[^ >"]*)')
 
 
 def cc_maintainers(tree, thing, result_dir) -> Tuple[int, str]:
     patch = thing
 
     msg = email.message_from_string(patch.raw_patch)
-    addrs = msg['to'].split(',')
-    addrs += msg['cc'].split(',')
-    addrs += msg['from'].split(',')
-    included = set()
-    for a in addrs:
-        match = emailpat.search(a)
-        if match:
-            included.add(match.group(1))
+    addrs = msg.get_all('to', [])
+    addrs += msg.get_all('cc', [])
+    addrs += msg.get_all('from', [])
+    included = set([e for n,e in email.utils.getaddresses(addrs)])
 
     expected = set()
     with tempfile.NamedTemporaryFile() as fp:
