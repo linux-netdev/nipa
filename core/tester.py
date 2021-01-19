@@ -43,7 +43,8 @@ def write_tree_selection_result(result_dir, s, comment):
 
 def mark_done(result_dir, series):
     series_dir = os.path.join(result_dir, str(series.id))
-    os.mknod(os.path.join(series_dir, ".tester_done"))
+    if not os.path.exists(os.path.join(series_dir, ".tester_done")):
+        os.mknod(os.path.join(series_dir, ".tester_done"))
 
 
 class Tester(threading.Thread):
