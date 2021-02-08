@@ -21,7 +21,8 @@ def cc_maintainers(tree, thing, result_dir) -> Tuple[int, str]:
     addrs = msg.get_all('to', [])
     addrs += msg.get_all('cc', [])
     addrs += msg.get_all('from', [])
-    included = set([e for n,e in email.utils.getaddresses(addrs)])
+    addrs += msg.get_all('sender', [])
+    included = set([e for n, e in email.utils.getaddresses(addrs)])
 
     expected = set()
     with tempfile.NamedTemporaryFile() as fp:
