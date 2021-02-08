@@ -34,7 +34,10 @@ def cc_maintainers(tree, thing, result_dir) -> Tuple[int, str]:
                 match = emailpat.search(line)
                 if match:
                     expected.add(match.group(1))
-                line = p.stdout.readline().decode('utf8')
+                try:
+                    line = p.stdout.readline().decode('utf8')
+                except UnicodeDecodeError:
+                    line = ""
             p.wait()
 
     # Don't expect people to CC LKML on everything
