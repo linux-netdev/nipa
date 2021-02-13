@@ -16,14 +16,14 @@ echo "Checking the tree before the patch"
 git checkout -q HEAD~
 ./scripts/kernel-doc -none $files 2> >(tee $tmpfile_o >&2)
 
-incumbent=$(cat $tmpfile_o | wc -l)
+incumbent=$(grep -v 'Error: Cannot open file ' $tmpfile_o | wc -l)
 
 echo "Checking the tree with the patch"
 
 git checkout -q $HEAD
 ./scripts/kernel-doc -none $files 2> >(tee $tmpfile_n >&2)
 
-current=$(cat $tmpfile_n | wc -l)
+current=$(grep -v 'Error: Cannot open file ' $tmpfile_n | wc -l)
 
 echo "Errors and warnings before: $incumbent this patch: $current" >&$DESC_FD
 
