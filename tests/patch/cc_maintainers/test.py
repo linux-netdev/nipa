@@ -25,6 +25,7 @@ def cc_maintainers(tree, thing, result_dir) -> Tuple[int, str]:
     included = set([e for n, e in email.utils.getaddresses(addrs)])
 
     expected = set()
+    blamed = set()
     with tempfile.NamedTemporaryFile() as fp:
         patch.write_out(fp)
         command = ['./scripts/get_maintainer.pl', fp.name]
@@ -34,6 +35,8 @@ def cc_maintainers(tree, thing, result_dir) -> Tuple[int, str]:
                 match = emailpat.search(line)
                 if match:
                     expected.add(match.group(1))
+                    if 'blamed_fixes' in line:
+                        blamed.add(match.group(1))
                 line = p.stdout.readline().decode('utf8', 'replace')
             p.wait()
 
@@ -44,6 +47,10 @@ def cc_maintainers(tree, thing, result_dir) -> Tuple[int, str]:
 
     found = expected.intersection(included)
     missing = expected.difference(included)
+    missing_blamed = blamed.difference(included)
+    if len(missing_blamed):
+        return 1, f"{len(missing_blamed)} blamed authors not CCed: {' '.join(missing_blamed)}; " + \
+                  f"{len(missing)} maintainers not CCed: {' '.join(missing)}"
     if len(missing):
         ret = 250 if len(found) > 1 else 1
         return ret, f"{len(missing)} maintainers not CCed: {' '.join(missing)}"

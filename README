@@ -200,6 +200,5 @@ TODO: series ID injection
 TODO: check that author of a patch for Fixes is CCed
 TODO: misspell-fixer
 
-TODO: cc_maintainers -> error if fixes not CCed
 TODO: kdoc -> handle file removal
 TODO: make htmldocs
