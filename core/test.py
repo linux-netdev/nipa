@@ -5,6 +5,7 @@
 """ Test representation """
 # TODO: document
 
+import datetime
 import importlib
 import json
 import os
@@ -100,7 +101,9 @@ class Test(object):
         if "run" in self.info:
             return self._exec_run(tree, thing, result_dir)
         elif "pymod" in self.info:
+            core.log("START", datetime.datetime.now().strftime("%H:%M:%S.%f"))
             ret, desc = self._exec_pyfunc(tree, thing, result_dir)
+            core.log("END", datetime.datetime.now().strftime("%H:%M:%S.%f"))
             return ret, "", "", desc
 
     def _exec_run(self, tree, thing, result_dir):

@@ -72,6 +72,8 @@ def cmd_run(cmd, shell=True, include_stderr=False, add_env=None, cwd=None,
     if add_env:
         env.update(add_env)
 
+    core.log("START", datetime.datetime.now().strftime("%H:%M:%S.%f"))
+
     process = subprocess.Popen(cmd, shell=shell, stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE, env=env, cwd=cwd, pass_fds=pass_fds)
 
