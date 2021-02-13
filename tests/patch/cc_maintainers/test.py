@@ -29,15 +29,12 @@ def cc_maintainers(tree, thing, result_dir) -> Tuple[int, str]:
         patch.write_out(fp)
         command = ['./scripts/get_maintainer.pl', fp.name]
         with subprocess.Popen(command, cwd=tree.path, stdout=subprocess.PIPE) as p:
-            line = p.stdout.readline().decode('utf8')
+            line = p.stdout.readline().decode('utf8', 'replace')
             while line:
                 match = emailpat.search(line)
                 if match:
                     expected.add(match.group(1))
-                try:
-                    line = p.stdout.readline().decode('utf8')
-                except UnicodeDecodeError:
-                    line = ""
+                line = p.stdout.readline().decode('utf8', 'replace')
             p.wait()
 
     # Don't expect people to CC LKML on everything
