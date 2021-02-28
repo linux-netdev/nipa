@@ -51,6 +51,7 @@ def _tree_name_should_be_local_files(raw_email):
         'include/net/',
         'include/phy/',
         'net/',
+        'drivers/atm/',
         'drivers/net/',
         'drivers/dsa/',
         'drivers/nfc/',
