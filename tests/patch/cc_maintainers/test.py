@@ -17,6 +17,11 @@ ignore_emails = {'linux-kernel@vger.kernel.org',   # Don't expect people to CC L
                  'nipa@patchwork.hopto.org',       # For new files NIPA will get marked as committer
                  'jeffrey.t.kirsher@intel.com'}
 
+# Maintainers who don't CC their co-employees
+maintainers = {'michael.chan@broadcom.com': ['@broadcom.com'],
+               'anthony.l.nguyen@intel.com': ['@intel.com'],
+               'saeed@kernel.org': ['@nvidia.com', '@mellanox.com']}
+
 
 def cc_maintainers(tree, thing, result_dir) -> Tuple[int, str]:
     patch = thing
@@ -28,8 +33,14 @@ def cc_maintainers(tree, thing, result_dir) -> Tuple[int, str]:
     addrs += msg.get_all('sender', [])
     included = set([e for n, e in email.utils.getaddresses(addrs)])
 
+    sender = msg.get_all('from', ['nobody@nothing'])[0]
+    ignore_domains = []
+    if sender in maintainers:
+        ignore_domains = maintainers[sender]
+
     expected = set()
     blamed = set()
+    ignored = set()
     with tempfile.NamedTemporaryFile() as fp:
         patch.write_out(fp)
         command = ['./scripts/get_maintainer.pl', fp.name]
@@ -38,14 +49,21 @@ def cc_maintainers(tree, thing, result_dir) -> Tuple[int, str]:
             while line:
                 match = emailpat.search(line)
                 if match:
-                    expected.add(match.group(1))
+                    addr = match.group(1)
+                    expected.add(addr)
                     if 'blamed_fixes' in line:
-                        blamed.add(match.group(1))
+                        blamed.add(addr)
+                for domain in ignore_domains:
+                    if domain in addr:
+                        ignored.add(addr)
                 line = p.stdout.readline().decode('utf8', 'replace')
             p.wait()
 
     expected.difference_update(ignore_emails)
     blamed.difference_update(ignore_emails)
+
+    expected.difference_update(ignored)
+    blamed.difference_update(ignored)
 
     found = expected.intersection(included)
     missing = expected.difference(included)
