@@ -33,10 +33,13 @@ def cc_maintainers(tree, thing, result_dir) -> Tuple[int, str]:
     addrs += msg.get_all('sender', [])
     included = set([e for n, e in email.utils.getaddresses(addrs)])
 
-    sender = msg.get_all('from', ['nobody@nothing'])[0]
     ignore_domains = []
-    if sender in maintainers:
-        ignore_domains = maintainers[sender]
+    sender_from = msg.get_all('from', ['nobody@nothing'])[0]
+    match = emailpat.search(sender_from)
+    if match:
+        sender = match.group(1)
+        if sender in maintainers:
+            ignore_domains = maintainers[sender]
 
     expected = set()
     blamed = set()
