@@ -52,7 +52,7 @@ if [ $current -gt $incumbent ]; then
   grep -i "\(warn\|error\)" $tmpfile_n | sed -n 's@\(^\.\./[/a-zA-Z0-9_.-]*.[ch]\):.*@\1@p' | sort | uniq -c \
     > $tmpfile_fn
 
-  diff $tmpfile_fo $tmpfile_fn 1>&2
+  diff -U 0 $tmpfile_fo $tmpfile_fn 1>&2
   rm $tmpfile_fo $tmpfile_fn
 
   rc=1
