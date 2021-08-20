@@ -41,7 +41,7 @@ echo "Errors and warnings before: $incumbent this patch: $current" >&$DESC_FD
 
 if [ $current -gt $incumbent ]; then
   echo "New errors added" 1>&2
-  diff $tmpfile_o $tmpfile_n 1>&2
+  diff -U 0 $tmpfile_o $tmpfile_n 1>&2
 
   echo "Per-file breakdown" 1>&2
   tmpfile_fo=$(mktemp)
