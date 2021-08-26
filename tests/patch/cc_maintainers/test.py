@@ -19,6 +19,7 @@ ignore_emails = {'linux-kernel@vger.kernel.org',   # Don't expect people to CC L
 
 # Maintainers who don't CC their co-employees
 maintainers = {'michael.chan@broadcom.com': ['@broadcom.com'],
+               'huangguangbin2@huawei.com': ['@huawei.com', '@hisilicon.com'],
                'anthony.l.nguyen@intel.com': ['@intel.com', '@lists.osuosl.org'],
                'saeed@kernel.org': ['@nvidia.com', '@mellanox.com']}
 
