@@ -21,7 +21,8 @@ ignore_emails = {'linux-kernel@vger.kernel.org',   # Don't expect people to CC L
 maintainers = {'michael.chan@broadcom.com': ['@broadcom.com'],
                'huangguangbin2@huawei.com': ['@huawei.com', '@hisilicon.com'],
                'anthony.l.nguyen@intel.com': ['@intel.com', '@lists.osuosl.org'],
-               'saeed@kernel.org': ['@nvidia.com', '@mellanox.com']}
+               'saeed@kernel.org': ['@nvidia.com', '@mellanox.com',
+                                    'leon@kernel.org', 'linux-rdma@vger.kernel.org' ]}
 
 
 def cc_maintainers(tree, thing, result_dir) -> Tuple[int, str]:
