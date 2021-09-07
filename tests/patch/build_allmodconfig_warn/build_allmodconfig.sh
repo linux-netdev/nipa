@@ -11,20 +11,25 @@ tmpfile_o=$(mktemp)
 tmpfile_n=$(mktemp)
 rc=0
 
+prep_config() {
+  make CC="$cc" O=$output_dir allmodconfig
+  ./scripts/config --file $output_dir/.config -d werror
+}
+
 echo "Using -j $ncpu redirect to $tmpfile_o and $tmpfile_n"
 
 HEAD=$(git rev-parse HEAD)
 
 echo "Baseline building the tree"
 
-make CC="$cc" O=$output_dir allmodconfig
+prep_config
 make CC="$cc" O=$output_dir $build_flags
 
 git checkout -q HEAD~
 
 echo "Building the tree before the patch"
 
-make CC="$cc" O=$output_dir allmodconfig
+prep_config
 make CC="$cc" O=$output_dir $build_flags 2> >(tee $tmpfile_o >&2)
 incumbent=$(grep -i -c "\(warn\|error\)" $tmpfile_o)
 
@@ -32,7 +37,7 @@ echo "Building the tree with the patch"
 
 git checkout -q $HEAD
 
-make CC="$cc" O=$output_dir allmodconfig
+prep_config
 make CC="$cc" O=$output_dir $build_flags -j $ncpu 2> >(tee $tmpfile_n >&2) || rc=1
 
 current=$(grep -i -c "\(warn\|error\)" $tmpfile_n)
