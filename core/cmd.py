@@ -35,7 +35,7 @@ class CmdError(Exception):
         self.stderr = stderr
 
 
-def cmd_run(cmd, shell=True, include_stderr=False, add_env=None, cwd=None,
+def cmd_run(cmd: list[str], shell=False, include_stderr=False, add_env=None, cwd=None,
             pass_fds=()):
     """Run a command.
 
@@ -44,8 +44,8 @@ def cmd_run(cmd, shell=True, include_stderr=False, add_env=None, cwd=None,
 
     Parameters
     ----------
-    cmd : str
-        shell command with all its arguments
+    cmd : array of str
+        command to run with all its arguments
     shell : bool, optional
         invoke command in a full shell
     include_stderr : bool, optional
@@ -77,7 +77,7 @@ def cmd_run(cmd, shell=True, include_stderr=False, add_env=None, cwd=None,
     process = subprocess.Popen(cmd, shell=shell, stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE, env=env, cwd=cwd, pass_fds=pass_fds)
 
-    core.log_open_sec("CMD " + process.args)
+    core.log_open_sec("CMD " + str(process.args))
 
     stdout, stderr = process.communicate()
     stdout = stdout.decode("utf-8", "ignore")
@@ -98,7 +98,7 @@ def cmd_run(cmd, shell=True, include_stderr=False, add_env=None, cwd=None,
     if process.returncode != 0:
         if stderr and stderr[-1] == "\n":
             stderr = stderr[:-1]
-        raise CmdError("Command failed: %s" % (process.args, ),
+        raise CmdError("Command failed: %s" % (str(process.args), ),
                        process.returncode, stdout, stderr)
 
     if not include_stderr:

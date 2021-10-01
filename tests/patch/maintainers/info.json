@@ -1,4 +1,4 @@
 {
-  "run": "maintainers.sh",
+  "run": ["maintainers.sh"],
   "disabled": true
 }

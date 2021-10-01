@@ -1,3 +1,3 @@
 {
-  "run": "kdoc.sh"
+  "run": ["kdoc.sh"]
 }
