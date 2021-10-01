@@ -109,9 +109,9 @@ class Tester(threading.Thread):
         if not os.path.exists(series_dir):
             os.makedirs(series_dir)
         elif os.path.exists(os.path.join(series_dir, ".tester_done")):
-            core.log("Already tested", "")
+            core.log(f"Already tested in {series_dir}", "")
             core.log_end_sec()
-            return
+            return [], []
 
         if not tree.check_applies(series):
             series_apply = os.path.join(series_dir, "apply")

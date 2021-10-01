@@ -13,18 +13,21 @@ import argparse
 import configparser
 import os
 import re
+import threading
+import queue
 
-import core
+from core import NIPA_DIR
+from core import log, log_open_sec, log_end_sec, log_init
 from core import Patch
 from core import Series
 from core import Tree
 from core import Tester
 
 config = configparser.ConfigParser()
-config.read(['nipa.config', "mdir.config"])
+config.read(['nipa.config', "tester.config"])
 
 results_dir = config.get('results', 'dir',
-                         fallback=os.path.join(core.NIPA_DIR, "results"))
+                         fallback=os.path.join(NIPA_DIR, "results"))
 
 # TODO: use config
 parser = argparse.ArgumentParser()
@@ -32,7 +35,7 @@ parser.add_argument('--mdir', required=True,
                     help='path to the directory with the patches')
 parser.add_argument('--tree', required=True,
                     help='path to the tree to test on')
-parser.add_argument('--tree-name', default='net-next',
+parser.add_argument('--tree-name', default='unknown',
                     help='the tree name to expect')
 parser.add_argument('--tree-branch', default='master',
                     help='the branch or commit to use as a base for applying patches')
@@ -43,10 +46,14 @@ args = parser.parse_args()
 args.mdir = os.path.abspath(args.mdir)
 args.tree = os.path.abspath(args.tree)
 
-core.log_open_sec("Loading patches")
+log_init(config.get('log', 'type'), config.get('log', 'path'), force_single_thread=True)
+
+log_open_sec("Loading patches")
 try:
     files = [os.path.join(args.mdir, f) for f in sorted(os.listdir(args.mdir))]
     series = Series()
+    series.tree_selection_comment = "ingest_mdir"
+    series.tree_mark_expected = False
 
     for f in files:
         with open(f, 'r') as fp:
@@ -57,23 +64,40 @@ try:
             else:
                 series.add_patch(Patch(data))
 finally:
-    core.log_end_sec()
+    log_end_sec()
 
 tree = Tree(args.tree_name, args.tree_name, args.tree, branch=args.tree_branch)
-tester = Tester(args.result_dir)
-
 if not tree.check_applies(series):
     print("Patch series does not apply cleanly to the tree")
     os.sys.exit(1)
 
-series_ret, patch_ret = tester.test_series(tree, series)
-good_patch = 0
-for one_patch in patch_ret:
-    if len(one_patch) == sum(one_patch):
-        good_patch += 1
+try:
+    done = queue.Queue()
+    pending = queue.Queue()
+    barrier = threading.Barrier(2)
+    tester = Tester(args.result_dir, tree, pending, done, barrier)
+    tester.start()
 
-print("%d patches, %d/%d series tests passed, %d/%d patches passed all tests" %
-      (len(series.patches),
-       sum(series_ret), len(series_ret),
-       good_patch, len(patch_ret)))
-os.sys.exit(0)
+    pending.put(series)
+
+    # Unleash all workers
+    log("Activate workers", "")
+    barrier.wait()
+
+    # Wait for workers to come back
+    log("Wait for workers", "")
+    barrier.wait()
+
+    # Shut workers down
+    tester.should_die = True
+    pending.put(None)
+    barrier.wait()
+
+finally:
+    barrier.abort()
+    tester.should_die = True
+    pending.put(None)
+    tester.join()
+
+# Summary hack
+os.system(f'for i in $(find {args.result_dir} -type f -name summary); do dir=$(dirname "$i"); head -n2 "$dir"/summary; cat "$dir"/desc 2>/dev/null; done')
