@@ -1,0 +1,11 @@
+# Run linters on code in repo to avoid common issues:
+# * YAPF for Python scripts
+name: Lint checks
+on: [push, pull_request]
+jobs:
+  yapf:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: yapf
+      uses: AlexanderMelde/yapf-action@v1.0
