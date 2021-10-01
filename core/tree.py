@@ -26,7 +26,6 @@ class Tree:
 
     Git tree class which controls a git tree
     """
-
     def __init__(self, name, pfx, fspath, remote=None, branch=None):
         self.name = name
         self.pfx = pfx
@@ -71,8 +70,9 @@ class Tree:
         return self.git(cmd)
 
     def git_find_patch(self, needle, depth=1000):
-        cmd = ["log", "--pretty=format:'%h'", f"HEAD~{depth}..HEAD",
-               f"--grep={needle}", "--fixed-string"]
+        cmd = [
+            "log", "--pretty=format:'%h'", f"HEAD~{depth}..HEAD", f"--grep={needle}", "--fixed-string"
+        ]
         return self.git(cmd)
 
     def _check_tree(self):
@@ -153,8 +153,7 @@ class Tree:
             for patch in thing.patches:
                 self._apply_patch_safe(patch)
         else:
-            raise Exception("Can't apply object '%s' to the git tree" %
-                            (type(thing),))
+            raise Exception("Can't apply object '%s' to the git tree" % (type(thing), ))
 
     def check_applies(self, thing):
         core.log_open_sec("Test-applying " + thing.title)

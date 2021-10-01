@@ -26,17 +26,13 @@ from core import Tester
 config = configparser.ConfigParser()
 config.read(['nipa.config', "tester.config"])
 
-results_dir = config.get('results', 'dir',
-                         fallback=os.path.join(NIPA_DIR, "results"))
+results_dir = config.get('results', 'dir', fallback=os.path.join(NIPA_DIR, "results"))
 
 # TODO: use config
 parser = argparse.ArgumentParser()
-parser.add_argument('--mdir', required=True,
-                    help='path to the directory with the patches')
-parser.add_argument('--tree', required=True,
-                    help='path to the tree to test on')
-parser.add_argument('--tree-name', default='unknown',
-                    help='the tree name to expect')
+parser.add_argument('--mdir', required=True, help='path to the directory with the patches')
+parser.add_argument('--tree', required=True, help='path to the tree to test on')
+parser.add_argument('--tree-name', default='unknown', help='the tree name to expect')
 parser.add_argument('--tree-branch', default='master',
                     help='the branch or commit to use as a base for applying patches')
 parser.add_argument('--result-dir', default=results_dir,
@@ -100,4 +96,5 @@ finally:
     tester.join()
 
 # Summary hack
-os.system(f'for i in $(find {args.result_dir} -type f -name summary); do dir=$(dirname "$i"); head -n2 "$dir"/summary; cat "$dir"/desc 2>/dev/null; done')
+os.system(f'for i in $(find {args.result_dir} -type f -name summary); do dir=$(dirname "$i"); head -n2 "$dir"/summary; cat "$dir"/desc 2>/dev/null; done'
+          )

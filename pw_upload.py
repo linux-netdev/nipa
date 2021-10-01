@@ -86,7 +86,8 @@ def _pw_upload_results(series_dir, pw, config):
             for _, test_dirs, _ in os.walk(patch_dir):
                 for test in test_dirs:
                     tr = PwTestResult(test, patch_dir, f"{result_server}/{series}/{patch}/{test}")
-                    pw.post_check(patch=patch, name=tr.test, state=tr.state, url=tr.url, desc=tr.desc)
+                    pw.post_check(patch=patch, name=tr.test, state=tr.state, url=tr.url,
+                                  desc=tr.desc)
 
                 log(f"Patch {patch} - found {len(test_dirs)} results")
                 break
@@ -194,19 +195,19 @@ def main():
     config.read(['nipa.config', 'pw.config', 'upload.config'])
 
     log_init(config.get('log', 'type', fallback='org'),
-             config.get('log', 'file', fallback=os.path.join(NIPA_DIR,
-                                                             "upload.org")),
+             config.get('log', 'file', fallback=os.path.join(NIPA_DIR, "upload.org")),
              force_single_thread=True)
 
-    results_dir = config.get('results', 'dir',
-                             fallback=os.path.join(NIPA_DIR, "results"))
+    results_dir = config.get('results', 'dir', fallback=os.path.join(NIPA_DIR, "results"))
 
     pw = Patchwork(config)
 
     signal.signal(signal.SIGTERM, handler)
     signal.signal(signal.SIGINT, handler)
-    tw = TestWatcher(results_dir, '.tester_done', '.pw_done',
-                     pw_upload_results_cb, {'pw': pw, 'config': config})
+    tw = TestWatcher(results_dir, '.tester_done', '.pw_done', pw_upload_results_cb, {
+        'pw': pw,
+        'config': config
+    })
     tw.initial_scan()
     tw.watch()
 

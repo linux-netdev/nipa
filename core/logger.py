@@ -205,7 +205,7 @@ def log_init(name, path, force_single_thread=False):
     global tls
 
     if force_single_thread:
-        tls = type('nothing', (object,), {})()
+        tls = type('nothing', (object, ), {})()
 
     if name.lower() == 'stdout':
         tls.logger = StdoutLogger()

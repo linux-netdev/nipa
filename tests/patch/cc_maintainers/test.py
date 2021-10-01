@@ -8,21 +8,25 @@ import email.utils
 import subprocess
 import tempfile
 import re
-
 """ Test if relevant maintainers were CCed """
 
 emailpat = re.compile(r'([^ <"]*@[^ >"]*)')
 
-ignore_emails = {'linux-kernel@vger.kernel.org',   # Don't expect people to CC LKML on everything
-                 'nipa@patchwork.hopto.org',       # For new files NIPA will get marked as committer
-                 'jeffrey.t.kirsher@intel.com'}
+ignore_emails = {
+    'linux-kernel@vger.kernel.org',  # Don't expect people to CC LKML on everything
+    'nipa@patchwork.hopto.org',      # For new files NIPA will get marked as committer
+    'jeffrey.t.kirsher@intel.com'
+}
 
 # Maintainers who don't CC their co-employees
-maintainers = {'michael.chan@broadcom.com': ['@broadcom.com'],
-               'huangguangbin2@huawei.com': ['@huawei.com', '@hisilicon.com'],
-               'anthony.l.nguyen@intel.com': ['@intel.com', '@lists.osuosl.org'],
-               'saeed@kernel.org': ['@nvidia.com', '@mellanox.com',
-                                    'leon@kernel.org', 'linux-rdma@vger.kernel.org' ]}
+maintainers = {
+    'michael.chan@broadcom.com': ['@broadcom.com'],
+    'huangguangbin2@huawei.com': ['@huawei.com', '@hisilicon.com'],
+    'anthony.l.nguyen@intel.com': ['@intel.com', '@lists.osuosl.org'],
+    'saeed@kernel.org': [
+        '@nvidia.com', '@mellanox.com', 'leon@kernel.org', 'linux-rdma@vger.kernel.org'
+    ]
+}
 
 
 def cc_maintainers(tree, thing, result_dir) -> Tuple[int, str]:

@@ -14,7 +14,6 @@ class Series(object):
     """Patch series class
 
     """
-
     def __init__(self, ident=None, title=""):
         self.cover_letter = None
         self.cover_pull = None

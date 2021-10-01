@@ -3,7 +3,6 @@
 # Copyright (C) 2019 Netronome Systems, Inc.
 
 from typing import Tuple
-
 """ Test number of patches, we have a 15 patch limit on netdev """
 
 

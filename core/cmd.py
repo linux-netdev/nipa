@@ -25,7 +25,6 @@ class CmdError(Exception):
     stderr : str
         standard output of the command which failed
     """
-
     def __init__(self, cmd, retcode, stdout, stderr):
         super().__init__(cmd, retcode, stdout, stderr)
 
@@ -35,8 +34,7 @@ class CmdError(Exception):
         self.stderr = stderr
 
 
-def cmd_run(cmd: list[str], shell=False, include_stderr=False, add_env=None, cwd=None,
-            pass_fds=()):
+def cmd_run(cmd: list[str], shell=False, include_stderr=False, add_env=None, cwd=None, pass_fds=()):
     """Run a command.
 
     Run a command in subprocess and return the stdout;
@@ -74,8 +72,8 @@ def cmd_run(cmd: list[str], shell=False, include_stderr=False, add_env=None, cwd
 
     core.log("START", datetime.datetime.now().strftime("%H:%M:%S.%f"))
 
-    process = subprocess.Popen(cmd, shell=shell, stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE, env=env, cwd=cwd, pass_fds=pass_fds)
+    process = subprocess.Popen(cmd, shell=shell, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                               env=env, cwd=cwd, pass_fds=pass_fds)
 
     core.log_open_sec("CMD " + str(process.args))
 
@@ -98,8 +96,8 @@ def cmd_run(cmd: list[str], shell=False, include_stderr=False, add_env=None, cwd
     if process.returncode != 0:
         if stderr and stderr[-1] == "\n":
             stderr = stderr[:-1]
-        raise CmdError("Command failed: %s" % (str(process.args), ),
-                       process.returncode, stdout, stderr)
+        raise CmdError("Command failed: %s" % (str(process.args), ), process.returncode, stdout,
+                       stderr)
 
     if not include_stderr:
         return stdout

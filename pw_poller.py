@@ -33,8 +33,7 @@ class PwPoller:
         config.read(['nipa.config', 'pw.config', 'poller.config'])
 
         log_init(config.get('log', 'type', fallback='org'),
-                 config.get('log', 'file', fallback=os.path.join(NIPA_DIR,
-                                                                 "poller.org")))
+                 config.get('log', 'file', fallback=os.path.join(NIPA_DIR, "poller.org")))
 
         # TODO: make this non-static / read from a config
         self._trees = {
@@ -49,7 +48,8 @@ class PwPoller:
         self._done_queue = queue.Queue()
         self._workers = {}
         for k, tree in self._trees.items():
-            self._workers[k] = Tester(self.result_dir, tree, queue.Queue(), self._done_queue, self._barrier)
+            self._workers[k] = Tester(self.result_dir, tree, queue.Queue(), self._done_queue,
+                                      self._barrier)
             self._workers[k].start()
             log(f"Started worker {self._workers[k].name} for {k}")
 
@@ -127,11 +127,9 @@ class PwPoller:
 
         s = PwSeries(self._pw, pw_series)
 
-        log("Series info",
-            f"Series ID {s['id']}\n" +
-            f"Series title {s['name']}\n" +
-            f"Author {s['submitter']['name']}\n" +
-            f"Date {s['date']}")
+        log(
+            "Series info", f"Series ID {s['id']}\n" + f"Series title {s['name']}\n" +
+            f"Author {s['submitter']['name']}\n" + f"Date {s['date']}")
         log_open_sec('Patches')
         for p in s['patches']:
             log(p['name'], "")

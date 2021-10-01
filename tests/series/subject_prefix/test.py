@@ -3,7 +3,6 @@
 # Copyright (C) 2019 Netronome Systems, Inc.
 
 from typing import Tuple
-
 """ Test if subject prefix (tree designation) is present """
 
 

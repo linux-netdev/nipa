@@ -19,8 +19,7 @@ class PwSeries(Series):
         self.pw_series = pw_series
 
         if pw_series['cover_letter']:
-            pw_cover_letter = pw.get_mbox('cover',
-                                          pw_series['cover_letter']['id'])
+            pw_cover_letter = pw.get_mbox('cover', pw_series['cover_letter']['id'])
             self.set_cover_letter(pw_cover_letter)
         elif self.pw_series['patches']:
             self.subject = self.pw_series['patches'][0]['name']
@@ -92,7 +91,7 @@ class PwSeries(Series):
             reply_to = None
 
             for line in lines:
-                if line == "":  # end of headers
+                if line == "":   # end of headers
                     if reply_to is None:
                         log("Patch had no reply header", "")
                         all_reply = False
@@ -110,8 +109,7 @@ class PwSeries(Series):
                     log("Mismatch in replies", "")
         log("Result", all_reply)
         if all_reply:
-            covers = self.pw.get_all('patches', filters={'msgid': all_reply},
-                                     api='1.2')
+            covers = self.pw.get_all('patches', filters={'msgid': all_reply}, api='1.2')
             if len(covers) != 1:
                 log('Unique cover letter not found', len(covers))
             else:

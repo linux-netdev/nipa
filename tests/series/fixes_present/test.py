@@ -5,7 +5,6 @@
 import re
 
 from typing import Tuple
-
 """ Test presence of the Fixes tag in non *-next patches """
 
 

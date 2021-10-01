@@ -118,8 +118,7 @@ class Patchwork(object):
     def get_series_all(self, project=None, since=None):
         if project is None:
             project = self._project
-        return self.get_all('series', {'project': project,
-                                       'since': since})
+        return self.get_all('series', {'project': project, 'since': since})
 
     def post_check(self, patch, name, state, url, desc):
         headers = {}

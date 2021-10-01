@@ -18,7 +18,6 @@ class Test(object):
     """Test class
 
     """
-
     def __init__(self, path, name):
         self.path = path
         self.name = name
@@ -30,9 +29,7 @@ class Test(object):
         # Load dynamically the python func
         if "pymod" in self.info:
             test_group = os.path.basename(os.path.dirname(path))
-            m = importlib.import_module("tests.%s.%s.%s" %
-                                        (test_group, name,
-                                         self.info["pymod"]))
+            m = importlib.import_module("tests.%s.%s.%s" % (test_group, name, self.info["pymod"]))
             self._exec_pyfunc = getattr(m, self.info["pyfunc"])
         if "run" in self.info:
             # If the test to run is not a fully qualified path, add the
@@ -74,7 +71,7 @@ class Test(object):
             elif retcode == 250:
                 fp.write("%s - WARNING\n" % (self.name, ))
             else:
-                fp.write("%s - FAILED\n" % (self.name,))
+                fp.write("%s - FAILED\n" % (self.name, ))
                 fp.write("\n")
                 if err.strip():
                     if err[:-1] != '\n':
@@ -119,9 +116,8 @@ class Test(object):
         try:
             rfd, wfd = os.pipe()
 
-            out, err = CMD.cmd_run(self.info["run"],
-                                   include_stderr=True, cwd=tree.path, pass_fds=[wfd],
-                                   add_env={"DESC_FD": str(wfd)})
+            out, err = CMD.cmd_run(self.info["run"], include_stderr=True, cwd=tree.path,
+                                   pass_fds=[wfd], add_env={"DESC_FD": str(wfd)})
         except core.cmd.CmdError as e:
             retcode = e.retcode
             out = e.stdout

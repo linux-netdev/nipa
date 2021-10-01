@@ -4,8 +4,8 @@
 
 from typing import Tuple
 import subprocess
-
 """ Test if the patch passes signature checks """
+
 
 def signed(tree, thing, result_dir) -> Tuple[int, str]:
     command = ['patatt', 'validate']

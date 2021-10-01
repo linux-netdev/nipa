@@ -29,7 +29,6 @@ class Patch(object):
     write_out(fp)
         Write the raw patch into the given file pointer.
     """
-
     def __init__(self, raw_patch, ident=None, title=""):
         self.raw_patch = raw_patch
         self.title = title

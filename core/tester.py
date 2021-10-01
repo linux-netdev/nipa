@@ -65,9 +65,9 @@ class Tester(threading.Thread):
         config = configparser.ConfigParser()
         config.read(['nipa.config', 'pw.config', 'tester.config'])
 
-        core.log_init(config.get('log', 'type', fallback='org'),
-                      config.get('log', 'file', fallback=os.path.join(core.NIPA_DIR,
-                                                                      f"{self.tree.name}.org")))
+        core.log_init(
+            config.get('log', 'type', fallback='org'),
+            config.get('log', 'file', fallback=os.path.join(core.NIPA_DIR, f"{self.tree.name}.org")))
 
         core.log_open_sec("Tester init")
         if not os.path.exists(self.result_dir):
@@ -102,8 +102,7 @@ class Tester(threading.Thread):
         mark_done(self.result_dir, series)
 
     def _test_series(self, tree, series):
-        core.log_open_sec("Running tests in tree %s for %s" %
-                          (tree.name, series.title))
+        core.log_open_sec("Running tests in tree %s for %s" % (tree.name, series.title))
 
         series_dir = os.path.join(self.result_dir, str(series.id))
         if not os.path.exists(series_dir):
