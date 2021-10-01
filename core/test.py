@@ -58,6 +58,8 @@ class Test(object):
             with open(os.path.join(test_dir, "stderr"), "w+") as fp:
                 fp.write(err)
         if desc:
+            if not desc.endswith('\n'):
+                desc += '\n'
             with open(os.path.join(test_dir, "desc"), "w+") as fp:
                 fp.write(desc)
         with open(os.path.join(test_dir, "summary"), "w+") as fp:
