@@ -57,7 +57,7 @@ def _tree_name_should_be_local_files(raw_email):
         'drivers/nfc/',
         'drivers/phy/',
         'drivers/net/ethernet/',
-        'tools/testing/selftests/net/'
+        'tools/testing/selftests/net/',
     }
     excluded_files = {
         'drivers/net/wireless/',
