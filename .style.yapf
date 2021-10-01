@@ -1,3 +1,6 @@
+# How to see differences between local style and pep8:
+#   yapf3 --no-local-style --style-help > .style.yapf.orig
+#   diff -u .style.yapf. orig .style.yapf
 [style]
 # Align closing bracket with visual indentation.
 align_closing_bracket_with_visual_indent=True
@@ -18,7 +21,7 @@ allow_multiline_lambdas=False
 allow_split_before_default_or_named_assigns=True
 
 # Allow splits before the dictionary value.
-allow_split_before_dict_value=True
+allow_split_before_dict_value=False
 
 #   Let spacing indicate operator precedence. For example:
 #
@@ -48,7 +51,7 @@ blank_lines_around_top_level_definition=2
 blank_line_before_class_docstring=False
 
 # Insert a blank line before a module docstring.
-blank_line_before_module_docstring=False
+blank_line_before_module_docstring=True
 
 # Insert a blank line before a 'def' or 'class' immediately nested
 # within another 'def' or 'class'. For example:
@@ -78,7 +81,7 @@ blank_line_before_nested_class_or_def=False
 coalesce_brackets=False
 
 # The column limit.
-column_limit=79
+column_limit=99
 
 # The style for continuation alignment. Possible values are:
 #
@@ -259,7 +262,9 @@ spaces_around_tuple_delimiters=False
 #   a_very_long_statement_that_extends_beyond_the_final_column  # Comment <-- the end of line comments are aligned based on the line length
 #   short                                                       # This is a shorter statement
 #
-spaces_before_comment=2
+# To make sure there is at least two spaces before a comment but also
+# aligned to prior comments, add every even column.
+spaces_before_comment=2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60
 
 # Insert a space between the ending comma and closing bracket of a list,
 # etc.
@@ -327,7 +332,7 @@ split_before_first_argument=False
 split_before_logical_operator=True
 
 # Split named assignments onto individual lines.
-split_before_named_assigns=True
+split_before_named_assigns=False
 
 # Set to True to split list comprehensions and generators that have
 # non-trivial expressions and multiple clauses before each of these
@@ -367,11 +372,11 @@ split_penalty_bitwise_operator=300
 split_penalty_comprehension=80
 
 # The penalty for characters over the column limit.
-split_penalty_excess_character=7000
+split_penalty_excess_character=100
 
 # The penalty incurred by adding a line split to the unwrapped line. The
 # more line splits added the higher the penalty.
-split_penalty_for_added_line_split=30
+split_penalty_for_added_line_split=300
 
 # The penalty of splitting a list of "import as" names. For example:
 #
