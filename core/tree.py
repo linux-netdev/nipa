@@ -6,7 +6,6 @@
 
 import os
 import tempfile
-import shlex
 
 import core
 import core.cmd as CMD
@@ -42,35 +41,39 @@ class Tree:
 
         self._check_tree()
 
-    def git(self, cmd):
-        return CMD.cmd_run("git " + cmd, cwd=self.path)
+    def git(self, args: list[str]):
+        return CMD.cmd_run(["git"] + args, cwd=self.path)
 
     def git_am(self, patch):
-        return self.git("am -s " + patch)
+        return self.git(["am", "-s", "--", patch])
 
     def git_status(self, untracked=None, short=False):
-        cmd = "status"
+        cmd = ["status"]
         if short:
-            cmd += " -s"
+            cmd += ["-s"]
         if untracked is not None:
-            cmd += " -u" + untracked
+            cmd += ["-u", untracked]
         return self.git(cmd)
 
     def git_merge_base(self, c1, c2, is_ancestor=False):
-        cmd = f'merge-base {c1} {c2}'
+        cmd = ["merge-base", c1, c2]
         if is_ancestor:
-            cmd += ' --is-ancestor'
+            cmd += ['--is-ancestor']
         return self.git(cmd)
 
     def git_fetch(self, remote):
-        return self.git('fetch ' + remote)
+        return self.git(['fetch', remote])
 
     def git_reset(self, target, hard=False):
-        return self.git('reset {target} {hard}'.format(target=target, hard="--hard" if hard else ""))
+        cmd = ['reset', target]
+        if hard:
+            cmd += ['--hard']
+        return self.git(cmd)
 
     def git_find_patch(self, needle, depth=1000):
-        needle = shlex.quote(needle)
-        return self.git(f"log --pretty=format:'%h' HEAD~{depth}..HEAD --grep={needle} --fixed-strings")
+        cmd = ["log", "--pretty=format:'%h'", f"HEAD~{depth}..HEAD",
+               f"--grep={needle}", "--fixed-string"]
+        return self.git(cmd)
 
     def _check_tree(self):
         core.log_open_sec("Checking tree " + self.name)
@@ -138,7 +141,7 @@ class Tree:
                     core.log_end_sec()
         except CMD.CmdError as e:
             try:
-                self.git("am --abort")
+                self.git(["am", "--abort"])
             except CMD.CmdError:
                 pass
             raise PatchApplyError(e) from e

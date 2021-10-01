@@ -34,6 +34,11 @@ class Test(object):
                                         (test_group, name,
                                          self.info["pymod"]))
             self._exec_pyfunc = getattr(m, self.info["pyfunc"])
+        if "run" in self.info:
+            # If the test to run is not a fully qualified path, add the
+            # test directory to make it so.
+            if self.info["run"][0][0] != '/':
+                self.info["run"][0] = os.path.join(self.path, self.info["run"][0])
         core.log_end_sec()
 
     def _info_load(self):
@@ -112,7 +117,7 @@ class Test(object):
         try:
             rfd, wfd = os.pipe()
 
-            out, err = CMD.cmd_run(os.path.join(self.path, self.info["run"]),
+            out, err = CMD.cmd_run(self.info["run"],
                                    include_stderr=True, cwd=tree.path, pass_fds=[wfd],
                                    add_env={"DESC_FD": str(wfd)})
         except core.cmd.CmdError as e:

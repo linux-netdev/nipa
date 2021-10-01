@@ -35,7 +35,7 @@ class CmdError(Exception):
         self.stderr = stderr
 
 
-def cmd_run(cmd, shell=True, include_stderr=False, add_env=None, cwd=None,
+def cmd_run(cmd: list[str], shell=False, include_stderr=False, add_env=None, cwd=None,
             pass_fds=()):
     """Run a command.
 
@@ -44,8 +44,8 @@ def cmd_run(cmd, shell=True, include_stderr=False, add_env=None, cwd=None,
 
     Parameters
     ----------
-    cmd : str
-        shell command with all its arguments
+    cmd : array of str
+        command to run with all its arguments
     shell : bool, optional
         invoke command in a full shell
     include_stderr : bool, optional
