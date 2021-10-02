@@ -14,9 +14,21 @@ def signed(tree, thing, result_dir) -> Tuple[int, str]:
     # Fail closed.
     ret = 1
     reason = p.stdout.decode("utf-8", "replace")
-    # If patatt returns less than RES_ERROR, lower result to a warning.
     if p.returncode < 16:
+        # If patatt returns less than RES_ERROR, lower result to a warning.
         ret = 250
+        # $ cat tests/patch/signed/selftest/nokey.mbox | patatt validate
+        #  NOKEY | keescook@chromium.org, -
+        #        | keescook@chromium.org/default no matching openpgp key found
+        # $ echo $?
+        # 8
+        if 'NOKEY' in reason:
+            reason = f"Signing key not found in keyring: {reason}"
+        # $ cat tests/patch/signed/selftest/nosig.mbox | patatt validate
+        #  NOSIG | -
+        #        | no signatures found
+        if 'NOSIG' in reason:
+            reason = "No signature found. Please sign patches: https://github.com/mricon/patatt"
     if p.returncode == 0:
         # Make sure we see ONLY "PASS" output, even when rc == 0.
         bad = 0
@@ -31,6 +43,8 @@ def signed(tree, thing, result_dir) -> Tuple[int, str]:
             if len(msg) == 0:
                 # Ignore lines with empty msg (i.e. informational continuation line).
                 continue
+            # $ cat tests/patch/signed/selftest/good.mbox | patatt validate
+            #   PASS | keescook@chromium.org, -
             if msg == 'PASS':
                 good += 1
             else:
@@ -39,11 +53,18 @@ def signed(tree, thing, result_dir) -> Tuple[int, str]:
         if bad == 0:
             if good == 0:
                 # If there is nothing in stdout then no validation happened (no signature)
+                # (As seen with patatt < 5.0)
+                # $ cat tests/patch/signed/selftest/nosig.mbox | patatt validate
+                # $ echo $?
+                # 0
                 ret = 250
                 reason = "No signature found. Please sign patches: https://github.com/mricon/patatt"
             if good > 0:
                 ret = 0
         else:
+            # $ cat tests/patch/signed/selftest/bad.mbox | patatt validate
+            # BADSIG | keescook@chromium.org, -
+            #        | failed to validate using /home/nipa-user/trusted/kernel/pgpkeys/.keyring/openpgp/chromium.org/keescook/default
             ret = 1
 
     return ret, reason

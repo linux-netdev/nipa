@@ -1,0 +1,92 @@
+From a0cde59a3a25d2708d8ae62488559e9974798cd8 Mon Sep 17 00:00:00 2001
+From: Kees Cook <keescook@chromium.org>
+Date: Fri, 17 Sep 2021 07:49:38 +1000
+Subject: [PATCH v3 1/8] rapidio: Avoid bogus __alloc_size warning
+To: Andrew Morton <akpm@linux-foundation.org>
+
+After adding __alloc_size attributes to the allocators, GCC 9.3 (but not
+later) may incorrectly evaluate the arguments to check_copy_size(),
+getting seemingly confused by the size being returned from array_size().
+Instead, perform the calculation once, which both makes the code more
+readable and avoids the bug in GCC.
+
+   In file included from arch/x86/include/asm/preempt.h:7,
+                    from include/linux/preempt.h:78,
+                    from include/linux/spinlock.h:55,
+                    from include/linux/mm_types.h:9,
+                    from include/linux/buildid.h:5,
+                    from include/linux/module.h:14,
+                    from drivers/rapidio/devices/rio_mport_cdev.c:13:
+   In function 'check_copy_size',
+       inlined from 'copy_from_user' at include/linux/uaccess.h:191:6,
+       inlined from 'rio_mport_transfer_ioctl' at drivers/rapidio/devices/rio_mport_cdev.c:983:6:
+   include/linux/thread_info.h:213:4: error: call to '__bad_copy_to' declared with attribute error: copy destination size is too small
+     213 |    __bad_copy_to();
+         |    ^~~~~~~~~~~~~~~
+
+But the allocation size and the copy size are identical:
+
+	transfer = vmalloc(array_size(sizeof(*transfer), transaction.count));
+	if (!transfer)
+		return -ENOMEM;
+
+	if (unlikely(copy_from_user(transfer,
+				    (void __user *)(uintptr_t)transaction.block,
+				    array_size(sizeof(*transfer), transaction.count)))) {
+
+Reported-by: kernel test robot <lkp@intel.com>
+Link: https://lore.kernel.org/linux-mm/202109091134.FHnRmRxu-lkp@intel.com/
+Cc: Matt Porter <mporter@kernel.crashing.org>
+Cc: Alexandre Bounine <alex.bou9@gmail.com>
+Cc: Jing Xiangfeng <jingxiangfeng@huawei.com>
+Cc: Ira Weiny <ira.weiny@intel.com>
+Cc: Souptick Joarder <jrdr.linux@gmail.com>
+Cc: Gustavo A. R. Silva <gustavoars@kernel.org>
+Signed-off-by: Kees Cook <keescook@chromium.org>
+Reviewed-by: John Hubbard <jhubbard@nvidia.com>
+---
+ drivers/rapidio/devices/rio_mport_cdev.c | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/rapidio/devices/rio_mport_cdev.c b/drivers/rapidio/devices/rio_mport_cdev.c
+index 94331d999d27..7df466e22282 100644
+--- a/drivers/rapidio/devices/rio_mport_cdev.c
++++ b/drivers/rapidio/devices/rio_mport_cdev.c
+@@ -965,6 +965,7 @@ static int rio_mport_transfer_ioctl(struct file *filp, void __user *arg)
+ 	struct rio_transfer_io *transfer;
+ 	enum dma_data_direction dir;
+ 	int i, ret = 0;
++	size_t size;
+ 
+ 	if (unlikely(copy_from_user(&transaction, arg, sizeof(transaction))))
+ 		return -EFAULT;
+@@ -976,13 +977,14 @@ static int rio_mport_transfer_ioctl(struct file *filp, void __user *arg)
+ 	     priv->md->properties.transfer_mode) == 0)
+ 		return -ENODEV;
+ 
+-	transfer = vmalloc(array_size(sizeof(*transfer), transaction.count));
++	size = array_size(sizeof(*transfer), transaction.count);
++	transfer = vmalloc(size);
+ 	if (!transfer)
+ 		return -ENOMEM;
+ 
+ 	if (unlikely(copy_from_user(transfer,
+ 				    (void __user *)(uintptr_t)transaction.block,
+-				    array_size(sizeof(*transfer), transaction.count)))) {
++				    size))) {
+ 		ret = -EFAULT;
+ 		goto out_free;
+ 	}
+@@ -994,8 +996,7 @@ static int rio_mport_transfer_ioctl(struct file *filp, void __user *arg)
+ 			transaction.sync, dir, &transfer[i]);
+ 
+ 	if (unlikely(copy_to_user((void __user *)(uintptr_t)transaction.block,
+-				  transfer,
+-				  array_size(sizeof(*transfer), transaction.count))))
++				  transfer, size)))
+ 		ret = -EFAULT;
+ 
+ out_free:
+-- 
+2.30.2
+
