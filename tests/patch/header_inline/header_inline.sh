@@ -6,8 +6,12 @@
 inlines=$(git show -- '*.h' | grep -C1 -P '^\+static (?!(__always_)?inline).*\(')
 
 if [ -z "$inlines" ]; then
+  echo "No static functions without inline keyword in header files" >&$DESC_FD
   exit 0
 else
-  echo -e "Detected static functions without inline keyword in C files\n$inlines" 1>&2
+  msg="Detected static functions without inline keyword in header files:"
+  echo -e "$msg\n$inlines" 1>&2
+  count=$( (echo "---"; echo "$inlines") | grep '^---$' | wc -l)
+  echo "$msg $count" >&$DESC_FD
   exit 1
 fi
