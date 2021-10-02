@@ -10,10 +10,10 @@ from typing import Tuple
 
 def fixes_present(tree, thing, result_dir) -> Tuple[int, str]:
     if tree.pfx.count("next"):
-        return 0, ""
+        return 0, "Fixes tag not required for -next series"
     for patch in thing.patches:
         if patch.raw_patch.count('\nFixes: '):
-            return 0, ""
+            return 0, "Fixes tag present in non-next series"
 
     r_header = re.compile(r'\+\+\+ b/([-\w/._]+)$')
     all_safe = None
