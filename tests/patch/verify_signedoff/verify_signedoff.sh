@@ -54,8 +54,8 @@ verify_signedoff()
 
 		if "$am" || "$cm"; then
 			printf "Commit %s\n" "$(git show -s --abbrev-commit --abbrev=12 --pretty=format:"%h (\"%s\")%n" "${c}")"
-			"$am" && printf "\tauthor Signed-off-by missing\n"
-			"$cm" && printf "\tcommitter Signed-off-by missing\n"
+			"$am" && printf "\tauthor Signed-off-by missing\n" | tee -a /dev/fd/$DESC_FD
+			"$cm" && printf "\tcommitter Signed-off-by missing\n" | tee -a /dev/fd/$DESC_FD
 			printf "\tauthor email:    %s\n" "$ae"
 			printf "\tcommitter email: %s\n"  "$ce"
 			readarray -t s <<< "${sob}"
@@ -68,6 +68,7 @@ verify_signedoff()
 		echo "Errors in tree with Signed-off-by, please fix!"
 		exit 1
 	fi
+        echo "Signed-off-by tag matches author and committer" >&$DESC_FD
 }
 
 git_range=$1
