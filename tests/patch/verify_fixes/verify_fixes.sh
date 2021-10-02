@@ -48,6 +48,7 @@ verify_fixes()
 	error=0
 	commits=$(git rev-list --no-merges -i --grep='^[[:space:]]*Fixes:' "${git_range}")
 	if [ -z "$commits" ]; then
+		echo "No Fixes tag" >&$DESC_FD
 	        return 0
 	fi
 
@@ -79,6 +80,7 @@ verify_fixes()
 
 			if git log -1 --format='%B' "$c" | tr '\n' '#' | grep -qF "##$fline##"; then
 				msg="${msg:+${msg}${nl}}${tab}${tab}- empty lines surround the Fixes tag"
+				error=$(( error + 1 ))
 			fi
 
 			if [[ "$f" =~ $split_re ]]; then
@@ -88,27 +90,29 @@ verify_fixes()
 				subject="${BASH_REMATCH[4]}"
 				if [ "$first" ]; then
 					msg="${msg:+${msg}${nl}}${tab}${tab}- leading word '$first' unexpected"
+					error=$(( error + 1 ))
 				fi
 				if [ -z "$subject" ]; then
 					msg="${msg:+${msg}${nl}}${tab}${tab}- missing subject"
+					error=$(( error + 1 ))
 				elif [ -z "$spaces" ]; then
 					msg="${msg:+${msg}${nl}}${tab}${tab}- missing space between the SHA1 and the subject"
+					error=$(( error + 1 ))
 				fi
 			else
 				printf '%s%s\t\t- %s\n' "$commit_msg" "$fixes_msg" 'No SHA1 recognised'
 				commit_msg=''
-				error=1
 				continue
 			fi
 			if ! git rev-parse -q --verify "$sha" >/dev/null; then
 				printf '%s%s\t\t- %s\n' "$commit_msg" "$fixes_msg" 'Target SHA1 does not exist'
 				commit_msg=''
-				error=1
 				continue
 			fi
 
 			if [ "${#sha}" -lt 12 ]; then
 				msg="${msg:+${msg}${nl}}${tab}${tab}- SHA1 should be at least 12 digits long${nl}${tab}${tab}  Can be fixed by setting core.abbrev to 12 (or more) or (for git v2.11${nl}${tab}${tab}  or later) just making sure it is not set (or set to \"auto\")."
+				error=$(( error + 1 ))
 			fi
 			# reduce the subject to the part between () if there
 			if [[ "$subject" =~ ^\((.*)\) ]]; then
@@ -116,6 +120,7 @@ verify_fixes()
 			elif [[ "$subject" =~ ^\((.*) ]]; then
 				subject="${BASH_REMATCH[1]}"
 				msg="${msg:+${msg}${nl}}${tab}${tab}- Subject has leading but no trailing parentheses"
+				error=$(( error + 1 ))
 			fi
 
 			# strip matching quotes at the start and end of the subject
@@ -134,6 +139,7 @@ verify_fixes()
 			elif [[ "$subject" =~ $re3 ]]; then
 				subject="${BASH_REMATCH[1]}"
 				msg="${msg:+${msg}${nl}}${tab}${tab}- Subject has leading but no trailing quotes"
+				error=$(( error + 1 ))
 			fi
 
 			subject=$(strip_spaces "$subject")
@@ -163,26 +169,35 @@ verify_fixes()
 
 			if [ "$subject" != "${target_subject:0:${#subject}}" ]; then
 				msg="${msg:+${msg}${nl}}${tab}${tab}- Subject does not match target commit subject${nl}${tab}${tab}  Just use${nl}${tab}${tab}${tab}git log -1 --format='Fixes: %h (\"%s\")'"
+				error=$(( error + 1 ))
 			fi
 			lsha=$(git rev-parse -q --verify "$sha")
 			if [ -z "$lsha" ]; then
 				count=$(git rev-list --count "$sha".."$c")
 				if [ "$count" -eq 0 ]; then
 					msg="${msg:+${msg}${nl}}${tab}${tab}- Target is not an ancestor of this commit"
+					error=$(( error + 1 ))
 				fi
 			fi
 
 			if [ "$msg" ]; then
 				printf '%s%s%s\n' "$commit_msg" "$fixes_msg" "$msg"
 				commit_msg=''
-				error=1
+				# Make sure we don't accidentally miss anything.
+				if [ $error -eq 0 ]; then
+					echo 'Whoops! $error out of sync with $msg' >&2
+					error=1
+				fi
 			fi
 		done <<< "$fixes_lines"
 	done
 
-	if [ ${error} -eq 1 ] ; then
+	if [ ${error} -ne 0 ] ; then
+		echo "Problems with Fixes tag: $error" >&$DESC_FD
 		exit 1
 	fi
+	echo "Fixes tag looks correct" >&$DESC_FD
+	return 0
 }
 
 git_range=$1
