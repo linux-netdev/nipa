@@ -7,8 +7,10 @@ from typing import Tuple
 
 
 def cover_letter(tree, thing, result_dir) -> Tuple[int, str]:
-    if len(thing.patches) < 3 or thing.cover_letter:
-        return 0, ""
+    if thing.cover_letter:
+        return 0, "Series has a cover letter"
     if thing.cover_pull:
-        return 0, "Pull request"
+        return 0, "Pull request is its own cover letter"
+    if len(thing.patches) < 3:  # Why is "2" okay here?
+        return 0, "Single patches do not need cover letters"
     return 250, "Series does not have a cover letter"
