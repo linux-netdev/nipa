@@ -6,6 +6,7 @@
 
 import os
 import tempfile
+from typing import List
 
 import core
 import core.cmd as CMD
@@ -40,7 +41,7 @@ class Tree:
 
         self._check_tree()
 
-    def git(self, args: list[str]):
+    def git(self, args: List[str]):
         return CMD.cmd_run(["git"] + args, cwd=self.path)
 
     def git_am(self, patch):

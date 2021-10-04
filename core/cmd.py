@@ -7,6 +7,7 @@
 import datetime
 import os
 import subprocess
+from typing import List
 
 import core
 
@@ -34,7 +35,7 @@ class CmdError(Exception):
         self.stderr = stderr
 
 
-def cmd_run(cmd: list[str], shell=False, include_stderr=False, add_env=None, cwd=None, pass_fds=()):
+def cmd_run(cmd: List[str], shell=False, include_stderr=False, add_env=None, cwd=None, pass_fds=()):
     """Run a command.
 
     Run a command in subprocess and return the stdout;
