@@ -3,3 +3,4 @@ poller.state*
 *.org
 __pycache__/
 results/
+*.xz
