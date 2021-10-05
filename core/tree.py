@@ -72,7 +72,8 @@ class Tree:
 
     def git_find_patch(self, needle, depth=1000):
         cmd = [
-            "log", "--pretty=format:'%h'", f"HEAD~{depth}..HEAD", f"--grep={needle}", "--fixed-strings"
+            "log", "--pretty=format:'%h'", f"HEAD~{depth}..HEAD", f"--grep={needle}",
+            "--fixed-strings"
         ]
         return self.git(cmd)
 
