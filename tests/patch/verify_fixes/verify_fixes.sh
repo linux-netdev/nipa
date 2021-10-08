@@ -101,11 +101,13 @@ verify_fixes()
 				fi
 			else
 				printf '%s%s\t\t- %s\n' "$commit_msg" "$fixes_msg" 'No SHA1 recognised'
+				error=$(( error + 1 ))
 				commit_msg=''
 				continue
 			fi
 			if ! git rev-parse -q --verify "$sha" >/dev/null; then
 				printf '%s%s\t\t- %s\n' "$commit_msg" "$fixes_msg" 'Target SHA1 does not exist'
+				error=$(( error + 1 ))
 				commit_msg=''
 				continue
 			fi
