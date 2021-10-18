@@ -52,7 +52,7 @@ def cc_maintainers(tree, thing, result_dir) -> Tuple[int, str]:
     ignored = set()
     with tempfile.NamedTemporaryFile() as fp:
         patch.write_out(fp)
-        command = ['./scripts/get_maintainer.pl', '--', fp.name]
+        command = ['./scripts/get_maintainer.pl', '--git-min-signatures', '3', '--', fp.name]
         with subprocess.Popen(command, cwd=tree.path, stdout=subprocess.PIPE) as p:
             line = p.stdout.readline().decode('utf8', 'replace')
             while line:
