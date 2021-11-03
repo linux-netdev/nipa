@@ -17,6 +17,8 @@ class PwSeries(Series):
 
         self.pw = pw
         self.pw_series = pw_series
+        # pull_url loaded from patch 0, not from cover; it's for pure pulls only
+        self.pull_url = None
 
         if pw_series['cover_letter']:
             pw_cover_letter = pw.get_mbox('cover', pw_series['cover_letter']['id'])
@@ -72,11 +74,24 @@ class PwSeries(Series):
             raw_patch = pw.get_mbox('patch', pid)
             self.patches.append(Patch(raw_patch, pid))
 
-        if not pw_series['cover_letter'] and len(self.patches) > 1:
-            self.fixup_pull_covers()
+        if not pw_series['cover_letter']:
+            if len(self.patches) == 1:
+                self._check_for_pure_pr(pw)
+            elif len(self.patches) > 1:
+                self.fixup_pull_covers()
 
     def __getitem__(self, key):
         return self.pw_series[key]
+
+    def is_pure_pull(self):
+        return bool(self.pull_url)
+
+    def _check_for_pure_pr(self, pw):
+        if not re.search('pull', self.title, re.IGNORECASE):
+            return
+
+        patch = pw.get('patch', self.patches[0].id)
+        self.pull_url = patch['pull_url']
 
     def fixup_pull_covers(self):
         # For pull requests posted as series patchwork treats the cover letter

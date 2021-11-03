@@ -53,7 +53,7 @@ class Patchwork(object):
         return ret
 
     def get(self, object_type, identifier):
-        return self._get(f'{object_type}/{identifier}/')
+        return self._get(f'{object_type}/{identifier}/').json()
 
     def get_all(self, object_type, filters=None, api='1.1'):
         if filters is None:
