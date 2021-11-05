@@ -225,11 +225,9 @@ To Do
  * on a pull fixes may point to the commits in the pull
 
  * series ID injection
- * check that author of a patch for Fixes is CCed
  * misspell-fixer
 
  * make htmldocs
 
- * add summaries
  * split out uploader to separate user
  * add async tests
