@@ -229,3 +229,7 @@ To Do
  * misspell-fixer
 
  * make htmldocs
+
+ * add summaries
+ * split out uploader to separate user
+ * add async tests
