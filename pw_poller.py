@@ -254,6 +254,6 @@ class PwPoller:
 
 
 if __name__ == "__main__":
-    os.umask(0o775)
+    os.umask(0o004)
     poller = PwPoller()
     poller.run()
