@@ -186,12 +186,21 @@ class Tester(threading.Thread):
                 fp.write(f"Pull to {tree.name} failed")
             return [], []
 
-        # TODO: remove once we know pulling works
-        series_apply = os.path.join(series_dir, "apply")
-        os.makedirs(series_apply)
+        patch = series.patches[0]
+        current_patch_ret = []
 
-        core.log("Pull success", "")
-        with open(os.path.join(series_apply, "retcode"), "w+") as fp:
-            fp.write("0")
-        with open(os.path.join(series_apply, "desc"), "w+") as fp:
-            fp.write(f"Pull to {tree.name} OK")
+        core.log_open_sec(f"Testing pull request {patch.title}")
+
+        patch_dir = os.path.join(series_dir, str(patch.id))
+        if not os.path.exists(patch_dir):
+            os.makedirs(patch_dir)
+
+        try:
+            for test in self.patch_tests:
+                if test.is_pull_compatible():
+                    ret = test.exec(tree, patch, patch_dir)
+                    current_patch_ret.append(ret)
+        finally:
+            core.log_end_sec()
+
+        return [], [current_patch_ret]

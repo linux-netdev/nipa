@@ -46,6 +46,9 @@ class Test(object):
     def is_disabled(self):
         return "disabled" in self.info and self.info["disabled"]
 
+    def is_pull_compatible(self):
+        return "pull-requests" in self.info and self.info["pull-requests"]
+
     def write_result(self, result_dir, retcode=0, out="", err="", desc=""):
         test_dir = os.path.join(result_dir, self.name)
         if not os.path.exists(test_dir):
