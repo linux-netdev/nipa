@@ -9,7 +9,7 @@ import os
 import threading
 
 import core
-from core import Test
+from core import Test, PullError
 
 
 def load_tests(tests_dir, name):
@@ -112,6 +112,17 @@ class Tester(threading.Thread):
             core.log_end_sec()
             return [], []
 
+        try:
+            if series.is_pure_pull():
+                ret = self._test_series_pull(tree, series, series_dir)
+            else:
+                ret = self._test_series_patches(tree, series, series_dir)
+        finally:
+            core.log_end_sec()
+
+        return ret
+
+    def _test_series_patches(self, tree, series, series_dir):
         if not tree.check_applies(series):
             series_apply = os.path.join(series_dir, "apply")
             os.makedirs(series_apply)
@@ -129,38 +140,58 @@ class Tester(threading.Thread):
                     fp.write("1")
                 with open(os.path.join(series_apply, "desc"), "w+") as fp:
                     fp.write(f"Patch does not apply to {tree.name}")
-            core.log_end_sec()
             return [already_applied], [already_applied]
 
         series_ret = []
         patch_ret = []
-        try:
-            tree.reset()
+        tree.reset()
 
-            for test in self.series_tests:
-                ret = test.exec(tree, series, series_dir)
-                series_ret.append(ret)
+        for test in self.series_tests:
+            ret = test.exec(tree, series, series_dir)
+            series_ret.append(ret)
 
-            for patch in series.patches:
-                core.log_open_sec("Testing patch " + patch.title)
+        for patch in series.patches:
+            core.log_open_sec("Testing patch " + patch.title)
 
-                current_patch_ret = []
+            current_patch_ret = []
 
-                patch_dir = os.path.join(series_dir, str(patch.id))
-                if not os.path.exists(patch_dir):
-                    os.makedirs(patch_dir)
+            patch_dir = os.path.join(series_dir, str(patch.id))
+            if not os.path.exists(patch_dir):
+                os.makedirs(patch_dir)
 
-                try:
-                    tree.apply(patch)
+            try:
+                tree.apply(patch)
 
-                    for test in self.patch_tests:
-                        ret = test.exec(tree, patch, patch_dir)
-                        current_patch_ret.append(ret)
-                finally:
-                    core.log_end_sec()
+                for test in self.patch_tests:
+                    ret = test.exec(tree, patch, patch_dir)
+                    current_patch_ret.append(ret)
+            finally:
+                core.log_end_sec()
 
-                patch_ret.append(current_patch_ret)
-        finally:
-            core.log_end_sec()
+            patch_ret.append(current_patch_ret)
 
         return series_ret, patch_ret
+
+    def _test_series_pull(self, tree, series, series_dir):
+        try:
+            tree.pull(series.pull_url)
+        except PullError:
+            series_apply = os.path.join(series_dir, "apply")
+            os.makedirs(series_apply)
+
+            core.log("Pull failed", "")
+            with open(os.path.join(series_apply, "retcode"), "w+") as fp:
+                fp.write("1")
+            with open(os.path.join(series_apply, "desc"), "w+") as fp:
+                fp.write(f"Pull to {tree.name} failed")
+            return [], []
+
+        # TODO: remove once we know pulling works
+        series_apply = os.path.join(series_dir, "apply")
+        os.makedirs(series_apply)
+
+        core.log("Pull success", "")
+        with open(os.path.join(series_apply, "retcode"), "w+") as fp:
+            fp.write("0")
+        with open(os.path.join(series_apply, "desc"), "w+") as fp:
+            fp.write(f"Pull to {tree.name} OK")

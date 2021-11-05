@@ -18,6 +18,10 @@ class PatchApplyError(Exception):
     pass
 
 
+class PullError(Exception):
+    pass
+
+
 class TreeNotClean(Exception):
     pass
 
@@ -46,6 +50,11 @@ class Tree:
 
     def git_am(self, patch):
         return self.git(["am", "-s", "--", patch])
+
+    def git_pull(self, pull_url):
+        cmd = ["pull", "--no-edit", "--signoff"]
+        cmd += pull_url.split()
+        return self.git(cmd)
 
     def git_status(self, untracked=None, short=False):
         cmd = ["status"]
@@ -169,3 +178,21 @@ class Tree:
             core.log_end_sec()
 
         return ret
+
+    def _pull_safe(self, pull_url):
+        try:
+            self.git_pull(pull_url)
+        except CMD.CmdError as e:
+            try:
+                self.git(["merge", "--abort"])
+            except CMD.CmdError:
+                pass
+            raise PullError(e) from e
+
+    def pull(self, pull_url):
+        core.log_open_sec("Pulling " + pull_url)
+        try:
+            self.reset()
+            self._pull_safe(pull_url)
+        finally:
+            core.log_end_sec()

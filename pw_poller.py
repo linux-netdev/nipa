@@ -79,13 +79,12 @@ class PwPoller:
         s.tree_marked = bool(s.tree_name)
 
         if s.is_pure_pull():
-            # TODO: set tree_name on the series once we know this works
             if s.title.find('-next'):
-                tree_name = 'net-next'
+                s.tree_name = 'net-next'
             else:
-                tree_name = 'net'
+                s.tree_name = 'net'
             s.tree_mark_expected = None
-            return f"Pull request for {tree_name}"
+            return f"Pull request for {s.tree_name}"
 
         if s.tree_name:
             log(f'Series is clearly designated for: {s.tree_name}', "")
