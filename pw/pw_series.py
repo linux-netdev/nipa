@@ -90,7 +90,7 @@ class PwSeries(Series):
         if not re.search('pull', self.title, re.IGNORECASE):
             return
 
-        patch = pw.get('patch', self.patches[0].id)
+        patch = pw.get('patches', self.patches[0].id)
         self.pull_url = patch['pull_url']
 
     def fixup_pull_covers(self):
