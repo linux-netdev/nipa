@@ -221,6 +221,7 @@ To Do
  * rev xmas tree
  * make a better MAINTAINERS check than checkpatch
  * add a marker for patches with replies from buildbot
+ * split the apply try from the test tree
 
  * on a pull fixes may point to the commits in the pull
 

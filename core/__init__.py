@@ -22,8 +22,8 @@ import os
 from .logger import log, log_open_sec, log_end_sec, log_init
 from .patch import Patch
 from .test import Test
-from .tester import Tester, write_tree_selection_result, mark_done
 from .tree import Tree, PullError
+from .tester import Tester, write_tree_selection_result, mark_done
 from .series import Series
 
 CORE_DIR = os.path.dirname(os.path.abspath(__file__))
