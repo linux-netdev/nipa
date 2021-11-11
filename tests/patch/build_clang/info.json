@@ -1,3 +1,4 @@
 {
-  "run": ["build_clang.sh"]
+  "run": ["build_clang.sh"],
+  "pull-requests": true
 }
