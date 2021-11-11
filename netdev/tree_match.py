@@ -56,6 +56,7 @@ def _tree_name_should_be_local_files(raw_email):
         'drivers/dsa/',
         'drivers/nfc/',
         'drivers/phy/',
+        'drivers/ptp/',
         'drivers/net/ethernet/',
         'tools/testing/selftests/net/',
     }
