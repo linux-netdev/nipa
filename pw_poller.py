@@ -79,7 +79,7 @@ class PwPoller:
         s.tree_marked = bool(s.tree_name)
 
         if s.is_pure_pull():
-            if s.title.find('-next'):
+            if s.title.find('-next') >= 0:
                 s.tree_name = 'net-next'
             else:
                 s.tree_name = 'net'
