@@ -159,3 +159,19 @@ def series_is_a_fix_for(s, tree):
             return False
 
     return commits and tree.check_applies(s)
+
+
+def series_needs_async(s) -> bool:
+    bad_files = {
+        'net/sock.h',
+        'net/tcp.h',
+        'linux/bpf.h',
+        'linux/netdevice.h',
+        'linux/sock',
+        'linux/tcp.h'
+    }
+    for p in s.patches:
+        for needle in bad_files:
+            if p.raw_patch.find(needle) > 0:
+                return True
+    return False

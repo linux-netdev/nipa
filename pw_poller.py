@@ -135,8 +135,8 @@ class PwPoller:
 
         s = PwSeries(self._pw, pw_series)
 
-        log(
-            "Series info", f"Series ID {s['id']}\n" + f"Series title {s['name']}\n" +
+        log("Series info",
+            f"Series ID {s['id']}\n" + f"Series title {s['name']}\n" +
             f"Author {s['submitter']['name']}\n" + f"Date {s['date']}")
         log_open_sec('Patches')
         for p in s['patches']:
@@ -147,6 +147,9 @@ class PwPoller:
             raise IncompleteSeries
 
         comment = self.series_determine_tree(s)
+        s.need_async = netdev.series_needs_async(s)
+        if s.need_async:
+            comment += ', async'
 
         if hasattr(s, 'tree_name') and s.tree_name:
             s.tree_selection_comment = comment
