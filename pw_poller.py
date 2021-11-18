@@ -9,6 +9,7 @@ import datetime
 import json
 import os
 import threading
+import shutil
 import time
 import queue
 from typing import Dict
@@ -35,6 +36,9 @@ class PwPoller:
         log_init(config.get('log', 'type', fallback='org'),
                  config.get('log', 'file', fallback=os.path.join(NIPA_DIR, "poller.org")))
 
+        self._worker_id = 0
+        self._async_workers = []
+
         # TODO: make this non-static / read from a config
         self._trees = {
             "net-next": Tree("net-next", "net-next", "../net-next", "net-next"),
@@ -44,6 +48,11 @@ class PwPoller:
         }
 
         self.result_dir = config.get('results', 'dir', fallback=os.path.join(NIPA_DIR, "results"))
+        self.worker_dir = config.get('workers', 'dir', fallback=os.path.join(NIPA_DIR, "workers"))
+        if os.path.exists(self.worker_dir):
+            shutil.rmtree(self.worker_dir)
+        os.makedirs(self.worker_dir)
+
         self._barrier = threading.Barrier(len(self._trees) + 1)
         self._done_queue = queue.Queue()
         self._workers = {}
