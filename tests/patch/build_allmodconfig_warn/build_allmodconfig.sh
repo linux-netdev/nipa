@@ -16,7 +16,9 @@ prep_config() {
   ./scripts/config --file $output_dir/.config -d werror
 }
 
-echo "Using -j $ncpu redirect to $tmpfile_o and $tmpfile_n"
+echo "Using $build_flags redirect to $tmpfile_o and $tmpfile_n"
+echo "CC=$cc"
+"$cc" --version | head -n1
 
 HEAD=$(git rev-parse HEAD)
 
