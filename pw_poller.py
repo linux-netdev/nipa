@@ -39,16 +39,22 @@ class PwPoller:
         self._worker_id = 0
         self._async_workers = []
 
-        # TODO: make this non-static / read from a config
-        self._trees = {
-            "net-next": Tree("net-next", "net-next", "../net-next", "net-next"),
-            "net": Tree("net", "net", "../net", "net"),
-            "bpf-next": Tree("bpf-next", "bpf-next", "../bpf-next", "bpf-next"),
-            "bpf": Tree("bpf", "bpf", "../bpf", "bpf"),
-        }
+        self.result_dir = config.get('dirs', 'results', fallback=os.path.join(NIPA_DIR, "results"))
+        self.worker_dir = config.get('dirs', 'workers', fallback=os.path.join(NIPA_DIR, "workers"))
+        tree_dir = config.get('dirs', 'trees', fallback=os.path.join(NIPA_DIR, "../"))
+        self._trees = { }
+        for tree in config['trees']:
+            opts = [x.strip() for x in config['trees'][tree].split(',')]
+            prefix = opts[0]
+            fspath = opts[1]
+            remote = opts[2]
+            branch = None
+            if len(opts) > 3:
+                branch = opts[3]
+            src = os.path.join(tree_dir, fspath)
+            # name, pfx, fspath, remote=None, branch=None
+            self._trees[tree] = Tree(tree, prefix, src, remote=remote, branch=branch)
 
-        self.result_dir = config.get('results', 'dir', fallback=os.path.join(NIPA_DIR, "results"))
-        self.worker_dir = config.get('workers', 'dir', fallback=os.path.join(NIPA_DIR, "workers"))
         if os.path.exists(self.worker_dir):
             shutil.rmtree(self.worker_dir)
         os.makedirs(self.worker_dir)
@@ -113,9 +119,11 @@ class PwPoller:
             log_open_sec('Series should have had a tree designation')
         else:
             log_open_sec('Series okay without a tree designation')
-        if netdev.series_is_a_fix_for(s, self._trees["net"]):
+
+        # TODO: make this configurable
+        if "net" in self._trees and netdev.series_is_a_fix_for(s, self._trees["net"]):
             s.tree_name = "net"
-        elif self._trees["net-next"].check_applies(s):
+        elif "net-next" in self._trees and self._trees["net-next"].check_applies(s):
             s.tree_name = "net-next"
 
         if s.tree_name:
