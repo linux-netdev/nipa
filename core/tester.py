@@ -12,12 +12,19 @@ import core
 from core import Test, PullError
 
 
-def load_tests(tests_dir, name):
+def load_tests(config, name):
     core.log_open_sec(name.capitalize() + " tests")
-    tests_subdir = os.path.join(tests_dir, name)
+    tests_subdir = os.path.join(config.get('dirs', 'tests'), name)
+    include = [x.strip() for x in config.get('tests', 'include', fallback="").split(',')]
+    exclude = [x.strip() for x in config.get('tests', 'exclude', fallback="").split(',')]
     tests = []
     for td in os.listdir(tests_subdir):
-        tests.append(Test(os.path.join(tests_subdir, td), td))
+        test = f'{name}/{td}'
+        if test not in exclude and (len(include) == 0 or test in include):
+            core.log(f"Adding test {test}")
+            tests.append(Test(os.path.join(tests_subdir, td), td))
+        else:
+            core.log(f"Skipped test {test}")
     core.log_end_sec()
 
     return tests
@@ -74,9 +81,10 @@ class Tester(threading.Thread):
             os.makedirs(self.result_dir)
 
         tests_dir = os.path.abspath(core.CORE_DIR + "../../tests")
+        config.set('dirs', 'tests', config.get('dirs', 'tests', fallback=tests_dir))
 
-        self.series_tests = load_tests(tests_dir, "series")
-        self.patch_tests = load_tests(tests_dir, "patch")
+        self.series_tests = load_tests(config, "series")
+        self.patch_tests = load_tests(config, "patch")
         core.log_end_sec()
 
         while not self.should_die:
