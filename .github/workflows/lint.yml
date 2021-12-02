@@ -3,9 +3,8 @@
 name: Lint checks
 on: [push, pull_request]
 jobs:
-  yapf:
+  lint:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: yapf
-      uses: AlexanderMelde/yapf-action@v1.0
+    - uses: cclauss/Find-Python-syntax-errors-action@master
