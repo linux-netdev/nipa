@@ -2,7 +2,10 @@
 #
 # Copyright (C) 2019 Netronome Systems, Inc.
 
-import json
+try:
+    import simplejson as json
+except ImportError:
+    import json
 import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
