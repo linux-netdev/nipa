@@ -7,6 +7,7 @@
 import configparser
 import os
 import threading
+import re
 
 import core
 from core import Test, PullError
@@ -15,11 +16,8 @@ from core import Test, PullError
 def load_tests(config, name):
     core.log_open_sec(name.capitalize() + " tests")
     tests_subdir = os.path.join(config.get('dirs', 'tests'), name)
-    try:
-        include = [x.strip() for x in config.get('tests', 'include').split(',')]
-    except (configparser.NoSectionError, configparser.NoOptionError):
-        include = []
-    exclude = [x.strip() for x in config.get('tests', 'exclude', fallback="").split(',')]
+    include = [x.strip() for x in re.split(r'[,\n]', config.get('tests', 'include', fallback="")) if len(x)]
+    exclude = [x.strip() for x in re.split(r'[,\n]', config.get('tests', 'exclude', fallback="")) if len(x)]
     tests = []
     for td in os.listdir(tests_subdir):
         test = f'{name}/{td}'
