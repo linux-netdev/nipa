@@ -4,6 +4,8 @@
 
 import json
 import requests
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 
 import core
 
@@ -22,6 +24,12 @@ class PatchworkPostException(Exception):
 
 class Patchwork(object):
     def __init__(self, config):
+        self._session = requests.Session()
+        retry = Retry(connect=10, backoff_factor=1)
+        adapter = HTTPAdapter(max_retries=retry)
+        self._session.mount('http://', adapter)
+        self._session.mount('https://', adapter)
+
         self.server = config.get('patchwork', 'server')
         ssl = config.getboolean('patchwork', 'use_ssl', fallback=True)
         self._proto = "https://" if ssl else "http://"
@@ -41,7 +49,7 @@ class Patchwork(object):
     def _request(self, url):
         try:
             core.log_open_sec(f"Patchwork {self.server} request: {url}")
-            ret = requests.get(url)
+            ret = self._session.get(url)
             core.log("Response", ret)
             try:
                 core.log("Response data", ret.json())
@@ -96,7 +104,7 @@ class Patchwork(object):
         url = f'{self._proto}{self.server}/api/{api}/{req}'
         try:
             core.log_open_sec(f"Patchwork {self.server} post: {url}")
-            ret = requests.post(url, headers=headers, data=data)
+            ret = self._session.post(url, headers=headers, data=data)
             core.log("Headers", headers)
             core.log("Data", data)
             core.log("Response", ret)
