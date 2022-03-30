@@ -78,6 +78,9 @@ class PwPoller:
         self.seen_series = set(self._state['done_series'])
         self.done_series = self.seen_series.copy()
 
+        self._recheck_period = config.getint('poller', 'recheck_period', fallback=3)
+        self._recheck_lookback = config.getint('poller', 'recheck_lookback', fallback=9)
+
     def init_state_from_disk(self) -> None:
         try:
             with open('poller.state', 'r') as f:
@@ -200,9 +203,9 @@ class PwPoller:
                 req_time = datetime.datetime.utcnow()
 
                 # Decide if this is a normal 4 minute history poll or big scan of last 12 hours
-                if prev_big_scan + datetime.timedelta(hours=3) < req_time:
+                if prev_big_scan + datetime.timedelta(hours=self._recheck_period) < req_time:
                     big_scan = True
-                    since = prev_big_scan - datetime.timedelta(hours=9)
+                    since = prev_big_scan - datetime.timedelta(hours=self._recheck_lookback)
                     log_open_sec(f"Big scan of last 12 hours at {req_time} since {since}")
                 else:
                     big_scan = False
