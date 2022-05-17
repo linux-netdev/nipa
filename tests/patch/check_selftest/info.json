@@ -1,0 +1,3 @@
+{
+  "run": ["check_selftest.sh"]
+}
