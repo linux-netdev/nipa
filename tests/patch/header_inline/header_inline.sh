@@ -3,7 +3,10 @@
 #
 # Copyright (c) 2020 Facebook
 
-inlines=$(git show -- '*.h' | grep -C1 -P '^\+static (?!(__always_)?inline).*\(')
+inlines=$(
+    git show -- '*.h' | grep -C1 -P '^\+static (?!(__always_)?inline).*\(';
+    git show -- '*.h' | grep -C1 -P '^\+(static )?(?!(__always_)?inline )((unsigned|long|short) )*(char|bool|void|int|u[0-9]*) [0-9A-Za-z_]*\(.*\) *{'
+       )
 
 if [ -z "$inlines" ]; then
   echo "No static functions without inline keyword in header files" >&$DESC_FD
