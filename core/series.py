@@ -17,6 +17,7 @@ class Series(object):
     def __init__(self, ident=None, title=""):
         self.cover_letter = None
         self.cover_pull = None
+        self.pull_url = None
         self.patches = []
         self.title = title
         self.subject = ""
@@ -39,3 +40,6 @@ class Series(object):
 
     def add_patch(self, patch):
         self.patches.append(patch)
+
+    def is_pure_pull(self):
+        return bool(self.pull_url)
