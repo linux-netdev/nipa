@@ -105,7 +105,10 @@ class Tester(threading.Thread):
                 if self.barrier.parties == self.barrier.n_waiting + 1:
                     break
 
-            self.barrier.wait()
+            try:
+                self.barrier.wait()
+            except threading.BrokenBarrierError:
+                break
 
     def test_series(self, tree, series):
         write_tree_selection_result(self.result_dir, series, series.tree_selection_comment)
