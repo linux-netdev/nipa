@@ -28,6 +28,8 @@ maintainers = {
     ]
 }
 
+local_map = ["Vladimir Oltean <vladimir.oltean@nxp.com> <olteanv@gmail.com>"]
+
 
 def cc_maintainers(tree, thing, result_dir) -> Tuple[int, str]:
     patch = thing
@@ -77,6 +79,28 @@ def cc_maintainers(tree, thing, result_dir) -> Tuple[int, str]:
     found = expected.intersection(included)
     missing = expected.difference(included)
     missing_blamed = blamed.difference(included)
+
+    # Last resort, sift thru aliases
+    if len(missing):
+        with open('.mailmap', 'r') as f:
+            mmap_lines = f.readlines()
+        mmap_lines += local_map
+
+        mapped = set()
+        for m in missing:
+            for line in mmap_lines:
+                if m in line:
+                    mmap_emails = emailpat.findall(line)
+                    if m not in mmap_emails: # re-check the match with the real regex
+                        continue
+                    for have in included:
+                        if have in mmap_emails:
+                            mapped.add(m)
+
+        found.update(mapped)
+        missing.difference_update(mapped)
+        missing_blamed.difference_update(mapped)
+
     if len(missing_blamed):
         return 1, f"{len(missing_blamed)} blamed authors not CCed: {' '.join(missing_blamed)}; " + \
                   f"{len(missing)} maintainers not CCed: {' '.join(missing)}"
