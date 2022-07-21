@@ -7,6 +7,7 @@ import email
 import email.utils
 import subprocess
 import tempfile
+import os
 import re
 """ Test if relevant maintainers were CCed """
 
@@ -82,7 +83,7 @@ def cc_maintainers(tree, thing, result_dir) -> Tuple[int, str]:
 
     # Last resort, sift thru aliases
     if len(missing):
-        with open('.mailmap', 'r') as f:
+        with open(os.path.join(tree.path, '.mailmap'), 'r') as f:
             mmap_lines = f.readlines()
         mmap_lines += local_map
 
