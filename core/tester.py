@@ -13,24 +13,6 @@ import core
 from core import Test, PullError
 
 
-def load_tests(config, name):
-    core.log_open_sec(name.capitalize() + " tests")
-    tests_subdir = os.path.join(config.get('dirs', 'tests'), name)
-    include = [x.strip() for x in re.split(r'[,\n]', config.get('tests', 'include', fallback="")) if len(x)]
-    exclude = [x.strip() for x in re.split(r'[,\n]', config.get('tests', 'exclude', fallback="")) if len(x)]
-    tests = []
-    for td in os.listdir(tests_subdir):
-        test = f'{name}/{td}'
-        if test not in exclude and (len(include) == 0 or test in include):
-            core.log(f"Adding test {test}")
-            tests.append(Test(os.path.join(tests_subdir, td), td))
-        else:
-            core.log(f"Skipped test {test}")
-    core.log_end_sec()
-
-    return tests
-
-
 def write_tree_selection_result(result_dir, s, comment):
     series_dir = os.path.join(result_dir, str(s.id))
 
@@ -85,8 +67,8 @@ class Tester(threading.Thread):
         tests_dir = os.path.abspath(core.CORE_DIR + "../../tests")
         self.config.set('dirs', 'tests', self.config.get('dirs', 'tests', fallback=tests_dir))
 
-        self.series_tests = load_tests(self.config, "series")
-        self.patch_tests = load_tests(self.config, "patch")
+        self.series_tests = self.load_tests("series")
+        self.patch_tests = self.load_tests("patch")
         core.log_end_sec()
 
         while not self.should_die:
@@ -108,6 +90,23 @@ class Tester(threading.Thread):
                 self.barrier.wait()
             except threading.BrokenBarrierError:
                 break
+
+    def load_tests(self, name):
+        core.log_open_sec(name.capitalize() + " tests")
+        tests_subdir = os.path.join(self.config.get('dirs', 'tests'), name)
+        include = [x.strip() for x in re.split(r'[,\n]', self.config.get('tests', 'include', fallback="")) if len(x)]
+        exclude = [x.strip() for x in re.split(r'[,\n]', self.config.get('tests', 'exclude', fallback="")) if len(x)]
+        tests = []
+        for td in os.listdir(tests_subdir):
+            test = f'{name}/{td}'
+            if test not in exclude and (len(include) == 0 or test in include):
+                core.log(f"Adding test {test}")
+                tests.append(Test(os.path.join(tests_subdir, td), td))
+            else:
+                core.log(f"Skipped test {test}")
+        core.log_end_sec()
+
+        return tests
 
     def test_series(self, tree, series):
         write_tree_selection_result(self.result_dir, series, series.tree_selection_comment)
