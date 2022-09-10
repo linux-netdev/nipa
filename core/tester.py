@@ -48,6 +48,8 @@ class Tester(threading.Thread):
         self.should_die = False
         self.result_dir = result_dir
         self.config = None
+        self.include = None
+        self.exclude = None
 
         self.series_tests = []
         self.patch_tests = []
@@ -66,6 +68,9 @@ class Tester(threading.Thread):
 
         tests_dir = os.path.abspath(core.CORE_DIR + "../../tests")
         self.config.set('dirs', 'tests', self.config.get('dirs', 'tests', fallback=tests_dir))
+
+        self.include = [x.strip() for x in re.split(r'[,\n]', self.config.get('tests', 'include', fallback="")) if len(x)]
+        self.exclude = [x.strip() for x in re.split(r'[,\n]', self.config.get('tests', 'exclude', fallback="")) if len(x)]
 
         self.series_tests = self.load_tests("series")
         self.patch_tests = self.load_tests("patch")
@@ -94,12 +99,10 @@ class Tester(threading.Thread):
     def load_tests(self, name):
         core.log_open_sec(name.capitalize() + " tests")
         tests_subdir = os.path.join(self.config.get('dirs', 'tests'), name)
-        include = [x.strip() for x in re.split(r'[,\n]', self.config.get('tests', 'include', fallback="")) if len(x)]
-        exclude = [x.strip() for x in re.split(r'[,\n]', self.config.get('tests', 'exclude', fallback="")) if len(x)]
         tests = []
         for td in os.listdir(tests_subdir):
             test = f'{name}/{td}'
-            if test not in exclude and (len(include) == 0 or test in include):
+            if test not in self.exclude and (len(self.include) == 0 or test in self.include):
                 core.log(f"Adding test {test}")
                 tests.append(Test(os.path.join(tests_subdir, td), td))
             else:
