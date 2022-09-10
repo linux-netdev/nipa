@@ -65,27 +65,28 @@ class Tester(threading.Thread):
         self.barrier = barrier
         self.should_die = False
         self.result_dir = result_dir
+        self.config = None
 
         self.series_tests = []
         self.patch_tests = []
 
     def run(self) -> None:
-        config = configparser.ConfigParser()
-        config.read(['nipa.config', 'pw.config', 'tester.config'])
+        self.config = configparser.ConfigParser()
+        self.config.read(['nipa.config', 'pw.config', 'tester.config'])
 
         core.log_init(
-            config.get('log', 'type', fallback='org'),
-            config.get('log', 'file', fallback=os.path.join(core.NIPA_DIR, f"{self.tree.name}.org")))
+            self.config.get('log', 'type', fallback='org'),
+            self.config.get('log', 'file', fallback=os.path.join(core.NIPA_DIR, f"{self.tree.name}.org")))
 
         core.log_open_sec("Tester init")
         if not os.path.exists(self.result_dir):
             os.makedirs(self.result_dir)
 
         tests_dir = os.path.abspath(core.CORE_DIR + "../../tests")
-        config.set('dirs', 'tests', config.get('dirs', 'tests', fallback=tests_dir))
+        self.config.set('dirs', 'tests', self.config.get('dirs', 'tests', fallback=tests_dir))
 
-        self.series_tests = load_tests(config, "series")
-        self.patch_tests = load_tests(config, "patch")
+        self.series_tests = load_tests(self.config, "series")
+        self.patch_tests = load_tests(self.config, "patch")
         core.log_end_sec()
 
         while not self.should_die:
