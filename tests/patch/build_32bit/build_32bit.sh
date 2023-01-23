@@ -18,7 +18,7 @@ prep_config() {
 
 echo "Using $build_flags redirect to $tmpfile_o and $tmpfile_n"
 echo "CC=$cc"
-"$cc" --version | head -n1
+$cc --version | head -n1
 
 HEAD=$(git rev-parse HEAD)
 
