@@ -1,0 +1,6 @@
+NIPA_TREE=/home/errge/work/ipv6-kernel/net-next
+NIPA_PATCHES=/home/errge/work/ipv6-kernel/patches
+NIPA_TREE_NAME=net-next
+# E.g. --cpus=4.0 if you want to limit the cpu usage in favor of
+# interactive workloads on your machine.
+DOCKER_FLAGS=""
