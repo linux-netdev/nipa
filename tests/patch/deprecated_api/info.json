@@ -1,0 +1,3 @@
+{
+  "run": ["deprecated_api.sh"]
+}

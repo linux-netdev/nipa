@@ -185,10 +185,10 @@ Run `get_maintainers.pl --self-test`.
 
 Currently disabled because it's extremely slow.
 
-module_param
-~~~~~~~~~~~~
+deprecated_api
+~~~~~~~~~~~~~~
 
-Warn if patch is adding module parameters.
+Warn if patch is adding uses of deprecated APIs.
 
 stable
 ~~~~~~
