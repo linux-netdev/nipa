@@ -86,19 +86,11 @@ Series tests are run once on the entire series. `pw_upload.py`
 multiplicates them to each patch since patchwork does not support
 "series checks"
 
-subject_prefix
-~~~~~~~~~~~~~~
+series_format
+~~~~~~~~~~~~~
 
 Check if subject prefix contains the tree name.
-
-patch_count
-~~~~~~~~~~~
-
 Check if number of patches in the series is not larger than 15.
-
-cover_letter
-~~~~~~~~~~~~
-
 Check if series has a cover letter (require one only if there
 are more than two patches, otherwise the series is trivial).
 
