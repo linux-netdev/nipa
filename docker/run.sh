@@ -36,7 +36,7 @@ echo >&2 Running nipa in Docker...
 # We try to have everything read-only that is not necessary to write,
 # to make sure that we can monitor cases when some nipa tests write
 # outside of the run directory or of /tmp.
-docker run $DOCKER_FLAGS -it --rm --user=nipa \
+docker run $DOCKER_FLAGS --rm --user=nipa \
        --read-only \
        -v $PWD/nipa-run/tmp:/tmp \
        -v $PWD/..:/nipa:ro \
