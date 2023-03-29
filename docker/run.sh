@@ -12,7 +12,7 @@ rm -rf ./nipa-run
 mkdir -p ./nipa-run/tmp ./nipa-run/patatt ./ccache
 
 echo >&2 Creating CoW tree...
-if ! cp -a --reflink=always $NIPA_TREE ./nipa-run/tree; then
+if ! cp -a --reflink=always $NIPA_TREE ./nipa-run/tree 2>/dev/null; then
     echo >&2 Falling back to git clone and hardlinks...
     rm -rf ./nipa-run/tree
     git clone -b nipa-local $NIPA_TREE ./nipa-run/tree
