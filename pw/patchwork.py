@@ -96,18 +96,38 @@ class Patchwork(object):
 
         return items
 
+    def get_by_msgid(self, object_type, msgid):
+        return self._get(f'{object_type}/?msgid={msgid}&project={self._project}', api='').json()
+
     def get_mbox(self, object_type, identifier):
         url = f'{self._proto}{self.server}/{object_type}/{identifier}/mbox/'
         return self._request(url).content.decode()
 
     def _get(self, req, api='1.1'):
-        return self._request(f'{self._proto}{self.server}/api/{api}/{req}')
+        if api:
+            api += "/"
+        return self._request(f'{self._proto}{self.server}/api/{api}{req}')
 
     def _post(self, req, headers, data, api='1.1'):
         url = f'{self._proto}{self.server}/api/{api}/{req}'
         try:
             core.log_open_sec(f"Patchwork {self.server} post: {url}")
             ret = self._session.post(url, headers=headers, data=data)
+            core.log("Headers", headers)
+            core.log("Data", data)
+            core.log("Response", ret)
+            core.log("Response data", ret.json())
+        finally:
+            core.log_end_sec()
+
+        return ret
+
+    # PATCH as in the HTTP method, not getting a patch
+    def _patch(self, req, headers, data, api='1.1'):
+        url = f'{self._proto}{self.server}/api/{api}/{req}'
+        try:
+            core.log_open_sec(f"Patchwork {self.server} post: {url}")
+            ret = self._session.patch(url, headers=headers, data=data)
             core.log("Headers", headers)
             core.log("Data", data)
             core.log("Response", ret)
@@ -146,4 +166,17 @@ class Patchwork(object):
 
         r = self._post(f'patches/{patch}/checks/', headers=headers, data=data)
         if r.status_code != 201:
+            raise PatchworkPostException(r)
+
+    def update_state(self, patch, state):
+        headers = {}
+        if self._token:
+            headers['Authorization'] = f'Token {self._token}'
+
+        data = {
+            'state': state
+        }
+
+        r = self._patch(f'patches/{patch}/', headers=headers, data=data)
+        if r.status_code != 200:
             raise PatchworkPostException(r)
