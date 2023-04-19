@@ -262,7 +262,7 @@ def do_mail(msg_path, pw, dr):
         return
 
     subject = msg.get('Subject')
-    if subject.find(' 0/') != -1:
+    if subject.find(' 0/') != -1 or subject.find(' 00/') != -1:
         obj_type = 'covers'
     else:
         obj_type = 'patches'
@@ -271,7 +271,7 @@ def do_mail(msg_path, pw, dr):
 
     series_id = 0
     for mid in mids:
-        print('', '', 'PW search', mid)
+        print('', '', 'PW search', obj_type, mid)
         pw_obj = pw.get_by_msgid(obj_type, mid[1:-1])  # Strip the < > from mid
         if pw_obj:
             series_id = pw_obj[0]['series'][0]['id']
