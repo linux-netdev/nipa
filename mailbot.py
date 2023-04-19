@@ -372,7 +372,10 @@ def main():
             dr.load_section('process/maintainer-netdev', 'net')
             dr.alias_section('net', 'netdev')
             dr.load_section('process/coding-style', 'coding')
-            dr.alias_section('code', 'coding')
+            dr.alias_section('coding', 'code')
+            dr.load_section('process/submitting-patches', 'submitting-patches')
+            dr.alias_section('submitting-patches', 'submit')
+            dr.alias_section('submitting-patches', 'sub')
 
         for t in mail_repos.values():
             check_new(t, pw, dr)
