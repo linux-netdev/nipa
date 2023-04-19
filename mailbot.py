@@ -28,6 +28,9 @@ authorized_users = set()
 
 
 pw_act_map = {
+    'au': 'awaiting-upstream',
+    'awaiting-upstream': 'awaiting-upstream',
+
     'rejected': 'rejected',
     'reject': 'rejected',
 
@@ -35,7 +38,14 @@ pw_act_map = {
     'cr': 'changes-requested',
 
     'deferred': 'deferred',
-    'defer': 'deferred'
+    'defer': 'deferred',
+
+    'not-applicable': 'not-applicable',
+    'nap': 'not-applicable',
+
+    'needs-ack': 'needs-ack',
+    'need-ack': 'needs-ack',
+    'nac': 'needs-ack'
 }
 
 #
