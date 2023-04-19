@@ -5,6 +5,7 @@
 import configparser
 import datetime
 import os
+import requests
 import signal
 import time
 
@@ -37,6 +38,169 @@ pw_act_map = {
     'defer': 'deferred'
 }
 
+#
+# DocRef code
+#
+
+
+class DocTooManyMatches(Exception):
+    pass
+
+
+class DocNotFound(Exception):
+    pass
+
+
+class DocReference:
+    def __init__(self, tag):
+        self.tag = tag
+        self.title = tag
+        self.lines = []
+
+    def set_title(self, title):
+        if self.title != self.tag:
+            raise Exception(f'Title for {self.tag} already set to "{self.title}" now "{title}"')
+        self.title = title
+
+    def add_line(self, line):
+        self.lines.append(line)
+
+    def __repr__(self):
+        ret = self.title + '\n'
+        ret += '\n'.join(self.lines)
+        return ret
+
+
+class DocRefs:
+    def __init__(self):
+        self.refs = dict()
+        self.loc_map = dict()
+        self.name_alias = dict()
+
+    def _unalias_name(self, name):
+        if name in self.name_alias:
+            return self.name_alias[name]
+        return name
+
+    def search(self, name, tag):
+        """
+        Find the relevant doc based on inputs. The name is optional but if it is
+        specified it must much exactly. Tag may match partially, full matches take
+        precedence. If multiple equivalent matches are found error will be returned.
+
+        :param name: exact match for doc, optional
+        :param tag: partial or exact match on section
+        :return: tuple of (doc, tag) which can be used to get text out of get_doc()
+        """
+        name = self._unalias_name(name)
+
+        match = None
+        match_n = None
+        full_match = False
+
+        for n in self.refs:
+            # If name is empty search all, otherwise only the matching section
+            if name and name != n:
+                continue
+            for t in self.refs[n]:
+                if tag in t:
+                    is_full = (t == tag) and (not name or n == name)
+                    if match and (full_match == is_full):
+                        raise DocTooManyMatches(f'{name}/{tag} matched both {match_n}/{match} and {n}/{t}')
+                    if is_full >= full_match:
+                        full_match = is_full
+                        match = t
+                        match_n = n
+        if not match:
+            raise DocNotFound(f'{name}/{tag} not found')
+
+        return match_n, match
+
+    def get_doc(self, name, tag):
+        name = self._unalias_name(name)
+
+        ret = repr(self.refs[name][tag])
+        ret += '\n\n'
+        ret += f'See: https://www.kernel.org/doc/html/next/{self.loc_map[name]}.html#{tag}'
+        return ret
+
+    def alias_section(self, name, alias):
+        self.name_alias[alias] = name
+
+    def _sphinx_title_to_heading(self, name):
+        heading = []
+        for i in range(len(name)):
+            # Leading numbers are definitely removed, not sure about mid-title numbers
+            if name[i].isalpha():
+                heading.append(name[i].lower())
+            elif len(heading) == 0:
+                pass
+            elif heading[-1] != "-":
+                heading.append("-")
+        if len(heading) and heading[-1] == "-":
+            heading.pop()
+
+        return "".join(heading)
+
+    def load_section(self, location, name):
+        self.refs[name] = dict()
+        refs = self.refs[name]
+
+        self.loc_map[name] = location
+
+        r = requests.get(f'https://www.kernel.org/doc/html/next/{location}.html')
+        data = r.content.decode('utf-8')
+
+        offs = 0
+        while True:
+            # Find all the sections in the HTML version of the doc
+            offs = data.find('<section id=', offs)
+            if offs == -1:
+                break
+            offs += 13  # skip '<section id="'
+            start = offs
+            end = start + 1
+            while data[end] != '"' and len(data) > end:
+                end += 1
+            refs[data[start:end]] = DocReference(data[start:end])
+            offs += 1
+
+        # Now populate the plain text contents
+        url = f'https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/plain/Documentation/{location}.rst'
+        r = requests.get(url)
+        data = r.content.decode('utf-8')
+        lines = data.split('\n')
+
+        headings = {'-', '~', '='}
+        docref = DocReference('')  # Make a fake one so we don't have to None-check
+        fakeref = docref
+        prev = ""
+        for l in lines:
+            # Non-headings get fed into the current section
+            if len(l) == 0 or l[0] not in headings:
+                docref.add_line(prev)
+                prev = l
+                continue
+            if l != l[0] * len(l):
+                docref.add_line(prev)
+                prev = l
+                continue
+
+            # Headings are kept as 'docref'
+            heading = self._sphinx_title_to_heading(prev)
+            if heading:
+                if heading not in refs:
+                    print('Unknown heading', heading)
+                    docref = fakeref
+                else:
+                    docref = refs[heading]
+                    docref.set_title(prev)
+            prev = l
+
+#
+# Unsorted, rest of the bot and pw handling
+#
+
 
 def handler(signum, _):
     global should_stop
@@ -45,7 +209,7 @@ def handler(signum, _):
     should_stop = True
 
 
-def do_mail(msg_path, pw):
+def do_mail(msg_path, pw, dr):
     with open(msg_path, 'rb') as fp:
         raw = fp.read()
         msg = email.message_from_bytes(raw, policy=default)
@@ -70,13 +234,15 @@ def do_mail(msg_path, pw):
 
     actions = []
     pw_act = []
+    dr_act = []
     lines = msg.get_body(preferencelist=('plain', )).as_string().split('\n')
     for line in lines:
         if line.startswith('pw-bot:'):
             actions.append(line)
             pw_act.append(line[7:].strip())
-        elif line.startswith('process-bot:'):
+        elif line.startswith('doc-bot:'):
             actions.append(line)
+            dr_act.append(line[8:].strip())
 
     if actions:
         print("Actions:")
@@ -121,14 +287,35 @@ def do_mail(msg_path, pw):
         else:
             print('', '', "ERROR: action not in the map:", f"'{act}'")
 
+    for act in dr_act:
+        names = act.split('/')
+        if len(names) > 2 or len(names) < 1:
+            print('', '', "ERROR: bad doc action token count:", act)
+            continue
+        if len(names) == 1:
+            names = [''] + names
 
-def check_new(tree, pw):
+        try:
+            name, sec = dr.search(names[0], names[1])
+            print('', '', 'INFO: have doc for', act, 'exact coordinates', f"{name}/{sec}")
+        except:
+            print('', '', "ERROR: failed doc search:", act)
+
+        if act in pw_act_map:
+            for pid in patches:
+                pw.update_state(patch=pid, state=pw_act_map[act])
+                print('', '', "INFO: Updated patch", pid, 'to', f"'{pw_act_map[act]}'")
+        else:
+            print('', '', "ERROR: action not in the map:", f"'{act}'")
+
+
+def check_new(tree, pw, dr):
     tree.git_fetch(tree.remote)
     hashes = tree.git(['log', "--format=%h", f'..{tree.remote}/{tree.branch}', '--reverse'])
     hashes = hashes.split()
     for h in hashes:
         tree.git(['checkout', h])
-        do_mail(os.path.join(tree.path, 'm'), pw)
+        do_mail(os.path.join(tree.path, 'm'), pw, dr)
 
 
 def main():
@@ -163,12 +350,22 @@ def main():
         # name, pfx, fspath, remote=None, branch=None
         mail_repos[tree] = Tree(tree, prefix, src, remote=remote, branch=branch)
 
+    doc_load_time = datetime.datetime.fromtimestamp(0)
+    dr = None
+
     global should_stop
     while not should_stop:
         req_time = datetime.datetime.utcnow()
 
+        if (req_time - doc_load_time).total_seconds() > 24 * 60 * 60:
+            dr = DocRefs()
+            dr.load_section('process/maintainer-netdev', 'net')
+            dr.alias_section('net', 'netdev')
+            dr.load_section('process/coding-style', 'coding')
+            dr.alias_section('code', 'coding')
+
         for t in mail_repos.values():
-            check_new(t, pw)
+            check_new(t, pw, dr)
 
         secs = 120 - (datetime.datetime.utcnow() - req_time).total_seconds()
         if secs > 0:
