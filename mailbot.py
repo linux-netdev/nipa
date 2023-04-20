@@ -211,6 +211,59 @@ class DocRefs:
                     docref.set_title(prev)
             prev = l
 
+
+#
+# Email
+#
+
+class MlEmail:
+    def __init__(self, msg_path):
+        self.msg = None
+
+        with open(msg_path, 'rb') as fp:
+            raw = fp.read()
+            self.msg = email.message_from_bytes(raw, policy=default)
+            self._dkim = dkim.DKIM(raw)
+
+        self.actions = []
+        self.pw_act = []
+        self.dr_act = []
+
+        # Lazy eval because its slow
+        self._dkim_ok = None
+
+    def get(self, item, failobj=None):
+        return self.msg.get(item, failobj)
+
+    def user_authorized(self):
+        return self.msg.get('From') in authorized_users
+
+    def user_bot(self):
+        return self.msg.get('From') in auto_changes_requested
+
+    def dkim_ok(self):
+        if self._dkim_ok is None:
+            self._dkim_ok = self._dkim.verify()
+        return self._dkim_ok
+
+    def extract_actions(self):
+        """
+        Extract actions and load them into the action lists.
+
+        Lazy exec because we don't want to parse unauthorized emails
+        """
+        if self.user_authorized() and self.dkim_ok():
+            lines = self.msg.get_body(preferencelist=('plain',)).as_string().split('\n')
+            for line in lines:
+                if line.startswith('pw-bot:'):
+                    self.actions.append(line)
+                    self.pw_act.append(line[7:].strip())
+                elif line.startswith('doc-bot:'):
+                    self.actions.append(line)
+                    self.dr_act.append(line[8:].strip())
+        elif self.user_bot():
+            self.pw_act.append('changes-requested')
+
 #
 # Unsorted, rest of the bot and pw handling
 #
@@ -224,47 +277,26 @@ def handler(signum, _):
 
 
 def do_mail(msg_path, pw, dr):
-    with open(msg_path, 'rb') as fp:
-        raw = fp.read()
-        msg = email.message_from_bytes(raw, policy=default)
-        msg_dkim = dkim.DKIM(raw)
+    msg = MlEmail(msg_path)
 
     print('Message-ID:', msg.get('Message-ID'))
     print('', 'Subject:', msg.get('Subject'))
     print('', 'From:', msg.get('From'))
 
-    cr_bot = msg.get('From') in auto_changes_requested
-    auth = msg.get('From') in authorized_users
-    if not auth and not cr_bot:
+    if not msg.user_authorized() and not msg.user_bot():
         print('', '', 'INFO: not an authorized user, skip')
         return
-    print('', 'Authorized:', auth)
+    print('', 'Authorized:', msg.user_authorized())
+    print('', "DKIM verify:", msg.dkim_ok())
 
-    verified = msg_dkim.verify()
-    print('', "DKIM verify:", verified)
-
-    if not verified:
+    if not msg.dkim_ok():
         print('', 'ERROR: authorized user verification failure')
         return
 
-    actions = []
-    pw_act = []
-    dr_act = []
-    if auth:
-        lines = msg.get_body(preferencelist=('plain', )).as_string().split('\n')
-        for line in lines:
-            if line.startswith('pw-bot:'):
-                actions.append(line)
-                pw_act.append(line[7:].strip())
-            elif line.startswith('doc-bot:'):
-                actions.append(line)
-                dr_act.append(line[8:].strip())
-    elif cr_bot:
-        pw_act.append('changes-requested')
-
-    if actions:
+    msg.extract_actions()
+    if msg.actions:
         print("Actions:")
-        print('', '\n '.join(actions))
+        print('', '\n '.join(msg.actions))
     else:
         print('INFO: authorized user but no action')
         return
@@ -297,7 +329,7 @@ def do_mail(msg_path, pw, dr):
         print('', 'ERROR: no patches found')
         return
 
-    for act in pw_act:
+    for act in msg.pw_act:
         if act in pw_act_map:
             for pid in patches:
                 pw.update_state(patch=pid, state=pw_act_map[act])
@@ -305,7 +337,7 @@ def do_mail(msg_path, pw, dr):
         else:
             print('', '', "ERROR: action not in the map:", f"'{act}'")
 
-    for act in dr_act:
+    for act in msg.dr_act:
         names = act.split('/')
         if len(names) > 2 or len(names) < 1:
             print('', '', "ERROR: bad doc action token count:", act)
