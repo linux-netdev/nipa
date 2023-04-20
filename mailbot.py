@@ -25,6 +25,7 @@ should_stop = False
 
 
 authorized_users = set()
+auto_changes_requested = set()
 
 
 pw_act_map = {
@@ -232,8 +233,9 @@ def do_mail(msg_path, pw, dr):
     print('', 'Subject:', msg.get('Subject'))
     print('', 'From:', msg.get('From'))
 
+    cr_bot = msg.get('From') in auto_changes_requested
     auth = msg.get('From') in authorized_users
-    if not auth:
+    if not auth and not cr_bot:
         print('', '', 'INFO: not an authorized user, skip')
         return
     print('', 'Authorized:', auth)
@@ -248,14 +250,17 @@ def do_mail(msg_path, pw, dr):
     actions = []
     pw_act = []
     dr_act = []
-    lines = msg.get_body(preferencelist=('plain', )).as_string().split('\n')
-    for line in lines:
-        if line.startswith('pw-bot:'):
-            actions.append(line)
-            pw_act.append(line[7:].strip())
-        elif line.startswith('doc-bot:'):
-            actions.append(line)
-            dr_act.append(line[8:].strip())
+    if auth:
+        lines = msg.get_body(preferencelist=('plain', )).as_string().split('\n')
+        for line in lines:
+            if line.startswith('pw-bot:'):
+                actions.append(line)
+                pw_act.append(line[7:].strip())
+            elif line.startswith('doc-bot:'):
+                actions.append(line)
+                dr_act.append(line[8:].strip())
+    elif cr_bot:
+        pw_act.append('changes-requested')
 
     if actions:
         print("Actions:")
@@ -348,6 +353,10 @@ def main():
     global authorized_users
     users = config.get('mailbot', 'authorized')
     authorized_users.update(set(users.split(',')))
+
+    global auto_changes_requested
+    users = config.get('mailbot', 'error-bots')
+    auto_changes_requested.update(set(users.split(',')))
 
     tree_dir = config.get('dirs', 'trees', fallback=os.path.join(NIPA_DIR, "../"))
     mail_repos = {}

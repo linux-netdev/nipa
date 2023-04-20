@@ -42,6 +42,18 @@ with the command quoting a specified section of kernel documentation.
 It is intended to be used to quote process documentation at people
 who have not read it.
 
+Other automation
+================
+
+``mailbot`` also performs other email-based automation not based
+on explicit commands.
+
+error bot automatic update
+--------------------------
+
+Whenever patch series gets a response from an error-reporting bot
+(e.g. kbuild bot) the series will get marked as 'Changes Requested'.
+
 TODO
 ====
 
