@@ -393,9 +393,9 @@ def main():
             check_new(t, pw, dr)
 
         secs = 120 - (datetime.datetime.utcnow() - req_time).total_seconds()
-        if secs > 0:
-            log("Sleep", secs)
-            time.sleep(secs)
+        while secs > 0:
+            time.sleep(3)
+            secs -= 3
 
 
 if __name__ == "__main__":
