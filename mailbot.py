@@ -45,7 +45,10 @@ pw_act_map = {
 
     'needs-ack': 'needs-ack',
     'need-ack': 'needs-ack',
-    'nac': 'needs-ack'
+    'nac': 'needs-ack',
+
+    'under-review': 'under-review',
+    'ur': 'under-review'
 }
 
 #
