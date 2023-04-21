@@ -27,6 +27,7 @@ should_stop = False
 config = None
 authorized_users = set()
 auto_changes_requested = set()
+delay_actions = []  # contains tuples of (datetime, email)
 
 
 pw_act_map = {
@@ -296,12 +297,35 @@ class PwSeries:
             return list(counts.keys())[0]
         return f'mixed ({max(counts, key=counts.get)})'
 
+    def delegate(self):
+        counts = dict()
+        for p in self.patches:
+            if not p["delegate"]:
+                continue
+            delegate = p["delegate"]['username']
+            counts[delegate] = counts.get(delegate, 0) + 1
+        if len(counts) == 0:
+            return ''
+        return max(counts, key=counts.get)
+
+    def date(self):
+        return datetime.datetime.fromisoformat(self.json['date'])
+
+    def age(self):
+        return datetime.datetime.utcnow() - self.date()
+
     def __getitem__(self, item):
         return self.json[item]
 
 #
 # Unsorted, rest of the bot and pw handling
 #
+
+
+class MlDelayActions(Exception):
+    def __init__(self, message, when):
+        super().__init__(message)
+        self.when = when
 
 
 def handler(signum, _):
@@ -324,23 +348,7 @@ def pw_state_log(fields):
         cwr.writerow([date] + fields)
 
 
-def do_mail(msg_path, pw, dr):
-    msg = MlEmail(msg_path)
-
-    print('Message-ID:', msg.get('Message-ID'))
-    print('', 'Subject:', msg.get('Subject'))
-    print('', 'From:', msg.get('From'))
-
-    if not msg.user_authorized() and not msg.user_bot():
-        print('', '', 'INFO: not an authorized user, skip')
-        return
-    print('', 'Authorized:', msg.user_authorized())
-    print('', "DKIM verify:", msg.dkim_ok())
-
-    if not msg.dkim_ok():
-        print('', 'ERROR: authorized user verification failure')
-        return
-
+def do_mail(msg, pw, dr):
     msg.extract_actions()
     if msg.actions:
         print("Actions:")
@@ -377,6 +385,11 @@ def do_mail(msg_path, pw, dr):
         print('', 'ERROR: no patches found')
         return
 
+    if series.delegate() == "bpf" and msg.user_bot():
+        age = series.age()
+        if age.total_seconds() < 24 * 60 * 60:
+            raise MlDelayActions("delaying", series.date() + datetime.timedelta(hours=24))
+
     for act in msg.pw_act:
         if act in pw_act_map:
             for pid in patches:
@@ -411,13 +424,59 @@ def do_mail(msg_path, pw, dr):
             print('', '', "ERROR: action not in the map:", f"'{act}'")
 
 
+def do_mail_file(msg_path, pw, dr):
+    msg = MlEmail(msg_path)
+
+    print('Message-ID:', msg.get('Message-ID'))
+    print('', 'Subject:', msg.get('Subject'))
+    print('', 'From:', msg.get('From'))
+
+    if not msg.user_authorized() and not msg.user_bot():
+        print('', '', 'INFO: not an authorized user, skip')
+        return
+    print('', 'Authorized:', msg.user_authorized())
+    print('', "DKIM verify:", msg.dkim_ok())
+
+    if not msg.dkim_ok():
+        print('', 'ERROR: authorized user verification failure')
+        return
+
+    try:
+        do_mail(msg, pw, dr)
+    except MlDelayActions as e:
+        global delay_actions
+        delay_actions.append((e.when, msg, ))
+
+
+def do_mail_delayed(msg, pw, dr):
+    print('Delayed action for Message-ID:', msg.get('Message-ID'))
+    print('', 'Subject:', msg.get('Subject'))
+    print('', 'From:', msg.get('From'))
+
+    if not msg.user_authorized() and not msg.user_bot():
+        print('', '', 'INFO: not an authorized user, skip')
+        return
+    print('', 'Authorized:', msg.user_authorized())
+    print('', "DKIM verify:", msg.dkim_ok())
+
+    if not msg.dkim_ok():
+        print('', 'ERROR: authorized user verification failure')
+        return
+
+    try:
+        do_mail(msg, pw, dr)
+    except MlDelayActions as e:
+        global delay_actions
+        delay_actions.append((e.when, msg, ))
+
+
 def check_new(tree, pw, dr):
     tree.git_fetch(tree.remote)
     hashes = tree.git(['log', "--format=%h", f'..{tree.remote}/{tree.branch}', '--reverse'])
     hashes = hashes.split()
     for h in hashes:
         tree.git(['checkout', h])
-        do_mail(os.path.join(tree.path, 'm'), pw, dr)
+        do_mail_file(os.path.join(tree.path, 'm'), pw, dr)
 
 
 def main():
@@ -476,6 +535,12 @@ def main():
 
         for t in mail_repos.values():
             check_new(t, pw, dr)
+
+        global delay_actions
+        while len(delay_actions) and (delay_actions[0][0] - req_time).total_seconds() < 0:
+            msg = delay_actions[0][1]
+            delay_actions = delay_actions[1:]
+            do_mail_delayed(msg, pw, dr)
 
         secs = 120 - (datetime.datetime.utcnow() - req_time).total_seconds()
         while secs > 0 and not should_stop:
