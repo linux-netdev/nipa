@@ -425,7 +425,7 @@ def main():
             check_new(t, pw, dr)
 
         secs = 120 - (datetime.datetime.utcnow() - req_time).total_seconds()
-        while secs > 0:
+        while secs > 0 and not should_stop:
             time.sleep(3)
             secs -= 3
 
