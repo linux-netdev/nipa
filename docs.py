@@ -234,7 +234,6 @@ def doc_act(dr, act):
         print(">>> ERROR: failed doc search:", act)
         print()
         print(e)
-        raise
         return False
 
     return True

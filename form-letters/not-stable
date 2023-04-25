@@ -1,0 +1,22 @@
+
+"One thing that does bother him is developers who send him fixes in the
+-rc2 or -rc3 time frame for things that never worked in the first place.
+If something never worked, then the fact that it doesn't work now is not
+a regression, so the fixes should just wait for the next merge window.
+Those fixes are, after all, essentially development work."
+https://lwn.net/Articles/705245/
+
+"The rc stuff is for regressions, and for things that actually are
+nasty problems (security, keeping people from getting work done)."
+https://lore.kernel.org/lkml/CA+55aFyn1matXDTkeDA1d2+tHBSVkBvS5kP-7Ngh86=uut+yyg@mail.gmail.com/
+
+"NONE of this seems really to be appropriate for this stage. It doesn't
+fix regressions, it doesn't fix security stuff, it doesn't really fix
+major oopses."
+https://lore.kernel.org/lkml/CA+55aFyvW38WU93CqegHiKt-ReO8yNfAOUGZRFGY3-Aq0UsETw@mail.gmail.com/
+
+"No, I definitely don't want anything now unless it's a major
+regression or security issue. Other stuff can wait until the merge
+window and perhaps be marked for stable if required. That way they'll
+get testing."
+https://lore.kernel.org/lkml/CA+55aFyWcdmy3ACAWmRq70kQDpJ3bkjv1nROd1Gvab1Aa-GHqA@mail.gmail.com/
