@@ -305,6 +305,16 @@ class MlEmail:
             self._resolve_thread(pw)
         return self._series_author
 
+    def has_actions(self):
+        if self.user_bot():
+            return True
+
+        lines = self.msg.get_body(preferencelist=('plain',)).as_string().split('\n')
+        for line in lines:
+            if line.startswith('pw-bot:') or line.startswith('doc-bot:'):
+                return True
+        return False
+
     def extract_actions(self, pw):
         """
         Extract actions and load them into the action lists.
@@ -506,6 +516,10 @@ def do_mail_file(msg_path, pw, dr):
     print('Message-ID:', msg.get('Message-ID'))
     print('', 'Subject:', msg.get('Subject'))
     print('', 'From:', msg.get('From'))
+
+    if not msg.has_actions():
+        print('', '', 'INFO: no actions, skip')
+        return
 
     if not msg.user_authorized() and not msg.user_bot() and not msg.self_reply(pw):
         print('', '', 'INFO: not an authorized user, skip')
