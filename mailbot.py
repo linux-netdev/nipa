@@ -30,6 +30,19 @@ auto_changes_requested = set()
 delay_actions = []  # contains tuples of (datetime, email)
 
 
+pw_act_active = {
+    'awaiting-upstream': 0,
+    'rejected': 0,
+    'changes-requested': 0,
+    'deferred': 0,
+    'not-applicable' : 0,
+
+    'needs-ack': 1,
+    'under-review': 1,
+    'new': 1,
+}
+
+
 pw_act_map = {
     'au': 'awaiting-upstream',
     'awaiting-upstream': 'awaiting-upstream',
@@ -233,6 +246,8 @@ class MlEmail:
 
         # Lazy eval because its slow
         self._dkim_ok = None
+        self._series_id = None
+        self._series_author = None
 
     def get(self, item, failobj=None):
         return self.msg.get(item, failobj)
@@ -243,18 +258,63 @@ class MlEmail:
     def user_bot(self):
         return self.msg.get('From') in auto_changes_requested
 
+    def self_reply(self, pw):
+        return self.get_thread_author(pw) == self.msg.get("From")
+
     def dkim_ok(self):
         if self._dkim_ok is None:
             self._dkim_ok = self._dkim.verify()
         return self._dkim_ok
 
-    def extract_actions(self):
+    def _resolve_thread(self, pw):
+        subject = self.get('Subject')
+        if subject.find(' 0/') != -1 or subject.find(' 00/') != -1:
+            obj_type = 'covers'
+        else:
+            obj_type = 'patches'
+
+        mids = self.get('References', "").split()
+        # add self to allow immediately discarded series
+        mids.append(self.msg.get('Message-ID'))
+        for mid in mids:
+            print('', '', 'PW search', obj_type, mid)
+            pw_obj = pw.get_by_msgid(obj_type, mid[1:-1])  # Strip the < > from mid
+            if pw_obj:
+                self._series_id = pw_obj[0]['series'][0]['id']
+
+                r = requests.get(f'https://lore.kernel.org/r/{mid}/raw')
+                data = r.content.decode('utf-8')
+                msg = email.message_from_string(data, policy=default)
+                self._series_author = msg.get('From')
+
+                author_reply = self._series_author == self.msg.get("From")
+
+                print('', 'Series-id:', self._series_id)
+                print('', 'Series-author:', self._series_id,
+                      f'(reply-to-self: {author_reply})')
+                print('', '', 'Based on msg-id:', mid)
+                break
+
+    def get_thread_series(self, pw):
+        if self._series_id is None:
+            self._resolve_thread(pw)
+        return self._series_id
+
+    def get_thread_author(self, pw):
+        if self._series_author is None:
+            self._resolve_thread(pw)
+        return self._series_author
+
+    def extract_actions(self, pw):
         """
         Extract actions and load them into the action lists.
 
         Lazy exec because we don't want to parse unauthorized emails
         """
-        if self.user_authorized() and self.dkim_ok():
+        if not self.dkim_ok():
+            return
+
+        if self.user_authorized() or self.self_reply(pw):
             lines = self.msg.get_body(preferencelist=('plain',)).as_string().split('\n')
             for line in lines:
                 if line.startswith('pw-bot:'):
@@ -264,7 +324,27 @@ class MlEmail:
                     self.actions.append(line)
                     self.dr_act.append(line[8:].strip())
         elif self.user_bot():
+            self.actions.append('pw-bot: changes-requested')
             self.pw_act.append('changes-requested')
+
+        if not self.user_authorized():
+            bad = False
+            if len(self.dr_act) or len(self.pw_act) > 1:
+                print('', '', "ERROR: too many actions for un-authorized user")
+                bad = True
+            elif len(self.pw_act) == 1:
+                if self.pw_act[0] not in pw_act_map:
+                    print('', '', "ERROR: bad state for un-authorized user")
+                    bad = True
+                else:
+                    target_state = pw_act_map[self.pw_act[0]]
+                    if pw_act_active[target_state]:
+                        print('', '', "ERROR: active state for un-authorized user")
+                        bad = True
+            if bad:
+                self.dr_act = []
+                self.pw_act = []
+
 
 #
 # PW stuff
@@ -348,33 +428,31 @@ def pw_state_log(fields):
         cwr.writerow([date] + fields)
 
 
+def weak_act_should_ignore(msg, series, want):
+    global pw_act_active
+
+    if msg.user_authorized():
+        return None
+    current = series.state()
+    if current not in pw_act_active:
+        return f"unknown or mixed state ({current})"
+    if want not in pw_act_active:
+        return f"unknown target state ({want})"
+    if pw_act_active[current] <= pw_act_active[want]:
+        return f"series already inactive {current} -> {want}"
+    return None
+
+
 def do_mail(msg, pw, dr):
-    msg.extract_actions()
+    msg.extract_actions(pw)
     if msg.actions:
         print("Actions:")
         print('', '\n '.join(msg.actions))
     else:
-        print('INFO: authorized user but no action')
+        print('', 'INFO: authorized user but no action')
         return
 
-    subject = msg.get('Subject')
-    if subject.find(' 0/') != -1 or subject.find(' 00/') != -1:
-        obj_type = 'covers'
-    else:
-        obj_type = 'patches'
-
-    mids = msg.get('References', "").split()
-
-    series_id = 0
-    for mid in mids:
-        print('', '', 'PW search', obj_type, mid)
-        pw_obj = pw.get_by_msgid(obj_type, mid[1:-1])  # Strip the < > from mid
-        if pw_obj:
-            series_id = pw_obj[0]['series'][0]['id']
-            print('', 'Series-id:', series_id)
-            print('', '', 'Based on msg-id:', mid)
-            break
-
+    series_id = msg.get_thread_series(pw)
     if not series_id:
         print('', 'ERROR: could not find patchwork series')
         return
@@ -392,6 +470,11 @@ def do_mail(msg, pw, dr):
 
     for act in msg.pw_act:
         if act in pw_act_map:
+            ignore_reason = weak_act_should_ignore(msg, series, pw_act_map[act])
+            if ignore_reason:
+                print('', '', f"INFO: Ignoring weak update ({ignore_reason})'")
+                continue
+
             for pid in patches:
                 pw.update_state(patch=pid, state=pw_act_map[act])
                 print('', '', "INFO: Updated patch", pid, 'to', f"'{pw_act_map[act]}'")
@@ -416,13 +499,6 @@ def do_mail(msg, pw, dr):
         except:
             print('', '', "ERROR: failed doc search:", act)
 
-        if act in pw_act_map:
-            for pid in patches:
-                pw.update_state(patch=pid, state=pw_act_map[act])
-                print('', '', "INFO: Updated patch", pid, 'to', f"'{pw_act_map[act]}'")
-        else:
-            print('', '', "ERROR: action not in the map:", f"'{act}'")
-
 
 def do_mail_file(msg_path, pw, dr):
     msg = MlEmail(msg_path)
@@ -431,7 +507,7 @@ def do_mail_file(msg_path, pw, dr):
     print('', 'Subject:', msg.get('Subject'))
     print('', 'From:', msg.get('From'))
 
-    if not msg.user_authorized() and not msg.user_bot():
+    if not msg.user_authorized() and not msg.user_bot() and not msg.self_reply(pw):
         print('', '', 'INFO: not an authorized user, skip')
         return
     print('', 'Authorized:', msg.user_authorized())
