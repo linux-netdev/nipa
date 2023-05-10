@@ -309,7 +309,10 @@ class MlEmail:
         if self.user_bot():
             return True
 
-        lines = self.msg.get_body(preferencelist=('plain',)).as_string().split('\n')
+        body = self.msg.get_body(preferencelist=('plain',))
+        if body is None:
+            return False
+        lines = body.as_string().split('\n')
         for line in lines:
             if line.startswith('pw-bot:') or line.startswith('doc-bot:'):
                 return True
