@@ -3,6 +3,7 @@
 # Copyright (C) 2019 Netronome Systems, Inc.
 
 import configparser
+import csv
 import datetime
 import os
 import requests
@@ -23,7 +24,7 @@ from pw import Patchwork
 
 should_stop = False
 
-
+config = None
 authorized_users = set()
 auto_changes_requested = set()
 
@@ -265,6 +266,40 @@ class MlEmail:
             self.pw_act.append('changes-requested')
 
 #
+# PW stuff
+#
+
+
+class PwPatch:
+    def __init__(self, pw, pid):
+        self.pid = pid
+
+        self.json = pw.get('patches', pid)
+
+    def __getitem__(self, item):
+        return self.json[item]
+
+
+class PwSeries:
+    def __init__(self, pw, sid):
+        self.sid = sid
+
+        self.json = pw.get('series', sid)
+        self.patches = [PwPatch(pw, p['id']) for p in self.json['patches']]
+
+    def state(self):
+        counts = dict()
+        for p in self.patches:
+            state = p.json['state']
+            counts[state] = counts.get(state, 0) + 1
+        if len(counts) == 1:
+            return list(counts.keys())[0]
+        return f'mixed ({max(counts, key=counts.get)})'
+
+    def __getitem__(self, item):
+        return self.json[item]
+
+#
 # Unsorted, rest of the bot and pw handling
 #
 
@@ -274,6 +309,19 @@ def handler(signum, _):
 
     print('Signal handler called with signal', signum)
     should_stop = True
+
+
+def pw_state_log(fields):
+    global config
+    log_name = config.get('mailbot', 'change-log')
+    if not log_name:
+        return
+
+    with open(log_name, 'a') as fp:
+        date = datetime.datetime.now().strftime("%b %d %H:%M")
+
+        cwr = csv.writer(fp, quoting=csv.QUOTE_MINIMAL)
+        cwr.writerow([date] + fields)
 
 
 def do_mail(msg_path, pw, dr):
@@ -323,8 +371,8 @@ def do_mail(msg_path, pw, dr):
         print('', 'ERROR: could not find patchwork series')
         return
 
-    series_json = pw.get('series', series_id)
-    patches = [p['id'] for p in series_json['patches']]
+    series = PwSeries(pw, series_id)
+    patches = [p['id'] for p in series.patches]
     if not len(patches):
         print('', 'ERROR: no patches found')
         return
@@ -334,6 +382,10 @@ def do_mail(msg_path, pw, dr):
             for pid in patches:
                 pw.update_state(patch=pid, state=pw_act_map[act])
                 print('', '', "INFO: Updated patch", pid, 'to', f"'{pw_act_map[act]}'")
+
+            mid = msg.get('Message-ID')[1:-1]
+            log = [series["name"], msg.get('From'), series.state(), pw_act_map[act], series["id"], mid]
+            pw_state_log(log)
         else:
             print('', '', "ERROR: action not in the map:", f"'{act}'")
 
@@ -370,6 +422,7 @@ def check_new(tree, pw, dr):
 
 def main():
     # Init state
+    global config
     config = configparser.ConfigParser()
     config.read(['nipa.config', 'pw.config', 'mailbot.config'])
 
