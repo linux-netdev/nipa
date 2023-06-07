@@ -4,7 +4,7 @@
 # Copyright (c) 2020 Facebook
 
 errors=( module_param )
-warnings=( "\Wdev_hold(" "\Wdev_put(" )
+warnings=( "\Wdev_hold(" "\Wdev_put(" "\Wput_net(" "\Wget_net(" )
 
 res=0
 msg=""
