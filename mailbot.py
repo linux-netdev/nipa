@@ -493,7 +493,10 @@ def do_mail(msg, pw, dr):
                 print('', '', "INFO: Updated patch", pid, 'to', f"'{pw_act_map[act]}'")
 
             mid = msg.get('Message-ID')[1:-1]
-            log = [series["name"], msg.get('From'), series.state(), pw_act_map[act], series["id"], mid]
+            name = series["name"]
+            if not name:
+                name = '? ' + msg.get('Subject')
+            log = [name, msg.get('From'), series.state(), pw_act_map[act], series["id"], mid]
             pw_state_log(log)
         else:
             print('', '', "ERROR: action not in the map:", f"'{act}'")
