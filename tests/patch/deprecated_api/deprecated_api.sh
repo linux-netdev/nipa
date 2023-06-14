@@ -10,26 +10,29 @@ res=0
 msg=""
 
 check_item() {
-  total=$(git show | grep -i '^\+.*'"$item")
+  total=$(git show | grep -i '^+.*'"$item")
 
   if [ -n "$total" ]; then
-    new=$(git show | grep -ic '^\+.*'"$item")
-    old=$(git show | grep -ic '^\-.*'"$item")
+    new=$(git show | grep -ic '^+.*'"$item")
+    old=$(git show | grep -ic '^-.*'"$item")
 
-    res=$1
-
-    if [ "$new" -ne "$old" ]; then
-      res=$1
-    elif [ "$1" -eq 1 ]; then
-      res=250
-    else
+    if [ $((new + old)) -eq 0 ]; then
       return
     fi
 
     item_name="'${item//\\W/}'"
     msg="$msg; $item_name was: $old now: $new"
-    export res
     export msg
+
+    if [ "$new" -eq 0 ]; then
+      return
+    elif [ "$new" -gt "$old" ]; then
+      res=$1
+      export res
+    elif [ "$1" -eq 1 ]; then
+      res=250
+      export res
+    fi
   fi
 }
 
