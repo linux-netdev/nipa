@@ -59,3 +59,4 @@ TODO
 
  - read authorized users directly from MAINTAINERS?
  - auto-mark iwl-next patches as Awaiting Upstream
+ - support marking PRs (they have no series), incl. PR + series posts

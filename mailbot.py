@@ -280,6 +280,10 @@ class MlEmail:
             print('', '', 'PW search', obj_type, mid)
             pw_obj = pw.get_by_msgid(obj_type, mid[1:-1])  # Strip the < > from mid
             if pw_obj:
+                if not pw_obj[0]['series']:
+                    print('', 'Skip (no series)', mid, "is pull", bool(pw_obj[0].get("pull_url", None)))
+                    continue
+
                 self._series_id = pw_obj[0]['series'][0]['id']
 
                 r = requests.get(f'https://lore.kernel.org/r/{mid}/raw')
