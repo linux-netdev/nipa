@@ -9,6 +9,7 @@ except ImportError:
 import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
+import urllib
 
 import core
 
@@ -97,6 +98,7 @@ class Patchwork(object):
         return items
 
     def get_by_msgid(self, object_type, msgid):
+        msgid = urllib.parse.quote(msgid)
         return self._get(f'{object_type}/?msgid={msgid}&project={self._project}', api='').json()
 
     def get_mbox(self, object_type, identifier):
