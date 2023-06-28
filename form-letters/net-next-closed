@@ -1,8 +1,8 @@
-The merge window for v6.3 has begun and therefore net-next is closed
+The merge window for v6.5 has begun and therefore net-next is closed
 for new drivers, features, code refactoring and optimizations.
 We are currently accepting bug fixes only.
 
-Please repost when net-next reopens after May 8th.
+Please repost when net-next reopens after July 10th.
 
 RFC patches sent for review only are obviously welcome at any time.
 
