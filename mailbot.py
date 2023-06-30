@@ -17,6 +17,7 @@ import email.utils
 from email.policy import default
 
 from core import NIPA_DIR
+from core import Maintainers, Person
 from core import log, log_open_sec, log_end_sec, log_init
 from core import Tree
 from pw import Patchwork
@@ -25,6 +26,7 @@ from pw import Patchwork
 should_stop = False
 
 config = None
+maintainers = None
 authorized_users = set()
 auto_changes_requested = set()
 delay_actions = []  # contains tuples of (datetime, email)
@@ -248,12 +250,38 @@ class MlEmail:
         self._dkim_ok = None
         self._series_id = None
         self._series_author = None
+        self._authorized = None
 
     def get(self, item, failobj=None):
         return self.msg.get(item, failobj)
 
-    def user_authorized(self):
-        return self.msg.get('From') in authorized_users
+    def user_authorized(self, pw=None):
+        if self._authorized is None:
+            self._resolve_authorized(pw)
+        return self._authorized
+
+    def _resolve_authorized(self, pw):
+        if self.msg.get('From') in authorized_users:
+            self._authorized = 'static config'
+            return
+        series_id = self.get_thread_series(pw)
+        if not series_id:
+            print('', '', 'Maintainer:', 'not checking, no series id')
+            self._authorized = False
+            return
+        mbox = pw.get_mbox('series', series_id)
+        file_names = set()
+        for line in mbox.split('\n'):
+            if not line.startswith('--- a/') and not line.startswith('+++ b/'):
+                continue
+            file_names.add(line[6:])
+
+        global maintainers
+        maintainer_matches = maintainers.find_by_paths(file_names).find_by_owner(self.msg.get('From'))
+        if len(maintainer_matches):
+            self._authorized = repr(maintainer_matches)
+            return
+        self._authorized = False
 
     def user_bot(self):
         return self.msg.get('From') in auto_changes_requested
@@ -331,7 +359,7 @@ class MlEmail:
         if not self.dkim_ok():
             return
 
-        if self.user_authorized() or self.self_reply(pw):
+        if self.user_authorized(pw) or self.self_reply(pw):
             lines = self.msg.get_body(preferencelist=('plain',)).as_string().split('\n')
             for line in lines:
                 if line.startswith('pw-bot:'):
@@ -344,7 +372,7 @@ class MlEmail:
             self.actions.append('pw-bot: changes-requested')
             self.pw_act.append('changes-requested')
 
-        if not self.user_authorized():
+        if not self.user_authorized(pw):
             bad = False
             if len(self.dr_act) or len(self.pw_act) > 1:
                 print('', '', "ERROR: too many actions for un-authorized user")
@@ -531,7 +559,7 @@ def do_mail_file(msg_path, pw, dr):
         print('', '', 'INFO: no actions, skip')
         return
 
-    if not msg.user_authorized() and not msg.user_bot() and not msg.self_reply(pw):
+    if not msg.user_authorized(pw) and not msg.user_bot() and not msg.self_reply(pw):
         print('', '', 'INFO: not an authorized user, skip')
         return
     print('', 'Authorized:', msg.user_authorized())
@@ -553,7 +581,7 @@ def do_mail_delayed(msg, pw, dr):
     print('', 'Subject:', msg.get('Subject'))
     print('', 'From:', msg.get('From'))
 
-    if not msg.user_authorized() and not msg.user_bot():
+    if not msg.user_authorized(pw) and not msg.user_bot():
         print('', '', 'INFO: not an authorized user, skip')
         return
     print('', 'Authorized:', msg.user_authorized())
@@ -624,6 +652,9 @@ def main():
         req_time = datetime.datetime.utcnow()
 
         if (req_time - doc_load_time).total_seconds() > 24 * 60 * 60:
+            global maintainers
+            maintainers = Maintainers(url='https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/MAINTAINERS')
+
             dr = DocRefs()
             dr.load_section('process/maintainer-netdev', 'net')
             dr.alias_section('net', 'netdev')

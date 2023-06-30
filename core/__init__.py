@@ -25,6 +25,7 @@ from .test import Test
 from .tree import Tree, PullError
 from .tester import Tester, write_tree_selection_result, mark_done
 from .series import Series
+from .maintainers import Maintainers, Person
 
 CORE_DIR = os.path.dirname(os.path.abspath(__file__))
 NIPA_DIR = os.path.abspath(os.path.join(CORE_DIR, ".."))
