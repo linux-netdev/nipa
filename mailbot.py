@@ -322,7 +322,7 @@ class MlEmail:
                 author_reply = self._series_author == self.msg.get("From")
 
                 print('', 'Series-id:', self._series_id)
-                print('', 'Series-author:', self._series_id,
+                print('', 'Series-author:', f'"{self._series_author}"', f'"{self.msg.get("From")}"',
                       f'(reply-to-self: {author_reply})')
                 print('', '', 'Based on msg-id:', mid)
                 break
