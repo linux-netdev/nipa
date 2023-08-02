@@ -305,8 +305,9 @@ class MlEmail:
         # add self to allow immediately discarded series
         mids.append(self.msg.get('Message-ID'))
         for mid in mids:
-            print('', '', 'PW search', obj_type, mid)
-            pw_obj = pw.get_by_msgid(obj_type, mid[1:-1])  # Strip the < > from mid
+            mid = mid[1:-1]  # Strip the < > from mid
+            print('', '', 'PW search:', obj_type, mid)
+            pw_obj = pw.get_by_msgid(obj_type, mid)
             if pw_obj:
                 if not pw_obj[0]['series']:
                     print('', 'Skip (no series)', mid, "is pull", bool(pw_obj[0].get("pull_url", None)))
