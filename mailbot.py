@@ -345,7 +345,12 @@ class MlEmail:
         body = self.msg.get_body(preferencelist=('plain',))
         if body is None:
             return False
-        lines = body.as_string().split('\n')
+        try:
+            body_str = body.as_string()
+        except LookupError as e:
+            print('', '', "ERROR: can't parse body", e)
+            return False
+        lines = body_str.split('\n')
         for line in lines:
             if line.startswith('pw-bot:') or line.startswith('doc-bot:'):
                 return True
