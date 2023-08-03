@@ -315,7 +315,7 @@ class MlEmail:
 
                 self._series_id = pw_obj[0]['series'][0]['id']
 
-                r = requests.get(f'https://lore.kernel.org/r/{mid}/raw')
+                r = requests.get(f'https://lore.kernel.org/all/{mid}/raw')
                 data = r.content.decode('utf-8')
                 msg = email.message_from_string(data, policy=default)
                 self._series_author = msg.get('From')
