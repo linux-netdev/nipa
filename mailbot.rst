@@ -9,10 +9,11 @@ of authorized users.  Commands follow the::
 
   some-bot: command
 
-pattern, currently patchwork and documentation quoting support
-is planned. It's recommended (but not required) to place the
-commands in the footer of an email. The footer delimiter is
-two dashes followed by a space: '-- '.
+pattern, currently the main use is updating patch state in patchwork.
+mailbot commands are typically placed in the footer of an email,
+but it's not a requirement and bot will find the commands anywhere
+in the body.
+The footer delimiter is two dashes followed by a space: '-- '.
 
 pw-bot
 ======
@@ -30,17 +31,21 @@ Example::
 
   pw-bot: cr
 
+or::
+
+  pw-bot: changes-requested
+
 will set the series state to "Changes Requested".
 
-doc-bot
-=======
+Authorization
+-------------
 
-**Work-in-progress** (pending getting an email account for the bot :().
+Access to patchwork commands is based on authorship and maintainership.
+That is to say that the author can always rescind their own series,
+and maintainers (according to the MAINTAINERS file) can change the state
+of the series at will. See also:
 
-``doc-bot`` groups documentation commands. Bot replies to the email
-with the command quoting a specified section of kernel documentation.
-It is intended to be used to quote process documentation at people
-who have not read it.
+https://www.kernel.org/doc/html/next/process/maintainer-netdev.html#updating-patch-status
 
 Other automation
 ================
@@ -57,6 +62,5 @@ Whenever patch series gets a response from an error-reporting bot
 TODO
 ====
 
- - read authorized users directly from MAINTAINERS?
  - auto-mark iwl-next patches as Awaiting Upstream
  - support marking PRs (they have no series), incl. PR + series posts
