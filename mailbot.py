@@ -291,7 +291,10 @@ class MlEmail:
 
     def dkim_ok(self):
         if self._dkim_ok is None:
-            self._dkim_ok = self._dkim.verify()
+            try:
+                self._dkim_ok = self._dkim.verify()
+            except dkim.ValidationError:
+                self._dkim_ok = False
         return self._dkim_ok
 
     def _resolve_thread(self, pw):
