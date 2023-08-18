@@ -37,7 +37,7 @@ pw_act_active = {
     'rejected': 0,
     'changes-requested': 0,
     'deferred': 0,
-    'not-applicable' : 0,
+    'not-applicable': 0,
 
     'needs-ack': 1,
     'under-review': 1,
@@ -62,11 +62,15 @@ pw_act_map = {
     'nap': 'not-applicable',
 
     'needs-ack': 'needs-ack',
+    'needs ack': 'needs-ack',
     'need-ack': 'needs-ack',
     'nac': 'needs-ack',
 
     'under-review': 'under-review',
-    'ur': 'under-review'
+    'under review': 'under-review',
+    'ur': 'under-review',
+
+    'new': 'new'
 }
 
 #
