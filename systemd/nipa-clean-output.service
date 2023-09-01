@@ -1,0 +1,12 @@
+[Unit]
+Description=Clean NIPA test results
+
+[Service]
+Type=simple
+User=nipa
+WorkingDirectory=#NIPA#/nipa/
+ExecStart=find #NIPA#/nipa_out/ -maxdepth 1 -type d -mtime +180 -exec rm -rf {} +
+Restart=no
+
+[Install]
+WantedBy=default.service

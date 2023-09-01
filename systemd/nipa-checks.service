@@ -1,0 +1,14 @@
+[Unit]
+Description=NIPA checks fetcher
+After=network-online.target
+
+[Service]
+Type=simple
+User=nipa
+WorkingDirectory=#NIPA#/nipa/
+ExecStart=#NIPA#/nipa/check_fetcher.py
+Restart=no
+KillSignal=SIGINT
+
+[Install]
+WantedBy=multi-user.target

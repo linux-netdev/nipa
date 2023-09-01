@@ -1,0 +1,14 @@
+[Unit]
+Description=NIPA uploader
+After=network-online.target
+
+[Service]
+Type=simple
+User=nipa-upload
+WorkingDirectory=#NIPA#/nipa/
+ExecStart=#NIPA#/nipa/pw_upload.py
+Restart=no
+KillSignal=SIGINT
+
+[Install]
+WantedBy=multi-user.target

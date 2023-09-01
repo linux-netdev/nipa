@@ -1,0 +1,14 @@
+[Unit]
+Description=NIPA poller
+After=network-online.target
+
+[Service]
+Type=simple
+User=nipa
+WorkingDirectory=#NIPA#/nipa/
+ExecStart=#NIPA#/nipa/pw_poller.py
+Restart=no
+KillSignal=SIGINT
+
+[Install]
+WantedBy=multi-user.target

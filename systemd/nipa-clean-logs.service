@@ -1,0 +1,12 @@
+[Unit]
+Description=Clean NIPA test results
+
+[Service]
+Type=simple
+User=nipa
+WorkingDirectory=#NIPA#/nipa/
+ExecStart=find #NIPA#/nipa/ -maxdepth 1 -name '*.xz' -type f -mtime +60 -delete
+Restart=no
+
+[Install]
+WantedBy=default.service
