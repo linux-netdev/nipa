@@ -5,7 +5,6 @@ import configparser
 import datetime
 import json
 import os
-import aiohttp
 
 from core import NIPA_DIR
 from core import Maintainers, Person
