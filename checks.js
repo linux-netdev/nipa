@@ -361,10 +361,15 @@ function run_it(data_raw)
 	if (latest < date)
 	    latest = date;
 
-	v.days_back = Math.round((Date.now() - date) / day) + 1;
-
 	if (v.check.indexOf("vmtest-bpf") != -1)
 	    return true;
+	if (v.state == "awaiting-upstream" ||
+	    v.state == "not-applicable" ||
+	    v.state == "deferred")
+	    return true;
+
+	v.days_back = Math.round((Date.now() - date) / day) + 1;
+
 	data.push(v);
     });
 
