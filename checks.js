@@ -347,17 +347,30 @@ function load_person_table(data, table_id, state_flt)
     });
 }
 
-function run_it(data)
+function run_it(data_raw)
 {
     const minute = 1000 * 60;
     const hour = minute * 60;
     const day = hour * 24;
     const year = day * 365;
 
-    $.each(data, function(i, v) {
+    var latest = new Date(data_raw[0].date);
+    var data = [];
+    $.each(data_raw, function(i, v) {
 	var date = new Date(v.date);
+	if (latest < date)
+	    latest = date;
+
 	v.days_back = Math.round((Date.now() - date) / day) + 1;
+
+	if (v.check.indexOf("vmtest-bpf") != -1)
+	    return true;
+	data.push(v);
     });
+
+    var status = document.getElementById("status_line");
+    var discards = " (discards: " + (data_raw.length - data.length) + ")";
+    status.innerHTML = "Rows: " + data.length + discards + " Latest: " + latest;
 
     load_color(data, 'gyr_accept', "accepted");
     load_color(data, 'gyr_all', false);
