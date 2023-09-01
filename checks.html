@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>PW check stats</title>
+      <link rel="shortcut icon" href="/favicon-stats.png" type="image/png" />
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="checks.js"></script>
+    <script>
+        do_it();
+    </script>
+    <style>
+      table {
+	  font-family: arial, sans-serif;
+	  border-collapse: collapse;
+	  width: 100%;
+      }
+
+      td, th {
+	  border: 1px solid #eeeeee;
+	  text-align: left;
+	  padding: 8px;
+      }
+
+      tr:nth-child(even) {
+	  background-color: #eeeeee;
+      }
+      .row {
+        display: flex;
+      }
+
+      .column {
+        flex: 50%;
+      }
+      </style>
+  </head>
+  <body>
+   <div class="row">
+     <div class="column">
+       <h3>Patch color (accepted)</h3>
+       <canvas id="gyr_accept"></canvas>
+     </div>
+     <div class="column">
+       <h3>Patch color (all)</h3>
+       <canvas id="gyr_all"></canvas>
+    </div>
+  </div>
+   <div class="row">
+     <div class="column">
+       <h3>Check fail rate (accepted)</h3>
+       <canvas id="pc_accept"></canvas>
+     </div>
+     <div class="column">
+       <h3>Check fail rate (all)</h3>
+       <canvas id="pc_all"></canvas>
+    </div>
+  </div>
+
+
+   <div class="row">
+     <div class="column">
+       <h3>Avg fail rate (accepted)</h3>
+        <table id="avg_rate_accept">
+          <thead>
+            <tr>
+                <th></th>
+              <th colspan="3">2 Weeks</th>
+              <th colspan="3">All time</th>
+            </tr>
+            <tr>
+              <th>Check</th>
+              <th>Success</th>
+              <th>Warning</th>
+              <th>Fail</th>
+              <th>Success</th>
+              <th>Warning</th>
+              <th>Fail</th>
+            </tr>
+          <thead>
+        </table>
+     </div>
+     <div class="column">
+       <h3>Avg fail rate (all)</h3>
+        <table id="avg_rate_all">
+          <thead>
+            <tr>
+                <th></th>
+              <th colspan="3">2 Weeks</th>
+              <th colspan="3">All time</th>
+            </tr>
+            <tr>
+              <th>Check</th>
+              <th>Success</th>
+              <th>Warning</th>
+              <th>Fail</th>
+              <th>Success</th>
+              <th>Warning</th>
+              <th>Fail</th>
+            </tr>
+          <thead>
+        </table>
+     </div>
+  </div>
+
+   <div class="row">
+    <div class="column">
+    <h3>Top 15 developers failing checks (patch applied anyway)</h3>
+    <table id="person_accept">
+      <tr>
+          <th></th>
+        <th>Person</th>
+        <th>Fails</th>
+        <th>Warnings</th>
+        <th>Total</th>
+      </tr>
+    </table>
+    </div>
+    <div class="column">
+    <h3>Top 15 developers failing checks</h3>
+    <table id="person_all">
+      <tr>
+          <th></th>
+        <th>Person</th>
+        <th>Fails</th>
+        <th>Warnings</th>
+        <th>Total</th>
+      </tr>
+    </table>
+    </div>
+  </div>
+
+   <div class="row">
+    <div class="column">
+    <h3>Top 20 check outputs</h3>
+    <table id="logTable">
+      <tr>
+        <th>Check</th>
+        <th>Output</th>
+        <th>Hits</th>
+      </tr>
+    </table>
+    </div>
+     <div class="column">
+    </div>
+  </div>
+  </body>
+  </html>

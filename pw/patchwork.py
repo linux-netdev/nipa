@@ -64,6 +64,9 @@ class Patchwork(object):
 
         return ret
 
+    def request(self, url):
+        return self._request(url).json()
+
     def get(self, object_type, identifier):
         return self._get(f'{object_type}/{identifier}/').json()
 
@@ -147,6 +150,16 @@ class Patchwork(object):
 
     def get_projects_all(self):
         return self.get_all('projects')
+
+    def get_patches_all(self, delegate=None, project=None, since=None):
+        if project is None:
+            project = self._project
+        query = {'project': project }
+        if delegate:
+            query['delegate'] = delegate
+        if since:
+            query['since'] = since
+        return self.get_all('patches', query)
 
     def get_series_all(self, project=None, since=None):
         if project is None:
