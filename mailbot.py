@@ -33,6 +33,7 @@ delay_actions = []  # contains tuples of (datetime, email)
 
 
 pw_act_active = {
+    'accepted': 0,
     'awaiting-upstream': 0,
     'rejected': 0,
     'changes-requested': 0,
@@ -46,6 +47,9 @@ pw_act_active = {
 
 
 pw_act_map = {
+    'accepted': 'accepted',
+    'accept': 'accepted',
+
     'au': 'awaiting-upstream',
     'awaiting-upstream': 'awaiting-upstream',
 
