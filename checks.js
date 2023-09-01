@@ -252,6 +252,7 @@ function __lar_acc_stats(v, k, stats, day_lim)
 	stats[k] = {
 	    "check": v.check,
 	    "author": v.author,
+	    "author_id": v.author_id,
 	    "success": 0,
 	    "fail": 0,
 	    "warning": 0,
@@ -339,8 +340,12 @@ function load_person_table(data, table_id, state_flt)
 	var warn = row.insertCell(3);
 	var total = row.insertCell(4);
 
+	base = "https://patchwork.kernel.org/project/netdevbpf/list/";
+	ref = "?state=*&submitter=" + v.author_id;
+	author_name = `<a href="${base}${ref}">` + v.author + '</a>';
+
 	idx.innerHTML = i;
-	author.innerHTML = v.author;
+	author.innerHTML = author_name;
 	warn.innerHTML = v.warning;
 	fail.innerHTML = v.fail;
 	total.innerHTML = v.total;

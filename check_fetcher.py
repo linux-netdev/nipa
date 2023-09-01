@@ -74,6 +74,7 @@ def main():
                 "id": p["id"],
                 "date": p["date"],
                 "author": p["submitter"]["name"],
+                "author_id": p["submitter"]["id"],
                 "state": p["state"],
                 "delegate": p["delegate"]["username"],
                 "check": c["context"],
