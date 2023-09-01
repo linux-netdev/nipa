@@ -298,13 +298,13 @@ function load_avg_rate_table(data, table_id, state_flt)
 	check.innerHTML = v.check;
 	if (stats2w[v.check]) {
 	    v2 = stats2w[v.check];
-	    s1.innerHTML = Math.round(v2.success * 100 / v2.total);
-	    w1.innerHTML = Math.round(v2.warning * 100 / v2.total);
-	    f1.innerHTML = Math.round(v2.fail * 100 / v2.total);
+	    s1.innerHTML = Math.round(v2.success * 100 / v2.total) + "%";
+	    w1.innerHTML = Math.round(v2.warning * 100 / v2.total) + "%";
+	    f1.innerHTML = Math.round(v2.fail * 100 / v2.total) + "%";
 	}
-	s2.innerHTML = Math.round(v.success * 100 / v.total);
-	w2.innerHTML = Math.round(v.warning * 100 / v.total);
-	f2.innerHTML = Math.round(v.fail * 100 / v.total);
+	s2.innerHTML = Math.round(v.success * 100 / v.total)+ "%";
+	w2.innerHTML = Math.round(v.warning * 100 / v.total)+ "%";
+	f2.innerHTML = Math.round(v.fail * 100 / v.total)+ "%";
     });
 }
 
