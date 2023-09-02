@@ -106,6 +106,10 @@ def main():
     with open(tgt_json, "w") as fp:
         json.dump(new_db, fp)
 
+    now = datetime.datetime.utcnow()
+    with open(tgt_json + now.strftime("-%m-%Y"), "w") as fp:
+        json.dump(new_db, fp)
+
 
 if __name__ == "__main__":
     main()
