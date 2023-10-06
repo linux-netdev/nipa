@@ -43,6 +43,7 @@ def _tree_name_should_be_local_files(raw_email):
         'MAINTAINERS',
         'Documentation/',
         'include/',
+        'rust/',
     }
     required_files = {
         'Documentation/networking/',
