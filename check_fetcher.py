@@ -79,7 +79,8 @@ def main():
                 "delegate": p["delegate"]["username"],
                 "check": c["context"],
                 "result": c["state"],
-                "description": c["description"]
+                "description": c["description"],
+                "check-date": c["date"]
             }
             jdb.append(info)
 
