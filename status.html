@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PW status</title>
+    <link rel="shortcut icon" href="/favicon-status.png" type="image/png" />
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="status.js"></script>
+    <script>
+        do_it();
+    </script>
+    <style>
+      table {
+	  font-family: arial, sans-serif;
+	  border-collapse: collapse;
+	  width: 100%;
+      }
+
+      td, th {
+	  border: 1px solid #eeeeee;
+	  text-align: left;
+	  padding: 8px;
+      }
+
+      tr:nth-child(even) {
+	  background-color: #eeeeee;
+      }
+      .row {
+        display: flex;
+      }
+
+      .column {
+        flex: 50%;
+        padding: 1em;
+      }
+      </style>
+</head>
+<body>
+<div class="row">
+    <div class="column">
+        <h3>Processing times (by check post time)</h3>
+        <canvas id="process-time"></canvas>
+    </div>
+    <div class="column">
+        <h3>Processing times (by patch post time)</h3>
+        <canvas id="process-time-p"></canvas>
+    </div>
+</div>
+</body>
+</html>
