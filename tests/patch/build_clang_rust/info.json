@@ -1,0 +1,4 @@
+{
+  "run": ["build_clang_rust.sh"],
+  "pull-requests": true
+}
