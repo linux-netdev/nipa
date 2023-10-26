@@ -104,9 +104,93 @@ function run_it(data_raw)
     load_times(data, 'process-time-p', true);
 }
 
+function colorify_str(value, good)
+{
+    if (value == good) {
+	ret = '<p style="color:green">';
+    } else {
+	ret = '<p style="color:red">';
+    }
+    return ret + value + '</p>';
+}
+
+function systemd(data_raw)
+{
+    var table = document.getElementById("systemd");
+
+    $.each(data_raw, function(i, v) {
+	var row = table.insertRow();
+	var name = row.insertCell(0);
+	var as = row.insertCell(1);
+	var ss = row.insertCell(2);
+	var res = row.insertCell(3);
+	var tasks = row.insertCell(4);
+	var cpu = row.insertCell(5);
+	var mem = row.insertCell(6);
+
+	if (v.TriggeredBy == 0) {
+	    cpuSec = v.CPUUsageNSec / 1000000000;
+	    cpuHours = (cpuSec / (60 * 60)).toFixed(0);
+	    cpuHours = cpuHours + ' hours';
+
+	    memGb = (v.MemoryCurrent / (1024 * 1024 * 1024)).toFixed(2);
+	    memGb = memGb + 'GB';
+
+	    astate = colorify_str(v.ActiveState, "active");
+	    sstate = colorify_str(v.SubState, "running");
+
+	    result = v.Result;
+
+	    taskcnt = v.TasksCurrent;
+	} else {
+	    cpuSec = v.CPUUsageNSec / 1000000000;
+	    cpuHours = cpuSec.toFixed(2);
+	    cpuHours = cpuHours + ' sec';
+
+	    result = colorify_str(v.Result, "success");
+
+	    astate = '';
+	    sstate = '';
+	    taskcnt = '';
+	    memGb = '';
+	}
+
+	name.innerHTML = i;
+	as.innerHTML = astate;
+	ss.innerHTML = sstate;
+	res.innerHTML = result;
+	tasks.innerHTML = taskcnt;
+	cpu.innerHTML = cpuHours;
+	mem.innerHTML = memGb;
+    });
+}
+
+function load_runners(data_raw)
+{
+    var table = document.getElementById("runners");
+
+    $.each(data_raw, function(i, v) {
+	var row = table.insertRow();
+	var name = row.insertCell(0);
+	var what = row.insertCell(1);
+
+	name.innerHTML = i;
+	what.innerHTML = v;
+    });
+}
+
+function status_system(data_raw)
+{
+    systemd(data_raw["services"]);
+    load_runners(data_raw["runners"]);
+}
+
 function do_it()
 {
     $(document).ready(function() {
         $.get("static/nipa/checks.json", run_it)
+    });
+    $(document).ready(function() {
+        $.get("static/nipa/systemd.json", status_system)
     });
 }

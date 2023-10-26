@@ -1,0 +1,13 @@
+[Unit]
+Description=NIPA status fetcher
+
+[Service]
+Type=simple
+User=nipa
+WorkingDirectory=#NIPA#/nipa/
+ExecStart=#NIPA#/nipa/system-status.py #cfg-file #where
+Restart=no
+KillSignal=SIGINT
+
+[Install]
+WantedBy=multi-user.target
