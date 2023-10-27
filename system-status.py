@@ -2,9 +2,13 @@
 # SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
 
 import os
+import re
 import sys
 import subprocess
 import json
+
+
+char_filter = re.compile(r'["<>&;]+')
 
 
 def kv_to_dict(lines):
@@ -28,13 +32,15 @@ def add_one_service(result, name):
 
 
 def add_one_tree(result, pfx, name):
+    global char_filter
+
     with open(os.path.join(pfx, name), 'r') as fp:
         lines = fp.readlines()
     last = None
     sub = ''
     for line in lines:
-        if 'Running tests' in line:
-            last = line
+        if 'Testing patch' in line:
+            last = re.sub(char_filter, "", line)
             sub = ''
         elif 'Running test ' in line:
             sub = line[17:].strip()
