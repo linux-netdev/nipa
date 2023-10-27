@@ -71,7 +71,7 @@ class PwPoller:
         self._pw = Patchwork(config)
 
         self._state = {
-            'last_poll': (datetime.datetime.now(datetime.UTC) - datetime.timedelta(hours=2)).timestamp(),
+            'last_poll': (datetime.datetime.now() - datetime.timedelta(hours=2)).timestamp(),
             'done_series': [],
         }
         self.init_state_from_disk()
@@ -191,7 +191,7 @@ class PwPoller:
         partial_series = {}
 
         prev_big_scan = datetime.datetime.fromtimestamp(self._state['last_poll'])
-        prev_req_time = datetime.datetime.now(datetime.UTC)
+        prev_req_time = datetime.datetime.now()
 
         # We poll every 2 minutes, for series from last 10 minutes
         # Every 3 hours we do a larger check of series of last 12 hours to make sure we didn't miss anything
@@ -200,7 +200,7 @@ class PwPoller:
         try:
             while True:
                 this_poll_seen = set()
-                req_time = datetime.datetime.now(datetime.UTC)
+                req_time = datetime.datetime.now()
 
                 # Decide if this is a normal 4 minute history poll or big scan of last 12 hours
                 if prev_big_scan + datetime.timedelta(hours=self._recheck_period) < req_time:
@@ -249,7 +249,7 @@ class PwPoller:
                     self.done_series.add(s['id'])
                     log(f"Testing complete for series {s['id']}", "")
 
-                secs = 120 - (datetime.datetime.now(datetime.UTC) - req_time).total_seconds()
+                secs = 120 - (datetime.datetime.now() - req_time).total_seconds()
                 if secs > 0:
                     log("Sleep", secs)
                     time.sleep(secs)
