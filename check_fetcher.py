@@ -51,7 +51,7 @@ def main():
 
     old_db, old_pstate = load_old_db(tgt_json)
 
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now(datetime.UTC)
     since = now - datetime.timedelta(days=look_back_days)
 
     json_resp = pw.get_patches_all(delegate=delegate, since=since)
@@ -107,7 +107,7 @@ def main():
     with open(tgt_json, "w") as fp:
         json.dump(new_db, fp)
 
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now(datetime.UTC)
     with open(tgt_json + now.strftime("-%m-%Y"), "w") as fp:
         json.dump(new_db, fp)
 

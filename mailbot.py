@@ -454,7 +454,7 @@ class PwSeries:
         return datetime.datetime.fromisoformat(self.json['date'])
 
     def age(self):
-        return datetime.datetime.utcnow() - self.date()
+        return datetime.datetime.now(datetime.UTC) - self.date()
 
     def __getitem__(self, item):
         return self.json[item]
@@ -666,7 +666,7 @@ def main():
 
     global should_stop
     while not should_stop:
-        req_time = datetime.datetime.utcnow()
+        req_time = datetime.datetime.now(datetime.UTC)
 
         if (req_time - doc_load_time).total_seconds() > 24 * 60 * 60:
             global maintainers
@@ -690,7 +690,7 @@ def main():
             delay_actions = delay_actions[1:]
             do_mail_delayed(msg, pw, dr)
 
-        secs = 120 - (datetime.datetime.utcnow() - req_time).total_seconds()
+        secs = 120 - (datetime.datetime.now(datetime.UTC) - req_time).total_seconds()
         while secs > 0 and not should_stop:
             time.sleep(3)
             secs -= 3
