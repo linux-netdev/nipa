@@ -179,10 +179,66 @@ function load_runners(data_raw)
     });
 }
 
+function load_runtime(data_raw)
+{
+    var entries = [];
+
+    $.each(data_raw["data"], function(i, v) {
+	entries.push({"l": i, "v": v});
+    });
+
+    entries.sort(function(a, b){return b.v.pct - a.v.pct;});
+
+    const ctx = document.getElementById("run-time");
+
+    new Chart(ctx, {
+	type: 'bar',
+	data: {
+	    labels: entries.map(function(e){return e.l;}),
+	    datasets: [{
+		yAxisID: 'A',
+		label: 'Percent of total runtime',
+		borderRadius: 5,
+		data: entries.map(function(e){return e.v.pct;}),
+	    }, {
+		yAxisID: 'B',
+		label: 'Avgerage runtime in sec',
+		borderWidth: 1,
+		borderRadius: 5,
+		data: entries.map(function(e){return e.v.avg;})
+	    }]
+	},
+	options: {
+	    responsive: true,
+	    plugins: {
+		legend: {
+		    position: 'bottom',
+		},
+		title: {
+		    display: true,
+		    text: 'Check runtime'
+		}
+	    },
+	    scales: {
+		A: {
+		    display: true,
+		    beginAtZero: true
+		},
+		B: {
+		    position: 'right',
+		    display: true,
+		    beginAtZero: true
+		}
+	    },
+	},
+    });
+}
+
 function status_system(data_raw)
 {
     systemd(data_raw["services"]);
     load_runners(data_raw["runners"]);
+    load_runtime(data_raw["log-files"]);
 }
 
 function do_it()
