@@ -60,7 +60,7 @@ prep_config() {
     fi
 }
 
-if [ -n "$DESC_FD"]; then
+if [ ${DESC_FD}x == x ]; then
     DESC_FD=/dev/stderr
 fi
 
