@@ -55,7 +55,7 @@ prep_config() {
     config_rust=$(./scripts/config --file $output_dir/.config --state CONFIG_RUST)
 
     if [ $config_rust != "y" ]; then
-	echo Unable to enable CONFIG_RUSG
+	echo Unable to enable CONFIG_RUST
 	exit 1
     fi
 }
