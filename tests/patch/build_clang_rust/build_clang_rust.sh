@@ -66,7 +66,7 @@ fi
 
 files=$(git show --pretty="" --name-only  -- *.rs)
 if [ -z "$files" ]; then
-    echo "No Rust files in patch. Skipping build"
+    echo "No Rust files in patch. Skipping build" >& $DESC_FD
     exit 0
 fi
 
