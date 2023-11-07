@@ -1,8 +1,10 @@
-function load_color(data, canva_id, state_flt)
+function load_color(data, canva_id, state_flt, check_flt)
 {
     var per_patch = {};
     $.each(data, function(i, v) {
 	if (state_flt && v.state != state_flt)
+	    return true;
+	if (check_flt && v.check != check_flt)
 	    return true;
 	if (!per_patch[v.id]) {
 	    per_patch[v.id] = { g: "0", "y": 0, "r": 0, "date": v.date };
@@ -382,8 +384,8 @@ function run_it(data_raw)
     var discards = " (discards: " + (data_raw.length - data.length) + ")";
     status.innerHTML = "Rows: " + data.length + discards + " Latest: " + latest;
 
-    load_color(data, 'gyr_accept', "accepted");
-    load_color(data, 'gyr_all', false);
+    load_color(data, 'gyr_accept', "accepted", false);
+    load_color(data, 'gyr_all', false, false);
 
     load_pc(data, 'pc_accept', "accepted");
     load_pc(data, 'pc_all', false);
@@ -395,6 +397,7 @@ function run_it(data_raw)
     load_person_table(data, "person_all", false);
 
     load_outputs(data);
+    load_color(data, 'cc_maintainers', "accepted", "cc_maintainers");
 }
 
 function do_it()
