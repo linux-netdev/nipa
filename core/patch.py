@@ -29,10 +29,11 @@ class Patch(object):
     write_out(fp)
         Write the raw patch into the given file pointer.
     """
-    def __init__(self, raw_patch, ident=None, title=""):
+    def __init__(self, raw_patch, ident=None, title="", series=None):
         self.raw_patch = raw_patch
         self.title = title
         self.subject = ""
+        self.series = series
 
         subj = re.search(r'Subject: \[.*\](.*)', raw_patch)
         if not subj:

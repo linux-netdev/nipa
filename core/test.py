@@ -109,9 +109,11 @@ class Test(object):
             return self._exec_run(tree, thing, result_dir)
         elif "pymod" in self.info:
             core.log("START", datetime.datetime.now().strftime("%H:%M:%S.%f"))
-            ret, desc = self._exec_pyfunc(tree, thing, result_dir)
+            ret = self._exec_pyfunc(tree, thing, result_dir)
             core.log("END", datetime.datetime.now().strftime("%H:%M:%S.%f"))
-            return ret, "", "", desc
+            if len(ret) == 2:
+                return ret[0], "", "", ret[1]
+            return ret[0], ret[2], "", ret[1]
 
     def _exec_run(self, tree, thing, result_dir):
         rfd, wfd = None, None
