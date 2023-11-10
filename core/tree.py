@@ -56,6 +56,10 @@ class Tree:
         cmd += pull_url.split()
         return self.git(cmd)
 
+    def git_push(self, remote, spec):
+        cmd = ["push", remote, spec]
+        return self.git(cmd)
+
     def git_status(self, untracked=None, short=False):
         cmd = ["status"]
         if short:
@@ -103,6 +107,23 @@ class Tree:
             self.git_reset(self.branch, hard=True)
         finally:
             core.log_end_sec()
+
+    def remotes(self):
+        """
+        Returns a dict of dicts like {"origin": {"fetch": URL1, "push": URL2}}
+        """
+        cmd = ["remote", "-v"]
+        ret = self.git(cmd)
+        lines = ret.split('\n')
+        result = {}
+        for l in lines:
+            if not l:
+                continue
+            bits = l.split()
+            info = result.get(bits[0], {})
+            info[bits[2][1:-1]] = bits[1]
+            result[bits[0]] = info
+        return result
 
     def contains(self, commit):
         core.log_open_sec("Checking for commit " + commit)
