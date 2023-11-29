@@ -122,7 +122,9 @@ class Test(object):
             rfd, wfd = os.pipe()
 
             out, err = CMD.cmd_run(self.info["run"], include_stderr=True, cwd=tree.path,
-                                   pass_fds=[wfd], add_env={"DESC_FD": str(wfd)})
+                                   pass_fds=[wfd], add_env={"DESC_FD": str(wfd),
+                                                            "RESULTS_DIR": result_dir,
+                                                            "BRANCH_BASE": tree.branch})
         except core.cmd.CmdError as e:
             retcode = e.retcode
             out = e.stdout
