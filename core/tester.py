@@ -83,11 +83,13 @@ class Tester(threading.Thread):
                 s = self.queue.get()
                 if s is None:
                     continue
+
+                core.log(f"Tester commencing with backlog of {self.queue.qsize()}")
                 self.test_series(self.tree, s)
                 self.done_queue.put(s)
 
                 # If we're the last worker with work to do - let the poller run
-                core.log(f"Checking barrier {self.barrier.n_waiting}/{self.barrier.parties} ")
+                core.log(f"Checking barrier {self.barrier.n_waiting}/{self.barrier.parties} {self.queue.qsize()}")
                 if self.barrier.parties == self.barrier.n_waiting + 1:
                     break
 
