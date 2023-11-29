@@ -165,8 +165,10 @@ class Tester(threading.Thread):
             ret = test.exec(tree, series, series_dir)
             series_ret.append(ret)
 
+        cnt = 1
         for patch in series.patches:
-            core.log_open_sec("Testing patch " + patch.title)
+            core.log_open_sec(f"Testing patch {cnt}/{len(series.patches)}| {patch.title}")
+            cnt += 1
 
             current_patch_ret = []
 
