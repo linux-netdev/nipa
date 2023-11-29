@@ -41,16 +41,19 @@ def add_one_tree(result, pfx, name):
         lines = fp.readlines()
     last = None
     sub = ''
+    blog = ''
     for line in lines:
         if 'Testing patch' in line:
             last = re.sub(char_filter, "", line)
             sub = ''
         elif 'Running test ' in line:
             sub = line[17:].strip()
+        elif 'Tester commencing ' in line:
+            blog = line[35:].strip()
         if 'Checking barrier' in line:
             last = None
     if last:
-        last += f' ({sub})'
+        last += f' ({sub}) [backlog {blog}]'
     result['runners'][name] = last
 
 
