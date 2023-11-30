@@ -20,6 +20,7 @@ net-next=net-next, net-next, origin, origin/main
 public_url=https://github.com/linux-netdev/testing.git
 push_url=git@github.com:linux-netdev/testing.git
 branch_pfx=net-next-
+freq=3
 [output]
 branches=branches.json
 """
@@ -101,7 +102,7 @@ def reap_old(config, state, tree, tgt_remote) -> None:
 def main_loop(config, state, tree, tgt_remote) -> None:
     now = datetime.datetime.now(datetime.UTC)
     now_h = hour_timestamp(now)
-    freq = 3
+    freq = int(config.get("target", "freq"))
     if now_h - state["last"] < freq or now_h % freq != 0:
         time.sleep(20)
         return
