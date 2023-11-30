@@ -210,10 +210,11 @@ class Tree:
                 pass
             raise PullError(e) from e
 
-    def pull(self, pull_url):
+    def pull(self, pull_url, reset=True):
         core.log_open_sec("Pulling " + pull_url)
         try:
-            self.reset()
+            if reset:
+                self.reset()
             self._pull_safe(pull_url)
         finally:
             core.log_end_sec()

@@ -10,7 +10,7 @@ from typing import List
 
 from core import NIPA_DIR
 from core import log, log_open_sec, log_end_sec, log_init
-from core import Tree
+from core import Tree, Patch, PatchApplyError, PullError
 from pw import Patchwork
 
 """
@@ -107,6 +107,37 @@ def pwe_get_pending(pw, config) -> List:
 def apply_pending_patches(pw, config, tree) -> None:
     log_open_sec("Get pending submissions from patchwork")
     things = pwe_get_pending(pw, config)
+    log(f"Have {len(things)} pending things from patchwork")
+    log_end_sec()
+
+    log_open_sec("Applying pending submissions")
+    seen_series = set()
+    applied_series = set()
+    applied_prs = set()
+    for entry in things:
+        series_id = pwe_series_id_or_none(entry)
+        if series_id in seen_series:
+            continue
+
+        if entry.get('pull_url', None):
+            log_open_sec("Pulling: " + entry["name"])
+            try:
+                tree.pull(entry["pull_url"], reset=False)
+                applied_prs.add(entry["id"])
+            except PullError:
+                pass
+        else:
+            log_open_sec("Applying: " + entry["series"][0]["name"])
+            seen_series.add(series_id)
+            mbox_url = entry["series"][0]["mbox"]
+            data = pw.get_mbox_direct(mbox_url)
+            p = Patch(data)
+            try:
+                tree.apply(p)
+                applied_series.add(series_id)
+            except PatchApplyError:
+                pass
+        log_end_sec()
     log_end_sec()
 
 

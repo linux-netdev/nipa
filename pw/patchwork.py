@@ -104,6 +104,9 @@ class Patchwork(object):
         msgid = urllib.parse.quote(msgid)
         return self._get(f'{object_type}/?msgid={msgid}&project={self._project}', api='').json()
 
+    def get_mbox_direct(self, url):
+        return self._request(url).content.decode()
+
     def get_mbox(self, object_type, identifier):
         url = f'{self._proto}{self.server}/{object_type}/{identifier}/mbox/'
         return self._request(url).content.decode()
