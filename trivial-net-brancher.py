@@ -231,7 +231,6 @@ def main_loop(pw, config, state, tree, tgt_remote) -> None:
     now_h = hour_timestamp(now)
     freq = int(config.get("target", "freq"))
     if now_h - state["last"] < freq or now_h % freq != 0:
-        time.sleep(20)
         return
 
     reap_old(config, state, tree, tgt_remote)
@@ -310,6 +309,10 @@ def main() -> None:
     try:
         while True:
             main_loop(pw, config, state, tree, tgt_remote)
+            try:
+                time.sleep(20)
+            except KeyboardInterrupt:
+                break
     finally:
         with open('brancher.state', 'w') as f:
             json.dump(state, f)
