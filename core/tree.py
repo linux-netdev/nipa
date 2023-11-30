@@ -99,6 +99,9 @@ class Tree:
         finally:
             core.log_end_sec()
 
+    def head_hash(self):
+        return self.git(['rev-parse', 'HEAD']).strip()
+
     def reset(self, fetch=None):
         core.log_open_sec("Reset tree " + self.name)
         try:

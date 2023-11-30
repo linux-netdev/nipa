@@ -158,6 +158,8 @@ def create_new(pw, config, state, tree, tgt_remote) -> None:
             tree.git_pull(url)
         log_end_sec()
 
+    state["hashes"][branch_name] = tree.head_hash()
+
     apply_pending_patches(pw, config, tree)
 
     state["branches"][branch_name] = now.isoformat()
@@ -165,6 +167,11 @@ def create_new(pw, config, state, tree, tgt_remote) -> None:
     log_open_sec("Pushing out")
     tree.git_push(tgt_remote, "HEAD:" + branch_name)
     log_end_sec()
+
+
+def state_delete_branch(state, br):
+    del state["branches"][br]
+    state["hashes"].pop(br, None)
 
 
 def reap_old(config, state, tree, tgt_remote) -> None:
@@ -191,13 +198,13 @@ def reap_old(config, state, tree, tgt_remote) -> None:
         when = datetime.datetime.fromisoformat(state["branches"][br])
         if now - when > datetime.timedelta(days=5):
             tree.git_push(tgt_remote, ':' + br)
-            del state["branches"][br]
+            state_delete_branch(state, br)
             continue
     state_has = set(state["branches"].keys())
     lost = state_has.difference(found)
     for br in lost:
         log_open_sec("Removing lost branch " + br + " from state")
-        del state["branches"][br]
+        state_delete_branch(state, br)
         log_end_sec()
     log_end_sec()
 
@@ -208,7 +215,10 @@ def dump_branches(config, state) -> None:
 
     data = []
     for name, val in state["branches"].items():
-        data.append({"branch": name, "date": val, "url": pub_url + " " + name})
+        data.append({"branch": name,
+                     "date": val,
+                     "base": state["hashes"].get(name, None),
+                     "url": pub_url + " " + name})
 
     branches = config.get("output", "branches")
     with open(branches, 'w') as fp:
@@ -273,6 +283,8 @@ def main() -> None:
         state["last"] = 0
     if "branches" not in state:
         state["branches"] = {}
+    if "hashes" not in state:
+        state["hashes"] = {}
 
     # Parse global config
     global ignore_delegate
