@@ -34,20 +34,6 @@ def hour_timestamp(when=None) -> int:
     return int(ts / (60 * 60))
 
 
-def dump_branches(config, state) -> None:
-    log_open_sec("Update branches manifest")
-    pub_url = config.get('target', 'public_url')
-
-    data = []
-    for name, val in state["branches"].items():
-        data.append({"branch": name, "date": val, "url": pub_url + " " + name})
-
-    branches = config.get("output", "branches")
-    with open(branches, 'w') as fp:
-        json.dump(data, fp)
-    log_end_sec()
-
-
 def create_new(config, state, tree, tgt_remote) -> None:
     now = datetime.datetime.now(datetime.UTC)
     pfx = config.get("target", "branch_pfx")
@@ -104,6 +90,20 @@ def reap_old(config, state, tree, tgt_remote) -> None:
         log_open_sec("Removing lost branch " + br + " from state")
         del state["branches"][br]
         log_end_sec()
+    log_end_sec()
+
+
+def dump_branches(config, state) -> None:
+    log_open_sec("Update branches manifest")
+    pub_url = config.get('target', 'public_url')
+
+    data = []
+    for name, val in state["branches"].items():
+        data.append({"branch": name, "date": val, "url": pub_url + " " + name})
+
+    branches = config.get("output", "branches")
+    with open(branches, 'w') as fp:
+        json.dump(data, fp)
     log_end_sec()
 
 
