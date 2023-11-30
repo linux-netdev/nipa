@@ -6,14 +6,19 @@ import datetime
 import json
 import os
 import time
+from typing import List
 
 from core import NIPA_DIR
 from core import log, log_open_sec, log_end_sec, log_init
 from core import Tree
+from pw import Patchwork
 
 """
 Config:
 
+[filters]
+ignore_delegate=bpf
+gate_checks=build_clang,build_32bit,build_allmodconfig_warn
 [trees]
 net-next=net-next, net-next, origin, origin/main
 [target]
@@ -27,6 +32,10 @@ branches=branches.json
 """
 
 
+ignore_delegate = {}
+gate_checks = {}
+
+
 def hour_timestamp(when=None) -> int:
     if when is None:
         when = datetime.datetime.now(datetime.UTC)
@@ -34,7 +43,74 @@ def hour_timestamp(when=None) -> int:
     return int(ts / (60 * 60))
 
 
-def create_new(config, state, tree, tgt_remote) -> None:
+def pwe_has_all_checks(pw, entry) -> bool:
+    if "checks" not in entry:
+        return False
+    checks = pw.request(entry["checks"])
+    found = 0
+    for c in checks:
+        if c["context"] in gate_checks and c["state"] == "success":
+            found += 1
+    return found == len(gate_checks)
+
+
+def pwe_series_id_or_none(entry) -> int:
+    if len(entry.get("series", [])) > 0:
+        return entry["series"][0]["id"]
+
+
+def pwe_get_pending(pw, config) -> List:
+    log_open_sec("Loading patches")
+    things = pw.get_patches_all(action_required=True)
+    log_end_sec()
+
+    log_open_sec("Filter by delegates")
+    res = []
+    for entry in things:
+        delegate = entry.get("delegate", None)
+        if delegate and delegate["username"] in ignore_delegate:
+            log(f"Skip because of delegate ({delegate['username']}): " + entry["name"])
+        else:
+            res.append(entry)
+    things = res
+    log_end_sec()
+
+    log_open_sec("Filter by checks")
+    skip_check_series = set()
+    res = []
+    for entry in things:
+        series_id = pwe_series_id_or_none(entry)
+        if series_id in skip_check_series:
+            log("Skip because of failing/missing check elsewhere in the series: " + entry["name"])
+        elif not pwe_has_all_checks(pw, entry):
+            log("Skip because of failing/missing check: " + entry["name"])
+            if series_id:
+                skip_check_series.add(series_id)
+        else:
+            res.append(entry)
+    things = res
+    log_end_sec()
+
+    log_open_sec("Filter by checks by other patches in the series")
+    res = []
+    for entry in things:
+        if pwe_series_id_or_none(entry) in skip_check_series:
+            log("Skip because of failing check elsewhere in the series: " + entry["name"])
+        else:
+            res.append(entry)
+    things = res
+    log_end_sec()
+
+    return things
+
+
+def apply_pending_patches(pw, config, tree) -> None:
+    log_open_sec("Get pending submissions from patchwork")
+    things = pwe_get_pending(pw, config)
+    log_end_sec()
+
+
+def create_new(pw, config, state, tree, tgt_remote) -> None:
     now = datetime.datetime.now(datetime.UTC)
     pfx = config.get("target", "branch_pfx")
     branch_name = pfx + datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d--%H-%M")
@@ -50,6 +126,8 @@ def create_new(config, state, tree, tgt_remote) -> None:
         for url in pull_list.split(','):
             tree.git_pull(url)
         log_end_sec()
+
+    apply_pending_patches(pw, config, tree)
 
     state["branches"][branch_name] = now.isoformat()
 
@@ -107,7 +185,7 @@ def dump_branches(config, state) -> None:
     log_end_sec()
 
 
-def main_loop(config, state, tree, tgt_remote) -> None:
+def main_loop(pw, config, state, tree, tgt_remote) -> None:
     now = datetime.datetime.now(datetime.UTC)
     now_h = hour_timestamp(now)
     freq = int(config.get("target", "freq"))
@@ -116,7 +194,7 @@ def main_loop(config, state, tree, tgt_remote) -> None:
         return
 
     reap_old(config, state, tree, tgt_remote)
-    create_new(config, state, tree, tgt_remote)
+    create_new(pw, config, state, tree, tgt_remote)
 
     state["last"] = now_h
 
@@ -153,6 +231,8 @@ def main() -> None:
     log_init(config.get('log', 'type', fallback='stdout'),
              config.get('log', 'file', fallback=None))
 
+    pw = Patchwork(config)
+
     state = {}
     if os.path.exists("brancher.state"):
         with open("brancher.state") as fp:
@@ -162,6 +242,12 @@ def main() -> None:
         state["last"] = 0
     if "branches" not in state:
         state["branches"] = {}
+
+    # Parse global config
+    global ignore_delegate
+    ignore_delegate = set(config.get('filters', 'ignore_delegate', fallback="").split(','))
+    global gate_checks
+    gate_checks = set(config.get('filters', 'gate_checks', fallback="").split(','))
 
     tree_obj = None
     tree_dir = config.get('dirs', 'trees', fallback=os.path.join(NIPA_DIR, "../"))
@@ -180,7 +266,7 @@ def main() -> None:
 
     try:
         while True:
-            main_loop(config, state, tree, tgt_remote)
+            main_loop(pw, config, state, tree, tgt_remote)
     finally:
         with open('brancher.state', 'w') as f:
             json.dump(state, f)

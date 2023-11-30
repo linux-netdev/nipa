@@ -151,14 +151,19 @@ class Patchwork(object):
     def get_projects_all(self):
         return self.get_all('projects')
 
-    def get_patches_all(self, delegate=None, project=None, since=None):
+    def get_patches_all(self, delegate=None, project=None, since=None, action_required=None):
         if project is None:
             project = self._project
-        query = {'project': project }
+        query = {'project': project}
         if delegate:
             query['delegate'] = delegate
         if since:
             query['since'] = since
+        # Hack up "action required" as patchwork doesn't have actual filter for it
+        # we assume states 1 and 2 are action required ('New' and 'Under Review')
+        if action_required:
+            query['state'] = '1&state=2'
+            query['archived'] = 'false'
         return self.get_all('patches', query)
 
     def get_series_all(self, project=None, since=None):
