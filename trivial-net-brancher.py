@@ -21,6 +21,7 @@ public_url=https://github.com/linux-netdev/testing.git
 push_url=git@github.com:linux-netdev/testing.git
 branch_pfx=net-next-
 freq=3
+pull=git://git.kernel.org/pub/scm/linux/kernel/git/netdev/net.git
 [output]
 branches=branches.json
 """
@@ -56,6 +57,13 @@ def create_new(config, state, tree, tgt_remote) -> None:
     tree.git_fetch(tree.remote)
     tree.git_reset(tree.branch, hard=True)
     log_end_sec()
+
+    pull_list = config.get("target", "pull", fallback=None)
+    if pull_list:
+        log_open_sec("Pulling in other trees")
+        for url in pull_list.split(','):
+            tree.git_pull(url)
+        log_end_sec()
 
     state["branches"][branch_name] = now.isoformat()
 
