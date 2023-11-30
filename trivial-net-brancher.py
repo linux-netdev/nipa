@@ -122,6 +122,7 @@ def prep_remote(config, tree) -> str:
     for r in remotes:
         if remotes[r]["push"] == tgt_tree:
             log("Found remote, it is " + r)
+            log_end_sec()
             return r
 
     log("Remote not found, adding")
