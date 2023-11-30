@@ -6,7 +6,7 @@ import datetime
 import json
 import os
 import time
-from typing import List
+from typing import List, Tuple
 
 from core import NIPA_DIR
 from core import log, log_open_sec, log_end_sec, log_init
@@ -29,6 +29,7 @@ freq=3
 pull=git://git.kernel.org/pub/scm/linux/kernel/git/netdev/net.git
 [output]
 branches=branches.json
+info=branches-info.json
 """
 
 
@@ -104,7 +105,7 @@ def pwe_get_pending(pw, config) -> List:
     return things
 
 
-def apply_pending_patches(pw, config, tree) -> None:
+def apply_pending_patches(pw, config, tree) -> Tuple[List, List]:
     log_open_sec("Get pending submissions from patchwork")
     things = pwe_get_pending(pw, config)
     log(f"Have {len(things)} pending things from patchwork")
@@ -140,6 +141,8 @@ def apply_pending_patches(pw, config, tree) -> None:
         log_end_sec()
     log_end_sec()
 
+    return list(applied_series), list(applied_prs)
+
 
 def create_new(pw, config, state, tree, tgt_remote) -> None:
     now = datetime.datetime.now(datetime.UTC)
@@ -160,7 +163,8 @@ def create_new(pw, config, state, tree, tgt_remote) -> None:
 
     state["hashes"][branch_name] = tree.head_hash()
 
-    apply_pending_patches(pw, config, tree)
+    series, prs = apply_pending_patches(pw, config, tree)
+    state["info"][branch_name] = {"series": series, "prs": prs}
 
     state["branches"][branch_name] = now.isoformat()
 
@@ -172,6 +176,7 @@ def create_new(pw, config, state, tree, tgt_remote) -> None:
 def state_delete_branch(state, br):
     del state["branches"][br]
     state["hashes"].pop(br, None)
+    state["info"].pop(br, None)
 
 
 def reap_old(config, state, tree, tgt_remote) -> None:
@@ -223,6 +228,10 @@ def dump_branches(config, state) -> None:
     branches = config.get("output", "branches")
     with open(branches, 'w') as fp:
         json.dump(data, fp)
+
+    info = config.get("output", "info")
+    with open(info, 'w') as fp:
+        json.dump(state["info"], fp)
     log_end_sec()
 
 
@@ -284,6 +293,8 @@ def main() -> None:
         state["branches"] = {}
     if "hashes" not in state:
         state["hashes"] = {}
+    if "info" not in state:
+        state["info"] = {}
 
     # Parse global config
     global ignore_delegate
