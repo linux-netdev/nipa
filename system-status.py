@@ -34,6 +34,10 @@ def add_one_service(result, name):
     result['services'][name] = filtered
 
 
+def pre_strip(line, needle):
+    return line[line.find(needle) + len(needle):].strip()
+
+
 def add_one_tree(result, pfx, name):
     global char_filter
 
@@ -45,13 +49,16 @@ def add_one_tree(result, pfx, name):
     progress = ''
     for line in lines:
         if 'Testing patch' in line:
-            patch = line[line.find('Testing patch') + 14:]
+            patch = pre_strip(line, 'Testing patch')
             progress = patch[:patch.find('|')]
             patch = patch[patch.find('|') + 2:]
             last = re.sub(char_filter, "", patch)
             test = ''
+        elif '* Test-applying' in line:
+            last = pre_strip(line, 'Test-applying')
+            progress = 'Series'
         elif 'Running test ' in line:
-            test = line[17:].strip()
+            test = pre_strip(line, 'Running test')
         elif 'Tester commencing ' in line:
             blog = line[35:].strip()
         if 'Checking barrier' in line:
