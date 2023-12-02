@@ -172,10 +172,16 @@ function load_runners(data_raw)
     $.each(data_raw, function(i, v) {
 	var row = table.insertRow();
 	var name = row.insertCell(0);
-	var what = row.insertCell(1);
+	var qlen = row.insertCell(1);
+	var pid = row.insertCell(2);
+	var patch = row.insertCell(3);
+	var test = row.insertCell(4);
 
 	name.innerHTML = i;
-	what.innerHTML = v;
+	pid.innerHTML = v.progress;
+	patch.innerHTML = v.patch;
+	test.innerHTML = v.test;
+	qlen.innerHTML = v.backlog;
     });
 }
 

@@ -40,21 +40,26 @@ def add_one_tree(result, pfx, name):
     with open(os.path.join(pfx, name), 'r') as fp:
         lines = fp.readlines()
     last = None
-    sub = ''
+    test = ''
     blog = ''
+    progress = ''
     for line in lines:
         if 'Testing patch' in line:
-            last = re.sub(char_filter, "", line)
-            sub = ''
+            patch = line[line.find('Testing patch') + 14:]
+            progress = patch[:patch.find('|')]
+            patch = patch[patch.find('|') + 2:]
+            last = re.sub(char_filter, "", patch)
+            test = ''
         elif 'Running test ' in line:
-            sub = line[17:].strip()
+            test = line[17:].strip()
         elif 'Tester commencing ' in line:
             blog = line[35:].strip()
         if 'Checking barrier' in line:
             last = None
-    if last:
-        last += f' ({sub}) [backlog {blog}]'
-    result['runners'][name] = last
+            progress = ''
+            test = ''
+            blog = ''
+    result['runners'][name] = {"patch": last, "progress": progress, "test": test, "backlog": blog}
 
 
 def add_one_runtime(fname, total, res):
