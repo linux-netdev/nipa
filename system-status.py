@@ -136,7 +136,7 @@ def main():
         if "log-files" in prev and "prev-date" in prev["log-files"]:
             prev_date = datetime.datetime.fromisoformat(prev["log-files"]["prev-date"])
             run_logs = datetime.datetime.now() - prev_date > datetime.timedelta(hours=3)
-            print("Since log scan", datetime.datetime.now() - prev_date)
+            print("Since log scan", datetime.datetime.now() - prev_date, "Will rescan:", run_logs)
             prev_date = prev["log-files"]["prev-date"]
             log_files = {"prev-date": prev_date, "data": prev["log-files"]["data"]}
     if run_logs:
@@ -146,13 +146,13 @@ def main():
     result = {'services': {}, 'runners': {},
               'date': datetime.datetime.now().isoformat(),
               "log-files": log_files}
-    for name in cfg["services"]:
-        add_one_service(result, name)
     for name in cfg["trees"]:
         add_one_tree(result, cfg["tree-path"], name)
     if "log-files" in cfg and run_logs:
         res = add_runtime(result, cfg["log-files"])
         result["log-files"]["data"] = res
+    for name in cfg["services"]:
+        add_one_service(result, name)
 
     with open(sys.argv[2], 'w') as fp:
         json.dump(result, fp)
