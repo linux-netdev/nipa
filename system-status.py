@@ -97,9 +97,9 @@ def add_one_runtime(fname, total, res):
         if '* Running test ' in line:
             test = line[line.find("Running test") + 13:].strip()
             t = {"start": None, "end": None}
-        elif '**** START' in line:
+        elif '*** START' in line:
             cont = "start"
-        elif '**** END' in line:
+        elif '*** END' in line:
             cont = "end"
 
     return total, res
