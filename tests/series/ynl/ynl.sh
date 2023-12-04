@@ -60,9 +60,9 @@ git diff --no-index \
 git diff --no-index --exit-code \
     $RESULTS_DIR/old-code/ $RESULTS_DIR/new-code/ >> /dev/null
 if [ $? -eq 0 ]; then
-  echo "no diff in generated;"
+  echo "no diff in generated;" >&$DESC_FD
 else
-  echo "GEN HAS DIFF $(cat $RESULTS_DIR/diff-stat | tail -1);"
+  echo "GEN HAS DIFF $(cat $RESULTS_DIR/diff-stat | tail -1);" >&$DESC_FD
 fi
 
 rm -rf $RESULTS_DIR/old-code/ $RESULTS_DIR/new-code/
