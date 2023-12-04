@@ -123,7 +123,7 @@ class Test(object):
 
             out, err = CMD.cmd_run(self.info["run"], include_stderr=True, cwd=tree.path,
                                    pass_fds=[wfd], add_env={"DESC_FD": str(wfd),
-                                                            "RESULTS_DIR": result_dir,
+                                                            "RESULTS_DIR": os.path.join(result_dir, self.name),
                                                             "BRANCH_BASE": tree.branch})
         except core.cmd.CmdError as e:
             retcode = e.retcode
