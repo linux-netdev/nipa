@@ -161,11 +161,13 @@ class Tester(threading.Thread):
 
         series_ret = []
         patch_ret = []
-        tree.reset()
+        tree.reset(fetch=False)
 
+        tree.apply(series)
         for test in self.series_tests:
             ret = test.exec(tree, series, series_dir)
             series_ret.append(ret)
+        tree.reset(fetch=False)
 
         cnt = 1
         for patch in series.patches:
