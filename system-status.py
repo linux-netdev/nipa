@@ -54,6 +54,10 @@ def add_one_tree(result, pfx, name):
             patch = patch[patch.find('|') + 2:]
             last = re.sub(char_filter, "", patch)
             test = ''
+        elif '* Testing pull request' in line:
+            patch = pre_strip(line, 'Testing pull request')
+            last = re.sub(char_filter, "", patch)
+            progress = '1/1'
         elif '* Test-applying' in line:
             last = pre_strip(line, 'Test-applying')
             progress = 'Series'
