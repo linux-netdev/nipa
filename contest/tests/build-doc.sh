@@ -5,9 +5,12 @@ tmpfile_o=$(mktemp)
 tmpfile_n=$(mktemp)
 rc=0
 
+# rev-parse wants the branch with remote path
+full_branch=$(git branch -a --list "*$BRANCH")
+
 echo " === Start ==="
 echo "Base: $BASE"
-echo "Branch: $BRANCH ($(git rev-parse $BRANCH))"
+echo "Branch: $BRANCH ($(git rev-parse $full_branch))"
 echo
 
 echo " === Building the base tree ==="
