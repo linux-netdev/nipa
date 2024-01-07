@@ -42,6 +42,8 @@ def fetch_remote(remote, seen):
         if run['branch'] in remote_state['seen']:
             print('Skip:', remote['name'], '-', run['branch'], '- already fetched')
             continue
+        if not run['url']:    # Executor has not finished, yet
+            continue
 
         print('Fetching run', run['branch'])
         fetch_remote_run(run, remote_state)
@@ -68,6 +70,9 @@ def build_combined(config, remote_db):
             results = json.load(fp)
 
         for entry in results:
+            if not entry['url']:    # Executor is running
+                continue
+
             file = os.path.join(dir, os.path.basename(entry['url']))
             if not os.path.exists(file):
                 print('No file', file)
