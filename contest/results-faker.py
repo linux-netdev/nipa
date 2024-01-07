@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0
 
+import configparser
 import datetime
 import json
 import os
@@ -10,32 +11,54 @@ import os
 Combined test runner and collector.
 It generates fake data for the UI to display.
 It holds no history, only live branches will show up.
+
+Config:
+
+[input]
+branches=/path/to/branches.json
+[output]
+dir=/path/to/output
+url_pfx=relative/within/server
 """
 
-
 def main() -> None:
-    with open(os.sys.argv[1], "r") as fp:
+    config = configparser.ConfigParser()
+    config.read(['faker.config'])
+
+    with open(config.get("input", "branches"), "r") as fp:
         branches = json.load(fp)
+
+    url = config.get("output", "url_pfx")
+    if url[-1] != '/':
+        url += '/'
+    directory = config.get("output", "dir")
 
     results = []
     for br in branches:
-        data = {"executor": "faker", "remote": "local",
-                "branch": br["branch"]}
-
         br_dt = datetime.datetime.fromisoformat(br["date"])
-        br_dt += datetime.timedelta(minutes=2)
-        data["start"] = br_dt.isoformat()
-        br_dt += datetime.timedelta(minutes=3)
-        data["end"] = br_dt.isoformat()
+        run_id_cookie = str(int(br_dt.timestamp() / 60) % 1000000)
+        fname = f"results-{run_id_cookie}.json"
 
-        data["results"] = [
-            {"test": "branch-created", "group": "fake", "result": "pass",
+        data = {'url': url + fname,
+               'branch': br["branch"],
+               'executor': "brancher"}
+        results.append(data)
+
+        run = {'branch': br["branch"], 'executor': "brancher"}
+        br_dt += datetime.timedelta(seconds=1)
+        run["start"] = br_dt.isoformat()
+        br_dt += datetime.timedelta(seconds=3)
+        run["end"] = br_dt.isoformat()
+
+        run["results"] = [
+            {"test": "branch-created", "group": "---", "result": "pass",
              "link": "https://netdev.bots.linux.dev/static/nipa/branches.json"}
         ]
 
-        results.append(data)
+        with open(os.path.join(directory, fname), "w") as fp:
+            json.dump(run, fp)
 
-    with open(os.sys.argv[2], "w") as fp:
+    with open(os.path.join(directory, 'results.json'), "w") as fp:
         json.dump(results, fp)
 
 
