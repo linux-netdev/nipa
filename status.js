@@ -247,6 +247,50 @@ function status_system(data_raw)
     load_runtime(data_raw["log-files"]);
 }
 
+function colorify_str_psf(value)
+{
+    if (value == "pass") {
+	ret = '<p style="color:green">';
+    } else if (value == "skip") {
+	ret = '<p style="color:blue">';
+    } else {
+	ret = '<p style="color:red">';
+    }
+    return ret + value + '</p>';
+}
+
+function load_result_table(data_raw)
+{
+    var table = document.getElementById("contest");
+
+    $.each(data_raw, function(i, v) {
+	v.start = new Date(v.start);
+	v.end = new Date(v.end);
+    });
+
+    data_raw.sort(function(a, b){return b.end - a.end;});
+    data_raw = data_raw.slice(0, 16);
+
+    $.each(data_raw, function(i, v) {
+	    var row = table.insertRow();
+
+	    var branch = row.insertCell(0);
+	    var remote = row.insertCell(1);
+	    var test = row.insertCell(2);
+	    var res = row.insertCell(3);
+
+	    branch.innerHTML = v.branch;
+	    remote.innerHTML = v.remote;
+	    test.innerHTML = "<a href=\"" + v.link + "\">" + v.test + "</a>";
+	    res.innerHTML = colorify_str_psf(v.result);
+    });
+}
+
+function results_doit(data_raw)
+{
+    load_result_table(data_raw);
+}
+
 function do_it()
 {
     $(document).ready(function() {
@@ -254,5 +298,8 @@ function do_it()
     });
     $(document).ready(function() {
         $.get("static/nipa/systemd.json", status_system)
+    });
+    $(document).ready(function() {
+        $.get("contest/all-results.json", results_doit)
     });
 }

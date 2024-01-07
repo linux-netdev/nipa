@@ -122,7 +122,7 @@ def build_seen(config, remote_db):
     return seen
 
 
-def one_check(config, remote_db, seen) -> None:
+def one_check(config, remote_db, seen):
     fetched = False
     for remote in remote_db:
         fetched |= fetch_remote(remote, seen)

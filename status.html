@@ -21,8 +21,18 @@
       td, th {
 	  border: 1px solid #eeeeee;
 	  text-align: left;
-	  padding: 8px;
       }
+
+    th {
+      padding: 0.5em;
+    }
+
+
+    td {
+      padding: 0px;
+      padding-left: 0.5em;
+      padding-right: 0.5em;
+    }
 
       tr:nth-child(even) {
 	  background-color: #eeeeee;
@@ -74,6 +84,15 @@
     </div>
     <div class="column">
         <canvas id="run-time"></canvas>
+        <br>
+        <table id="contest">
+            <tr>
+                <th>Branch</th>
+                <th>Remote</th>
+                <th>Test</th>
+                <th>Result</th>
+            </tr>
+        </table>
     </div>
 </div>
 </body>

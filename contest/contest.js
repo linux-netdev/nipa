@@ -14,10 +14,10 @@ function load_result_table(data_raw)
 {
     var table = document.getElementById("results");
 
-	$.each(data_raw, function(i, v) {
-		v.start = new Date(v.start);
-		v.end = new Date(v.end);
-	});
+    $.each(data_raw, function(i, v) {
+	v.start = new Date(v.start);
+	v.end = new Date(v.end);
+    });
 
     data_raw.sort(function(a, b){return b.end - a.end;});
 
