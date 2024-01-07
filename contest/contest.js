@@ -14,8 +14,14 @@ function load_result_table(data_raw)
 {
     var table = document.getElementById("results");
 
+	$.each(data_raw, function(i, v) {
+		v.start = new Date(v.start);
+		v.end = new Date(v.end);
+	});
+
+    data_raw.sort(function(a, b){return b.end - a.end;});
+
     $.each(data_raw, function(i, v) {
-	$.each(v.results, function(j, r) {
 	    var row = table.insertRow();
 
 	    var date = row.insertCell(0);
@@ -26,15 +32,13 @@ function load_result_table(data_raw)
 	    var test = row.insertCell(5);
 	    var res = row.insertCell(6);
 
-	    dt = new Date(v.end);
-	    date.innerHTML = dt.toLocaleString();
+	    date.innerHTML = v.end.toLocaleString();
 	    branch.innerHTML = v.branch;
 	    remote.innerHTML = v.remote;
 	    exe.innerHTML = v.executor;
-	    group.innerHTML = r.group;
-	    test.innerHTML = r.test;
-	    res.innerHTML = colorify_str(r.result);
-	});
+	    group.innerHTML = v.group;
+	    test.innerHTML = "<a href=\"" + v.link + "\">" + v.test + "</a>";
+	    res.innerHTML = colorify_str(v.result);
     });
 }
 
@@ -46,6 +50,6 @@ function results_doit(data_raw)
 function do_it()
 {
     $(document).ready(function() {
-        $.get("static/nipa/results.json", results_doit)
+        $.get("contest/all-results.json", results_doit)
     });
 }

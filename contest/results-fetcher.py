@@ -79,6 +79,7 @@ def build_combined(config, remote_db):
                 row = {}
                 for k in ['executor', 'branch', 'start', 'end']:
                     row[k] = data[k]
+                row['remote'] = name
                 row.update(test)
                 combined.append(row)
     return combined
