@@ -279,8 +279,11 @@ function load_result_table(data_raw)
 	    var test = row.insertCell(2);
 	    var res = row.insertCell(3);
 
-	    branch.innerHTML = v.branch;
-	    remote.innerHTML = v.remote;
+	    if (v.remote != "brancher")
+		remote.innerHTML = v.remote;
+	    else
+		branch.innerHTML = v.branch;
+
 	    test.innerHTML = "<a href=\"" + v.link + "\">" + v.test + "</a>";
 	    res.innerHTML = colorify_str_psf(v.result);
     });
