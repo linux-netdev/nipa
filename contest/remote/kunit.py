@@ -35,6 +35,10 @@ group3 testV skip
 """
 
 
+class InfraFail(Exception):
+    pass
+
+
 str_to_code = {
     'pass': 0,
     'PASS': 0,
@@ -110,27 +114,42 @@ def test(binfo, rinfo, config):
                                 rinfo['run-cookie'])
     os.makedirs(results_path)
 
+    link = config.get('www', 'url') + '/' + \
+           config.get('local', 'results_path') + '/' + \
+           rinfo['run-cookie']
+
     with open(os.path.join(results_path, 'stdout'), 'w') as fp:
         fp.write(stdout)
     with open(os.path.join(results_path, 'stderr'), 'w') as fp:
         fp.write(stderr)
 
-    results_json = stdout_get_json(stdout)
-    expected = load_expected(config)
-    bad_tests, res = summary_result(expected, results_json)
+    try:
+        if process.returncode:
+            raise InfraFail(f'retcode {process.returncode}')
 
-    if bad_tests:
-        with open(os.path.join(results_path, 'bad_tests'), 'w') as fp:
-            fp.write('\n'.join(bad_tests))
+        results_json = stdout_get_json(stdout)
+        if results_json is None:
+            raise InfraFail('no JSON')
+        expected = load_expected(config)
+        bad_tests, res = summary_result(expected, results_json)
 
-    link = config.get('www', 'url') + '/' + \
-           config.get('local', 'results_path') + '/' + \
-           rinfo['run-cookie']
+        if bad_tests:
+            with open(os.path.join(results_path, 'bad_tests'), 'w') as fp:
+                fp.write('\n'.join(bad_tests))
+
+        cases = [{'test': config.get('executor', 'test'),
+                 'group': config.get('executor', 'group'),
+                 'result': res, 'link': link}]
+    except InfraFail as e:
+        with open(os.path.join(results_path, 'infra_fail'), 'w') as fp:
+            fp.write(e.args[0])
+        cases = [{'test': config.get('executor', 'test'),
+                  'group': config.get('executor', 'group'),
+                  'result': 'fail', 'link': link}]
+
     print("Done at", datetime.datetime.now())
 
-    return [{'test': config.get('executor', 'test'),
-             'group': config.get('executor', 'group'),
-             'result': res, 'link': link}]
+    return cases
 
 
 def main() -> None:
