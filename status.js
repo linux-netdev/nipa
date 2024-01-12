@@ -247,16 +247,51 @@ function status_system(data_raw)
     load_runtime(data_raw["log-files"]);
 }
 
-function colorify_str_psf(value)
-{
-    if (value == "pass") {
-	ret = '<p style="color:green">';
-    } else if (value == "skip") {
-	ret = '<p style="color:blue">';
-    } else {
-	ret = '<p style="color:red">';
+function msec_to_str(msec) {
+    const convs = [
+        [1, "ms"],
+        [1000, "s"],
+        [60, "m"],
+        [60, "h"],
+        [24, "d"],
+        [7, "w"]
+    ];
+
+    for (i = 0; i < convs.length; i++) {
+        if (msec < convs[i][0]) {
+            var full = Math.round(msec) + convs[i - 1][1];
+            if (i > 1) {
+                var frac = Math.round(msec * convs[i - 1][0] % convs[i - 1][0]);
+                if (frac)
+                    full += " " + frac + convs[i - 2][1];
+            }
+            return full;
+        }
+        msec /= convs[i][0];
     }
-    return ret + value + '</p>';
+
+    return "TLE";
+}
+
+function colorify_str_psf(str_psf, name, value, color)
+{
+    var bspan = '<span style="color: white; background-color:' + color + '">';
+    var cspan = '<span style="color:' + color + '">';
+
+    if (value && str_psf.overall == "")
+	str_psf.overall = cspan + name + '</span>';
+
+    if (str_psf.str != "") {
+	str_psf.str = " / " + str_psf.str;
+    }
+
+    var p;
+    if (value == 0) {
+	p = value;
+    } else {
+	p = bspan + value + '</span>';
+    }
+    str_psf.str = p + str_psf.str;
 }
 
 function load_result_table(data_raw)
@@ -269,23 +304,50 @@ function load_result_table(data_raw)
     });
 
     data_raw.sort(function(a, b){return b.end - a.end;});
-    data_raw = data_raw.slice(0, 20);
+    data_raw = data_raw.slice(0, 50);
 
     $.each(data_raw, function(i, v) {
 	    var row = table.insertRow();
 
 	    var branch = row.insertCell(0);
 	    var remote = row.insertCell(1);
-	    var test = row.insertCell(2);
-	    var res = row.insertCell(3);
+	    var time = row.insertCell(2);
+	    var cnt = row.insertCell(3);
+	    var res = row.insertCell(4);
+
+	var pass = 0, skip = 0, warn = 0, fail = 0, total = 0;
+	$.each(v.results, function(i, r) {
+	    if (r.result == "pass") {
+		pass++;
+	    } else if (r.result == "skip") {
+		skip++;
+	    } else if (r.result == "warn") {
+		warn++;
+	    } else if (r.result == "fail") {
+		fail++;
+	    }
+
+	    total++;
+	});
+	var str_psf = {"str": "", "overall": ""};
+
+	colorify_str_psf(str_psf, "fail", fail, "red");
+	colorify_str_psf(str_psf, "warn", warn, "orange");
+	colorify_str_psf(str_psf, "skip", skip, "blue");
+	colorify_str_psf(str_psf, "pass", pass, "green");
+
+	    var t_start = new Date(v.start);
+	    var t_end = new Date(v.end);
+	    var a = "<a href=\"" + v.link + "\">";
 
 	    if (v.remote != "brancher")
-		remote.innerHTML = v.remote;
+		remote.innerHTML = a + v.remote + "</a>";
 	    else
-		branch.innerHTML = v.branch;
+		branch.innerHTML = a + v.branch + "</a>";
 
-	    test.innerHTML = "<a href=\"" + v.link + "\">" + v.test + "</a>";
-	    res.innerHTML = colorify_str_psf(v.result);
+	    time.innerHTML = msec_to_str(t_end - t_start);
+	    cnt.innerHTML = str_psf.str;
+	    res.innerHTML = str_psf.overall;
     });
 }
 
