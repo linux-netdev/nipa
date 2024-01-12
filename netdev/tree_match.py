@@ -53,12 +53,14 @@ def _tree_name_should_be_local_files(raw_email):
         'include/phy/',
         'net/',
         'drivers/atm/',
+        'drivers/dpll/',
         'drivers/net/',
         'drivers/dsa/',
         'drivers/nfc/',
         'drivers/phy/',
         'drivers/ptp/',
         'drivers/net/ethernet/',
+        'kernel/bpf/',
         'tools/testing/selftests/net/',
     }
     excluded_files = {
