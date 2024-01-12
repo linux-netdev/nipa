@@ -79,8 +79,11 @@ def load_expected(config):
     return  expected
 
 
-def summary_result(expected, got):
-    result = 0
+def summary_result(expected, got, link, sub_path=""):
+    if sub_path:
+        sub_path += '.'
+
+    results = []
     bad_tests = []
     for sub_group in got["sub_groups"]:
         for case in sub_group["test_cases"]:
@@ -90,11 +93,17 @@ def summary_result(expected, got):
             if exp and exp == code:
                 continue
 
-            result = max(result, code)
+            results.append({'test': case["name"],
+                            'group': sub_path + sub_group["name"],
+                            'result': code_to_str[code], 'link': link})
             if code:
                 bad_tests.append(f"{sub_group['name']} {case['name']} {case['status']}")
+        for grp in sub_group["sub_groups"]:
+            bt, res = summary_result(expected, grp, link, sub_path + grp["name"])
+            results += res
+            bad_tests += bt
 
-    return bad_tests, code_to_str[result]
+    return bad_tests, results
 
 
 def test(binfo, rinfo, config):
@@ -131,15 +140,11 @@ def test(binfo, rinfo, config):
         if results_json is None:
             raise InfraFail('no JSON')
         expected = load_expected(config)
-        bad_tests, res = summary_result(expected, results_json)
+        bad_tests, cases = summary_result(expected, results_json, link)
 
         if bad_tests:
             with open(os.path.join(results_path, 'bad_tests'), 'w') as fp:
                 fp.write('\n'.join(bad_tests))
-
-        cases = [{'test': config.get('executor', 'test'),
-                 'group': config.get('executor', 'group'),
-                 'result': res, 'link': link}]
     except InfraFail as e:
         with open(os.path.join(results_path, 'infra_fail'), 'w') as fp:
             fp.write(e.args[0])
