@@ -316,6 +316,7 @@ function load_result_table(data_raw)
 	    var res = row.insertCell(4);
 
 	var pass = 0, skip = 0, warn = 0, fail = 0, total = 0;
+	var link = v.link;
 	$.each(v.results, function(i, r) {
 	    if (r.result == "pass") {
 		pass++;
@@ -328,6 +329,8 @@ function load_result_table(data_raw)
 	    }
 
 	    total++;
+	    if (!link)
+		link = r.link;
 	});
 	var str_psf = {"str": "", "overall": ""};
 
@@ -338,7 +341,7 @@ function load_result_table(data_raw)
 
 	    var t_start = new Date(v.start);
 	    var t_end = new Date(v.end);
-	    var a = "<a href=\"" + v.link + "\">";
+	    var a = "<a href=\"" + link + "\">";
 
 	    if (v.remote != "brancher")
 		remote.innerHTML = a + v.remote + "</a>";
