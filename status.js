@@ -343,14 +343,16 @@ function load_result_table(data_raw)
 	    var t_end = new Date(v.end);
 	    var a = "<a href=\"" + link + "\">";
 
-	    if (v.remote != "brancher")
-		remote.innerHTML = a + v.remote + "</a>";
-	    else
-		branch.innerHTML = a + v.branch + "</a>";
+	res.innerHTML = str_psf.overall;
 
-	    time.innerHTML = msec_to_str(t_end - t_start);
+	if (v.remote != "brancher") {
+	    remote.innerHTML = a + v.remote + "</a>";
 	    cnt.innerHTML = str_psf.str;
-	    res.innerHTML = str_psf.overall;
+	    time.innerHTML = msec_to_str(t_end - t_start);
+	} else {
+	    remote.innerHTML = v.start.toLocaleString();
+	    branch.innerHTML = a + v.branch + "</a>";
+	}
     });
 }
 
