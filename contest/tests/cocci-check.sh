@@ -66,11 +66,11 @@ if [ ${current[2]} -gt ${incumbent[2]} ]; then
 elif [ ${current[1]} -gt ${incumbent[1]} ]; then
   echo "New warnings added" 1>&2
   diff -U 0 $out_of $out_nf 1>&2
-  rc=4
+  rc=1
 elif [ ${current[0]} -gt ${incumbent[0]} ]; then
   echo "New output added" 1>&2
   diff -U 0 $out_of $out_nf 1>&2
-  rc=4
+  rc=5
 fi
 
 echo

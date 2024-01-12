@@ -61,6 +61,8 @@ def test(binfo, rinfo, config):
         res = 'pass'
     elif process.returncode == 4:
         res = 'skip'
+    elif process.returncode == 5:
+        res = 'warn'
     else:
         res = 'fail'
 
