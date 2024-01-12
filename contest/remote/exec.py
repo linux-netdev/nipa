@@ -33,9 +33,15 @@ url=https://url-to-reach-base-path
 def test(binfo, rinfo, config):
     print("Run at", datetime.datetime.now())
 
+    results_path = os.path.join(config.get('local', 'base_path'),
+                                config.get('local', 'results_path'),
+                                rinfo['run-cookie'])
+    os.makedirs(results_path)
+
     env = os.environ.copy()
-    env['BRANCH'] =  binfo['branch']
-    env['BASE'] =  binfo['base']
+    env['BRANCH'] = binfo['branch']
+    env['BASE'] = binfo['base']
+    env['RESULTS_DIR'] = results_path
 
     bin = config.get('bin', 'exec').split()
     process = subprocess.Popen(bin, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -45,11 +51,6 @@ def test(binfo, rinfo, config):
     stderr = stderr.decode("utf-8", "ignore")
     process.stdout.close()
     process.stderr.close()
-
-    results_path = os.path.join(config.get('local', 'base_path'),
-                                config.get('local', 'results_path'),
-                                rinfo['run-cookie'])
-    os.makedirs(results_path)
 
     with open(os.path.join(results_path, 'stdout'), 'w') as fp:
         fp.write(stdout)
