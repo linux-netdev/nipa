@@ -142,6 +142,11 @@ class VM:
                     pass
             stdout, stderr = self.p.communicate(timeout=2)
 
+        self.p.stdout.close()
+        self.p.stderr.close()
+        stdout = stdout.decode("utf-8", "ignore")
+        stderr = stderr.decode("utf-8", "ignore")
+
         print("INFO: VM stopped")
         self.log_out += stdout
         self.log_err += stderr
