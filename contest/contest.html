@@ -39,6 +39,45 @@
 </head>
 <body>
 <div class="row">
+    <fieldset>
+      <legend>Filtering:</legend>
+
+      <div class="row">
+          <div class="column">
+              <div>
+                  <input type="checkbox" id="pass" name="fl-state" checked />
+                  <label for="pass">Pass</label>
+              </div>
+              <div>
+                  <input type="checkbox" id="skip" name="fl-state" checked />
+                  <label for="skip">Skip</label>
+              </div>
+              <div>
+                  <input type="checkbox" id="warn" name="fl-state" checked />
+                  <label for="warn">Warn</label>
+              </div>
+              <div>
+                  <input type="checkbox" id="fail" name="fl-state" checked />
+                  <label for="fail">Fail</label>
+              </div>
+          </div>
+          <div class="column">
+              <div>
+                  <label for="branch">Branch</label>
+                  <select id="branch" name="fl-branch">
+                      <option value="">-- all --</option>
+                  </select>
+              </div>
+              <div>
+                  <label for="executor">Executor</label>
+                  <select id="executor" name="fl-exec">
+                      <option value="">-- all --</option>
+                  </select>
+              </div>
+          </div>
+    </fieldset>
+</div>
+<div class="row">
     <div class="column">
         <table id="results">
             <tr>
