@@ -40,7 +40,6 @@ def fetch_remote(remote, seen):
     fetched = False
     for run in manifest:
         if run['branch'] in remote_state['seen']:
-            print('Skip:', remote['name'], '-', run['branch'], '- already fetched')
             continue
         if not run['url']:    # Executor has not finished, yet
             fetched |= run['branch'] not in remote_state['wip']
