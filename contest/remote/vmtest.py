@@ -4,6 +4,7 @@
 import configparser
 import datetime
 import unicodedata
+import shutil
 import subprocess
 from time import sleep
 import fcntl
@@ -277,6 +278,8 @@ def test(binfo, rinfo, config):
 
     vm = VM(config)
     vm.build()
+    shutil.copy(os.path.join(config.get('local', 'tree_path'), '.config'),
+                results_path + '/config')
     vm.dump_log(results_path + '/build')
 
     vm_id = 0
