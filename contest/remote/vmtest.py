@@ -284,14 +284,29 @@ def test(binfo, rinfo, config):
             vm.drain_to_prompt()
             retcode = 1
 
-        print("> result:", retcode)
-        vm.dump_log(results_path + '/' + test, result=retcode, info={"vm-id": vm_id})
+        indicators = {
+            "fail": vm.log_out.find("[FAIL]") != -1,
+            "skip": vm.log_out.find("[SKIP]") != -1,
+            "pass": vm.log_out.find("[OKAY]") != -1 or vm.log_out.find("[PASS]") != -1 or \
+                    vm.log_out.find("[ OK ]") != -1 or vm.log_out.find("[OK]") != -1,
+        }
 
         result = 'pass'
+        if indicators["skip"] or not indicators["pass"]:
+            result = 'skip'
+
         if retcode == 4:
             result = 'skip'
         elif retcode:
             result = 'fail'
+        if indicators["fail"]:
+            result = 'fail'
+
+        vm.dump_log(results_path + '/' + test, result=retcode,
+                    info={"vm-id": vm_id, "found": indicators})
+
+        print("> retcode:", retcode, "result:", result, "found", indicators)
+
         cases.append({'test': test, 'group': 'netdevsim', 'result': result,
                       'link': link + '/' + test})
 
