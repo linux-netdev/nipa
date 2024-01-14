@@ -133,9 +133,6 @@ def test(binfo, rinfo, config):
         fp.write(stderr)
 
     try:
-        if process.returncode:
-            raise InfraFail(f'retcode {process.returncode}')
-
         results_json = stdout_get_json(stdout)
         if results_json is None:
             raise InfraFail('no JSON')
