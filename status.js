@@ -311,9 +311,13 @@ function load_result_table(data_raw)
 
 	    var branch = row.insertCell(0);
 	    var remote = row.insertCell(1);
+	if (v.remote != "brancher") {
 	    var time = row.insertCell(2);
 	    var cnt = row.insertCell(3);
 	    var res = row.insertCell(4);
+	} else {
+	    var res = row.insertCell(2);
+	}
 
 	var pass = 0, skip = 0, warn = 0, fail = 0, total = 0;
 	var link = v.link;
@@ -351,7 +355,9 @@ function load_result_table(data_raw)
 	    time.innerHTML = msec_to_str(t_end - t_start);
 	} else {
 	    remote.innerHTML = v.start.toLocaleString();
+	    remote.setAttribute("colspan", "2");
 	    branch.innerHTML = a + v.branch + "</a>";
+	    branch.setAttribute("colspan", "2");
 	}
     });
 }
