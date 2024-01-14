@@ -43,6 +43,7 @@ def fetch_remote(remote, seen):
             print('Skip:', remote['name'], '-', run['branch'], '- already fetched')
             continue
         if not run['url']:    # Executor has not finished, yet
+            fetched |= run['branch'] not in remote_state['wip']
             continue
 
         print('Fetching run', run['branch'])
@@ -71,6 +72,10 @@ def build_combined(config, remote_db):
 
         for entry in results:
             if not entry['url']:    # Executor is running
+                data = entry.copy()
+                data["start"] = str(datetime.datetime.now(datetime.UTC))
+                data["end"] = data["start"]
+                data["results"] = None
                 continue
 
             file = os.path.join(dir, os.path.basename(entry['url']))
@@ -88,7 +93,7 @@ def build_combined(config, remote_db):
 def build_seen(config, remote_db):
     seen = {}
     for remote in remote_db:
-        seen[remote['name']] = {'seen': set()}
+        seen[remote['name']] = {'seen': set(), 'wip': set()}
 
         # Prepare local state
         name = remote['name']
@@ -108,6 +113,7 @@ def build_seen(config, remote_db):
             results = json.load(fp)
         for entry in results:
             if not entry.get('url'):
+                seen[name]['wip'].add(entry.get('branch'))
                 print('No URL on', entry, 'from', remote['name'])
                 continue
             file = os.path.join(dir, os.path.basename(entry['url']))
