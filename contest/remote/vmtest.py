@@ -241,6 +241,26 @@ class VM:
         return int(stdout.split('\n')[1])
 
 
+def new_vm(results_path, vm_id, vm=None, config=None):
+    if vm is None:
+        vm = VM(config)
+    # For whatever reason starting sometimes hangs / crashes
+    i = 0
+    while True:
+        try:
+            vm.start()
+            vm_id += 1
+            vm.dump_log(results_path + '/vm-start-' + str(vm_id))
+            return vm_id, vm
+        except TimeoutError:
+            i += 1
+            if i > 4:
+                raise
+            print(f"WARNING: VM did not start, retrying {i}/4")
+            vm.dump_log(results_path + '/vm-crashed-' + str(vm_id))
+            vm.stop()
+
+
 def test(binfo, rinfo, config):
     print("Run at", datetime.datetime.now())
 
@@ -259,9 +279,8 @@ def test(binfo, rinfo, config):
     vm.build()
     vm.dump_log(results_path + '/build')
 
-    vm.start()
     vm_id = 0
-    vm.dump_log(results_path + '/vm-start-' + str(vm_id))
+    vm_id, vm = new_vm(results_path, vm_id, vm=vm)
 
     dir_path = config.get('local', 'tree_path') + "/tools/testing/selftests/drivers/net/netdevsim"
     for test in os.listdir(dir_path):
@@ -314,10 +333,7 @@ def test(binfo, rinfo, config):
             print("INFO: VM kernel crashed, starting a clean one!")
             vm.stop()
             vm.dump_log(results_path + '/vm-stop-' + str(vm_id))
-            vm = VM(config)
-            vm.start()
-            vm_id += 1
-            vm.dump_log(results_path + '/vm-start-' + str(vm_id))
+            vm_id, vm = new_vm(results_path, vm_id, config=config)
 
     vm.stop()
     vm.dump_log(results_path + '/vm-stop-' + str(vm_id))
