@@ -123,7 +123,7 @@ class VM:
 
         # Install extra PATHs
         if self.config.get('vm', 'paths'):
-            self.cmd("export PATH=$PATH:" + self.config.get('vm', 'paths'))
+            self.cmd("export PATH=" + self.config.get('vm', 'paths') + ':$PATH')
             self.drain_to_prompt()
 
         # Save the children, we'll need to kill them on crash
