@@ -307,7 +307,8 @@ def test(binfo, rinfo, config):
             "fail": vm.log_out.find("[FAIL]") != -1,
             "skip": vm.log_out.find("[SKIP]") != -1,
             "pass": vm.log_out.find("[OKAY]") != -1 or vm.log_out.find("[PASS]") != -1 or \
-                    vm.log_out.find("[ OK ]") != -1 or vm.log_out.find("[OK]") != -1,
+                    vm.log_out.find("[ OK ]") != -1 or vm.log_out.find("[OK]") != -1 or \
+                    vm.log_out.find("PASSED all ") != -1,
         }
 
         result = 'pass'
