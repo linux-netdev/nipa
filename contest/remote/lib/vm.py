@@ -73,18 +73,20 @@ class VM:
         proc.stdout.close()
         proc.stderr.close()
 
-    def build(self):
+    def build(self, configs):
         if self.log_out or self.log_err:
             raise Exception("Logs were not flushed before calling build")
 
         print("INFO: building kernel")
         # Make sure we rebuild, config and module deps can be stale otherwise
         self.tree_cmd("make mrproper")
-        self.tree_cmd("vng -v -b -f .nsim_config")
+        self.tree_cmd("vng -v -b" + " -f ".join([""] + configs))
 
-    def start(self):
-        cmd = "vng -v -r arch/x86/boot/bzImage --cwd tools/testing/selftests/drivers/net/netdevsim/ --user root"
+    def start(self, cwd=None):
+        cmd = "vng -v -r arch/x86/boot/bzImage --user root"
         cmd = cmd.split(' ')
+        if cwd:
+            cmd += ["--cwd", cwd]
         cmd += self.config.get('vm', 'virtme_opt').split(',')
 
         print("INFO: VM starting:", " ".join(cmd))
@@ -252,14 +254,14 @@ class VM:
         return int(stdout.split('\n')[1])
 
 
-def new_vm(results_path, vm_id, vm=None, config=None):
+def new_vm(results_path, vm_id, vm=None, config=None, cwd=None):
     if vm is None:
         vm = VM(config)
     # For whatever reason starting sometimes hangs / crashes
     i = 0
     while True:
         try:
-            vm.start()
+            vm.start(cwd=cwd)
             vm_id += 1
             vm.dump_log(results_path + '/vm-start-' + str(vm_id))
             return vm_id, vm

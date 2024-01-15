@@ -60,8 +60,8 @@ def test(binfo, rinfo, config):
 
     cases = []
 
-    vm = VM(config)
-    vm.build()
+    vm = VM(config, cwd="tools/testing/selftests/drivers/net/netdevsim/")
+    vm.build([".nsim_config"])
     shutil.copy(os.path.join(config.get('local', 'tree_path'), '.config'),
                 results_path + '/config')
     vm.dump_log(results_path + '/build')
@@ -117,7 +117,8 @@ def test(binfo, rinfo, config):
             print("INFO: VM kernel crashed, starting a clean one!")
             vm.stop()
             vm.dump_log(results_path + '/vm-stop-' + str(vm_id))
-            vm_id, vm = new_vm(results_path, vm_id, config=config)
+            vm_id, vm = new_vm(results_path, vm_id, config=config,
+                               cwd="tools/testing/selftests/drivers/net/netdevsim/")
 
     vm.stop()
     vm.dump_log(results_path + '/vm-stop-' + str(vm_id))
