@@ -58,7 +58,8 @@ class Fetcher:
 
         start = datetime.datetime.now(datetime.UTC)
         run_id_cookie = str(int(start.timestamp() / 60) % 1000000)
-        results = self._cb(binfo, {'run-cookie': run_id_cookie}, self._cbarg)
+        rinfo = {'run-cookie': run_id_cookie}
+        results = self._cb(binfo, rinfo, self._cbarg)
         end = datetime.datetime.now(datetime.UTC)
 
         entry = {
@@ -68,6 +69,8 @@ class Fetcher:
             'end': str(end),
             'results': results,
         }
+        if 'link' in rinfo:
+            entry['link'] = rinfo['link']
         url = self._write_result(entry, run_id_cookie)
 
         self._result_set(binfo['branch'], url)

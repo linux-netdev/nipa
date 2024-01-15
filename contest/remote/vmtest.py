@@ -275,6 +275,7 @@ def test(binfo, rinfo, config):
     link = config.get('www', 'url') + '/' + \
            config.get('local', 'results_path') + '/' + \
            rinfo['run-cookie']
+    rinfo['link'] = link
 
     cases = []
 
