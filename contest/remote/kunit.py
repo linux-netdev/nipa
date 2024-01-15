@@ -46,6 +46,7 @@ str_to_code = {
     'SKIP': 1,
     'fail': 2,
     'FAIL': 2,
+    'ERROR': 2,
 }
 code_to_str = {
     0: 'pass',
