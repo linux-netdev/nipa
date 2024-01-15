@@ -238,6 +238,31 @@ class VM:
         self.log_out = ""
         self.log_err = ""
 
+    def extract_crash(self, out_path):
+        in_crash = False
+        crash_lines = []
+        for line in self.log_out.split('\n'):
+            if in_crash:
+                in_crash &= '] ---[ end trace ' not in line
+            else:
+                in_crash |= '] Hardware name: ' in line
+
+            if in_crash:
+                crash_lines.append(line)
+        if not crash_lines:
+            print("WARNING: extract_crash found no crashes")
+            return
+
+        proc = self.virt_popen("./scripts/decode_stacktrace.sh vmlinux auto ./".split())
+        stdout, stderr = proc.communicate("\n".join(crash_lines).encode("utf-8"))
+        proc.stdin.close()
+        proc.stdout.close()
+        proc.stderr.close()
+        decoded = stdout.decode("utf-8", "ignore")
+
+        with open(out_path, 'w') as fp:
+            fp.write(decoded)
+
     def bash_prev_retcode(self):
         self.cmd("echo $?")
         stdout, stderr = self.drain_to_prompt()
@@ -328,8 +353,10 @@ def test(binfo, rinfo, config):
         if indicators["fail"]:
             result = 'fail'
 
+        if vm.fail_state == 'oops':
+            vm.extract_crash(results_path + '/vm-crash-' + str(vm_id))
         vm.dump_log(results_path + '/' + test, result=retcode,
-                    info={"vm-id": vm_id, "found": indicators})
+                    info={"vm-id": vm_id, "found": indicators, "vm_state": vm.fail_state})
 
         print("> retcode:", retcode, "result:", result, "found", indicators)
 
