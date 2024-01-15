@@ -270,3 +270,13 @@ def new_vm(results_path, vm_id, vm=None, config=None):
             print(f"WARNING: VM did not start, retrying {i}/4")
             vm.dump_log(results_path + '/vm-crashed-' + str(vm_id))
             vm.stop()
+
+
+def guess_indicators(output):
+    return {
+        "fail": output.find("[FAIL]") != -1,
+        "skip": output.find("[SKIP]") != -1,
+        "pass": output.find("[OKAY]") != -1 or output.find("[PASS]") != -1 or \
+                output.find("[ OK ]") != -1 or output.find("[OK]") != -1 or \
+                output.find("PASSED all ") != -1,
+    }

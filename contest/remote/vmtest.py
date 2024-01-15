@@ -8,7 +8,7 @@ import fcntl
 import os
 
 from lib import Fetcher
-from lib import VM, new_vm
+from lib import VM, new_vm, guess_indicators
 
 
 """
@@ -90,13 +90,7 @@ def test(binfo, rinfo, config):
             vm.drain_to_prompt()
             retcode = 1
 
-        indicators = {
-            "fail": vm.log_out.find("[FAIL]") != -1,
-            "skip": vm.log_out.find("[SKIP]") != -1,
-            "pass": vm.log_out.find("[OKAY]") != -1 or vm.log_out.find("[PASS]") != -1 or \
-                    vm.log_out.find("[ OK ]") != -1 or vm.log_out.find("[OK]") != -1 or \
-                    vm.log_out.find("PASSED all ") != -1,
-        }
+        indicators = guess_indicators(vm.log_out)
 
         result = 'pass'
         if indicators["skip"] or not indicators["pass"]:
