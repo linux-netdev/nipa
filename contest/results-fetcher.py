@@ -56,6 +56,12 @@ def fetch_remote(remote, seen):
 
 
 def build_combined(config, remote_db):
+    r = requests.get(config.get('input', 'branch_url'))
+    branches = json.loads(r.content.decode('utf-8'))
+    branch_info = {}
+    for br in branches:
+        branch_info[br['branch']] = br
+
     combined = []
     for remote in remote_db:
         name = remote['name']
@@ -71,8 +77,10 @@ def build_combined(config, remote_db):
 
         for entry in results:
             if not entry['url']:    # Executor is running
+                if entry['branch'] not in branch_info:
+                    continue
                 data = entry.copy()
-                data["start"] = str(datetime.datetime.now(datetime.UTC))
+                data["start"] = branch_info[entry['branch']]['date']
                 data["end"] = data["start"]
                 data["results"] = None
             else:
