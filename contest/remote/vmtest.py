@@ -64,7 +64,7 @@ class VM:
     def __init__(self, config):
         self.fail_state = ""
         self.p = None
-        self.children = []
+        self.procs = []
         self.config = config
 
         self.cfg_boot_to = int(config.get('vm', 'boot_timeout'))
@@ -116,7 +116,12 @@ class VM:
         if init_prompt[-1] != ' ':
             init_prompt += ' '
         print(f"INFO: expecting prompt: '{init_prompt}'")
-        self.drain_to_prompt(prompt=init_prompt, dump_after=self.cfg_boot_to)
+        try:
+            self.drain_to_prompt(prompt=init_prompt, dump_after=self.cfg_boot_to)
+        finally:
+            # Save the children, we'll need to kill them on crash
+            proc = psutil.Process(self.p.pid)
+            self.procs = proc.children(recursive=True) + [proc]
 
         print("INFO: reached initial prompt")
         self.cmd("PS1='xx__-> '")
@@ -127,18 +132,15 @@ class VM:
             self.cmd("export PATH=" + self.config.get('vm', 'paths') + ':$PATH')
             self.drain_to_prompt()
 
-        # Save the children, we'll need to kill them on crash
-        self.children = psutil.Process(self.p.pid).children(recursive=True)
-
     def stop(self):
         self.cmd("exit")
         try:
             stdout, stderr = self.p.communicate(timeout=3)
         except subprocess.TimeoutExpired:
-            print("WARNING: process did not exit, sending a KILL to", self.p.pid, self.children)
-            for c in self.children:
+            print("WARNING: process did not exit, sending a KILL to", self.p.pid, self.procs)
+            for p in self.procs:
                 try:
-                    c.kill()
+                    p.kill()
                 except psutil.NoSuchProcess:
                     pass
             stdout, stderr = self.p.communicate(timeout=2)
