@@ -75,14 +75,13 @@ def build_combined(config, remote_db):
                 data["start"] = str(datetime.datetime.now(datetime.UTC))
                 data["end"] = data["start"]
                 data["results"] = None
-                continue
-
-            file = os.path.join(dir, os.path.basename(entry['url']))
-            if not os.path.exists(file):
-                print('No file', file)
-                continue
-            with open(file, "r") as fp:
-                data = json.load(fp)
+            else:
+                file = os.path.join(dir, os.path.basename(entry['url']))
+                if not os.path.exists(file):
+                    print('No file', file)
+                    continue
+                with open(file, "r") as fp:
+                    data = json.load(fp)
 
             data['remote'] = name
             combined.append(data)

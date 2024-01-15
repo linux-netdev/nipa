@@ -257,6 +257,9 @@ function msec_to_str(msec) {
         [7, "w"]
     ];
 
+    if (msec <= 0)
+	return msec.toString();
+
     for (i = 0; i < convs.length; i++) {
         if (msec < convs[i][0]) {
             var full = Math.round(msec) + convs[i - 1][1];
