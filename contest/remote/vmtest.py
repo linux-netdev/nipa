@@ -72,7 +72,7 @@ class VM:
         self.log_out = ""
         self.log_err = ""
 
-    def virt_popen(self, cmd):
+    def tree_popen(self, cmd):
         env = os.environ.copy()
         if self.config.get('env', 'paths'):
             env['PATH'] += ':' + self.config.get('env', 'paths')
@@ -80,24 +80,23 @@ class VM:
         return subprocess.Popen(cmd, env=env, cwd=self.config.get('local', 'tree_path'),
                                 stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
 
+    def tree_cmd(self, cmd):
+        self.log_out += "> TREE CMD: " + cmd + "\n"
+        proc = self.tree_popen(cmd.split())
+        stdout, stderr = proc.communicate()
+        self.log_out += stdout.decode("utf-8", "ignore")
+        self.log_err += stderr.decode("utf-8", "ignore")
+        proc.stdout.close()
+        proc.stderr.close()
+
     def build(self):
         if self.log_out or self.log_err:
             raise Exception("Logs were not flushed before calling build")
 
         print("INFO: building kernel")
-        # Make sure we rebuild, vng seems to skip building if config is already there
-        cfg_file = self.config.get('local', 'tree_path') + '/.config'
-        if os.path.exists(cfg_file):
-            print("INFO: removing old config")
-            os.remove(cfg_file)
-
-        proc = self.virt_popen("vng -v -b -f .nsim_config".split())
-        stdout, stderr = proc.communicate()
-        self.log_out = stdout.decode("utf-8", "ignore")
-        self.log_err = stderr.decode("utf-8", "ignore")
-        proc.stdout.close()
-        proc.stderr.close()
-
+        # Make sure we rebuild, config and module deps can be stale otherwise
+        self.tree_cmd("make mrproper")
+        self.tree_cmd("vng -v -b -f .nsim_config")
 
     def start(self):
         cmd = "vng -v -r arch/x86/boot/bzImage --cwd tools/testing/selftests/drivers/net/netdevsim/ --user root"
@@ -105,7 +104,7 @@ class VM:
         cmd += self.config.get('vm', 'virtme_opt').split(',')
 
         print("INFO: VM starting:", " ".join(cmd))
-        self.p = self.virt_popen(cmd)
+        self.p = self.tree_popen(cmd)
 
         for pipe in [self.p.stdout, self.p.stderr]:
             flags = fcntl.fcntl(pipe, fcntl.F_GETFL)
@@ -253,7 +252,7 @@ class VM:
             print("WARNING: extract_crash found no crashes")
             return
 
-        proc = self.virt_popen("./scripts/decode_stacktrace.sh vmlinux auto ./".split())
+        proc = self.tree_popen("./scripts/decode_stacktrace.sh vmlinux auto ./".split())
         stdout, stderr = proc.communicate("\n".join(crash_lines).encode("utf-8"))
         proc.stdin.close()
         proc.stdout.close()
