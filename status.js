@@ -365,7 +365,11 @@ function load_result_table(data_raw)
 
 	if (v.remote != "brancher") {
 	    remote.innerHTML = a + v.remote + "</a>";
-	    cnt.innerHTML = str_psf.str;
+	    if (total) {
+		cnt.innerHTML = str_psf.str;
+	    } else {
+		cnt.innerHTML = "<span style=\"font-style: italic; color: blue\">pending</span>";
+	    }
 	    time.innerHTML = msec_to_str(t_end - t_start);
 	} else {
 	    remote.innerHTML = v.start.toLocaleString();
