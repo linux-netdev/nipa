@@ -75,6 +75,27 @@ function add_option_filter(data_raw, elem_id, field)
     elem.addEventListener("change", results_update);
 }
 
+function set_search_from_url()
+{
+    const urlParams = new URLSearchParams(window.location.search);
+    const results = ["pass", "skip", "warn", "fail"];
+
+    for (const r of results) {
+	const elem = document.getElementById(r);
+
+	if (urlParams.get(r) == "0")
+	    elem.checked = false;
+    }
+
+    const br = document.getElementById("branch");
+    if (urlParams.get("branch"))
+	br.value = urlParams.get("branch");
+
+    const ex = document.getElementById("executor");
+    if (urlParams.get("executor"))
+	ex.value = urlParams.get("executor");
+}
+
 function results_doit(data_raw)
 {
     const ingredients = document.querySelectorAll("input[name=fl-state]");
@@ -94,6 +115,7 @@ function results_doit(data_raw)
     add_option_filter(data_raw, "executor", "executor");
 
     loaded_data = data_raw;
+    set_search_from_url();
     load_result_table(data_raw);
 }
 
