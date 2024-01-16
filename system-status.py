@@ -5,6 +5,7 @@ import datetime
 import lzma
 import os
 import re
+import requests
 import sys
 import subprocess
 import time
@@ -141,11 +142,18 @@ def add_runtime(result, cfg):
     return res
 
 
+def add_remote_services(result, remote):
+    r = requests.get(remote['url'])
+    data = json.loads(r.content.decode('utf-8'))
+    result["remote"][remote["name"]] = data
+
+
 def main():
     with open(sys.argv[1], 'r') as fp:
         cfg = json.load(fp)
 
-    run_logs = True
+    log_files = None
+    run_logs = 'log-files' in cfg
     if os.path.isfile(sys.argv[2]):
         with open(sys.argv[2], 'r') as fp:
             prev = json.load(fp)
@@ -159,16 +167,21 @@ def main():
         prev_date = datetime.datetime.now().isoformat()
         log_files = {"prev-date": prev_date, }
 
-    result = {'services': {}, 'runners': {},
+    result = {'services': {}, 'runners': {}, 'remote': {},
               'date': datetime.datetime.now().isoformat(),
               "log-files": log_files}
-    for name in cfg["trees"]:
-        add_one_tree(result, cfg["tree-path"], name)
+    if "trees" in cfg:
+        for name in cfg["trees"]:
+            add_one_tree(result, cfg["tree-path"], name)
     if "log-files" in cfg and run_logs:
         res = add_runtime(result, cfg["log-files"])
         result["log-files"]["data"] = res
     for name in cfg["services"]:
         add_one_service(result, name)
+
+    if "remote" in cfg:
+        for remote in cfg["remote"]:
+            add_remote_services(result, remote)
 
     with open(sys.argv[2], 'w') as fp:
         json.dump(result, fp)
