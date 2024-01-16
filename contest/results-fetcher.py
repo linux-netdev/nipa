@@ -80,8 +80,10 @@ def build_combined(config, remote_db):
                 if entry['branch'] not in branch_info:
                     continue
                 data = entry.copy()
-                data["start"] = branch_info[entry['branch']]['date']
-                data["end"] = data["start"]
+                when = datetime.datetime.fromisoformat(branch_info[entry['branch']]['date'])
+                data["start"] = str(when)
+                when += datetime.timedelta(hours=2, minutes=58)
+                data["end"] = str(when)
                 data["results"] = None
             else:
                 file = os.path.join(dir, os.path.basename(entry['url']))
