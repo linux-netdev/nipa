@@ -60,14 +60,14 @@ def test(binfo, rinfo, config):
 
     cases = []
 
-    vm = VM(config, cwd="tools/testing/selftests/drivers/net/netdevsim/")
+    vm = VM(config)
     vm.build([".nsim_config"])
     shutil.copy(os.path.join(config.get('local', 'tree_path'), '.config'),
                 results_path + '/config')
     vm.dump_log(results_path + '/build')
 
     vm_id = 0
-    vm_id, vm = new_vm(results_path, vm_id, vm=vm)
+    vm_id, vm = new_vm(results_path, vm_id, vm=vm, cwd="tools/testing/selftests/drivers/net/netdevsim/")
 
     dir_path = config.get('local', 'tree_path') + "/tools/testing/selftests/drivers/net/netdevsim"
     for test in os.listdir(dir_path):
