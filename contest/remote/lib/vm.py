@@ -116,6 +116,9 @@ class VM:
         if self.config.get('vm', 'paths'):
             self.cmd("export PATH=" + self.config.get('vm', 'paths') + ':$PATH')
             self.drain_to_prompt()
+        if self.config.get('vm', 'ld_paths'):
+            self.cmd("export LD_LIBRARY_PATH=" + self.config.get('vm', 'ld_paths') + ':$LD_LIBRARY_PATH')
+            self.drain_to_prompt()
 
     def stop(self):
         self.cmd("exit")
