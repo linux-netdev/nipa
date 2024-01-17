@@ -28,11 +28,14 @@ def kv_to_dict(lines):
 def add_one_service(result, name):
     lines = subprocess.check_output(["systemctl", "show", name]).decode('utf-8').split('\n')
     data = kv_to_dict(lines)
-    keys = ['CPUUsageNSec', 'MemoryCurrent', 'ActiveState', 'SubState', 'TasksCurrent', 'TriggeredBy', 'Result']
+    keys = ['CPUUsageNSec', 'MemoryCurrent', 'ActiveState', 'SubState', 'TasksCurrent',
+            'TriggeredBy', 'Result', 'ExecMainStartTimestampMonotonic',
+            'ExecMainExitTimestampMonotonic']
     filtered = {}
     for k in keys:
         filtered[k] = data.get(k, 0)
     result['services'][name] = filtered
+    result['time-mono'] = time.monotonic_ns() // 1000
 
 
 def pre_strip(line, needle):
