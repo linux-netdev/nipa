@@ -152,7 +152,7 @@ def main():
     with open(sys.argv[1], 'r') as fp:
         cfg = json.load(fp)
 
-    log_files = None
+    log_files = {}
     run_logs = 'log-files' in cfg
     if os.path.isfile(sys.argv[2]):
         with open(sys.argv[2], 'r') as fp:
