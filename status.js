@@ -273,7 +273,7 @@ function msec_to_str(msec) {
 
     for (i = 0; i < convs.length; i++) {
         if (msec < convs[i][0]) {
-            var full = Math.round(msec) + convs[i - 1][1];
+            var full = Math.floor(msec) + convs[i - 1][1];
             if (i > 1) {
                 var frac = Math.round(msec * convs[i - 1][0] % convs[i - 1][0]);
                 if (frac)
@@ -317,15 +317,20 @@ function load_result_table(data_raw)
 	v.end = new Date(v.end);
     });
 
+    data_raw.sort(function(a, b){return b.end - a.end;});
+    data_raw = data_raw.slice(0, 200);
+
     var avgs = {};
     $.each(data_raw, function(i, v) {
+	if (!v.results)
+	    return 1;
+
 	if (!(v.executor in avgs))
 	    avgs[v.executor] = {"cnt": 0, "sum": 0};
 	avgs[v.executor]["cnt"] += 1;
 	avgs[v.executor]["sum"] += (v.end - v.start);
     });
 
-    data_raw.sort(function(a, b){return b.end - a.end;});
     data_raw = data_raw.slice(0, 75);
 
     $.each(data_raw, function(i, v) {
@@ -379,15 +384,17 @@ function load_result_table(data_raw)
 		const passed = Date.now() - v.start;
 		const expect = Math.round(avgs[v.executor]["sum"] / avgs[v.executor]["cnt"]);
 		var remain = expect - passed;
+		var color = "pink";
 
 		if (remain > 0) {
 		    pend = "pending (expected in " + (msec_to_str(remain)).toString() + ")";
+		    color = "blue";
 		} else if (remain < -1000 * 60 * 60 * 2) { /* 2 h */
 		    pend = "timeout";
 		} else {
-		    pend = "pending (expected" + (msec_to_str(-remain)).toString() + " ago)";
+		    pend = "pending (expected " + (msec_to_str(-remain)).toString() + " ago)";
 		}
-		time.innerHTML = "<span style=\"font-style: italic; color: blue\">" + pend + "</span>";
+		time.innerHTML = "<span style=\"font-style: italic; color: " + color + "\">" + pend + "</span>";
 		time.setAttribute("colspan", "3");
 	    }
 	} else {
