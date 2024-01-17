@@ -370,12 +370,20 @@ function load_result_table(data_raw)
 	if (v.remote != "brancher") {
 	    var time = row.insertCell(2);
 
-	    remote.innerHTML = a + v.remote + "</a>";
+	    if (link)
+		remote.innerHTML = a + v.remote + "</a>";
+	    else
+		remote.innerHTML = v.remote;
 	    if (total) {
 		var cnt = row.insertCell(3);
 		var res = row.insertCell(4);
 
-		cnt.innerHTML = str_psf.str;
+		var link_to_contest = "<a href=\"contest.html?";
+		link_to_contest += "branch=" + v.branch;
+		link_to_contest += "&executor=" + v.executor;
+		link_to_contest += "\">";
+
+		cnt.innerHTML = link_to_contest + str_psf.str + "</a>";
 		res.innerHTML = str_psf.overall;
 		time.innerHTML = msec_to_str(t_end - t_start);
 	    } else {
