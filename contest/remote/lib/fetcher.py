@@ -9,7 +9,8 @@ import time
 
 
 class Fetcher:
-    def __init__(self, cb, cbarg, name, branches_url, results_path, url_path, tree_path, check_sec=60):
+    def __init__(self, cb, cbarg, name, branches_url, results_path, url_path, tree_path,
+                 check_sec=60, first_run="continue"):
         self._cb = cb
         self._cbarg = cbarg
         self.name = name
@@ -25,6 +26,29 @@ class Fetcher:
 
         # Set last date to something old
         self._last_date = datetime.datetime.now(datetime.UTC) - datetime.timedelta(weeks=1)
+        if first_run == "force":
+            # leave _last_date very old, this will force run on newest branch
+            pass
+        elif first_run == "continue":
+            try:
+                r = requests.get(self._branches_url)
+                branches = json.loads(r.content.decode('utf-8'))
+                branch_date = {}
+                for b in branches:
+                    branch_date[b["branch"]] = datetime.datetime.fromisoformat(b["date"])
+
+                with open(self._results_manifest, "rb") as fp:
+                    old_db = json.load(fp)
+                for result in old_db:
+                    if 'url' not in result or not result['url']:
+                        continue
+                    self._last_date = max(branch_date[result["branch"]], self._last_date)
+                print("INFO: Last run date:", self._last_date)
+            except FileNotFoundError:
+                pass
+        elif first_run == "next":
+            # unless there's a crazy race or time error this will skip newest branch
+            self._last_date = datetime.datetime.now(datetime.UTC)
 
     def _result_set(self, branch_name, url):
         try:
