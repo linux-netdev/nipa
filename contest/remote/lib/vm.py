@@ -113,10 +113,10 @@ class VM:
         self.drain_to_prompt()
 
         # Install extra PATHs
-        if self.config.get('vm', 'paths'):
+        if self.config.get('vm', 'paths', fallback=None):
             self.cmd("export PATH=" + self.config.get('vm', 'paths') + ':$PATH')
             self.drain_to_prompt()
-        if self.config.get('vm', 'ld_paths'):
+        if self.config.get('vm', 'ld_paths', fallback=None):
             self.cmd("export LD_LIBRARY_PATH=" + self.config.get('vm', 'ld_paths') + ':$LD_LIBRARY_PATH')
             self.drain_to_prompt()
 
