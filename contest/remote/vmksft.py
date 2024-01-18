@@ -207,7 +207,7 @@ def test(binfo, rinfo, cbarg):
 def main() -> None:
     cfg_paths = ['remote.config', 'vmksft.config']
     if len(sys.argv) > 1:
-        cfg_paths.append(sys.argv[1:])
+        cfg_paths += sys.argv[1:]
 
     cbarg = CbArg(cfg_paths)
     config = cbarg.config
