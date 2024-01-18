@@ -273,7 +273,7 @@ def new_vm(results_path, vm_id, vm=None, config=None, cwd=None):
             if i > 4:
                 raise
             print(f"WARNING: VM did not start, retrying {i}/4")
-            vm.dump_log(results_path + '/vm-crashed-' + str(vm_id))
+            vm.dump_log(results_path + f'/vm-crashed-{vm_id}-{i}')
             vm.stop()
 
 
