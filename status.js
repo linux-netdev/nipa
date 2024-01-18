@@ -318,6 +318,7 @@ function load_result_table(data_raw)
     });
 
     data_raw.sort(function(a, b){return b.end - a.end;});
+    data_raw.sort(function(a, b){return b.branch > a.branch;});
     data_raw = data_raw.slice(0, 200);
 
     var avgs = {};
