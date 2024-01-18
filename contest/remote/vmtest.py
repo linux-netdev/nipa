@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0
 
-import configparser
 import datetime
 import shutil
 import fcntl
+import sys
 import os
 
+from lib import CbArg
 from lib import Fetcher
 from lib import VM, new_vm, guess_indicators
 
@@ -45,8 +46,10 @@ group3 testV skip
 """
 
 
-def test(binfo, rinfo, config):
+def test(binfo, rinfo, cbarg):
     print("Run at", datetime.datetime.now())
+    cbarg.refresh_config()
+    config = cbarg.config
 
     results_path = os.path.join(config.get('local', 'base_path'),
                                 config.get('local', 'results_path'),
@@ -129,12 +132,16 @@ def test(binfo, rinfo, config):
 
 
 def main() -> None:
-    config = configparser.ConfigParser()
-    config.read(['remote.config'])
+    cfg_paths = ['remote.config']
+    if len(sys.argv) > 1:
+        cfg_paths.append(sys.argv[1:])
+
+    cbarg = CbArg(cfg_paths)
+    config = cbarg.config
 
     base_dir = config.get('local', 'base_path')
 
-    f = Fetcher(test, config,
+    f = Fetcher(test, cbarg,
                 name=config.get('executor', 'name'),
                 branches_url=config.get('remote', 'branches'),
                 results_path=os.path.join(base_dir, config.get('local', 'json_path')),
