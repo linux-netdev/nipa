@@ -65,7 +65,7 @@ def test(binfo, rinfo, cbarg):
     cases = []
 
     vm = VM(config)
-    vm.build([".nsim_config"])
+    vm.build(["tools/testing/selftests/drivers/net/netdevsim/config"])
     shutil.copy(os.path.join(config.get('local', 'tree_path'), '.config'),
                 results_path + '/config')
     vm.dump_log(results_path + '/build')
