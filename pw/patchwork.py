@@ -17,6 +17,7 @@ import core
 
 
 class PatchworkCheckState:
+    PENDING = "pending"
     SUCCESS = "success",
     WARNING = "warning",
     FAIL = "fail"
