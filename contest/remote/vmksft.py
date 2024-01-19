@@ -154,8 +154,11 @@ def test(binfo, rinfo, cbarg):
         else:
             retcode = vm.bash_prev_retcode()
     except TimeoutError:
-        vm.ctrl_c()
-        vm.drain_to_prompt()
+        try:
+            vm.ctrl_c()
+            vm.drain_to_prompt(dump_after=10)
+        except TimeoutError:
+            pass
         retcode = 1
 
     if vm.fail_state == 'oops':
