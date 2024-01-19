@@ -393,7 +393,10 @@ function load_result_table(data_raw)
 		link_to_contest += "\">";
 
 		cnt.innerHTML = link_to_contest + str_psf.str + "</a>";
-		res.innerHTML = str_psf.overall;
+		if (reported_execs.has(v.executor))
+		    res.innerHTML = str_psf.overall;
+		else
+		    res.innerHTML = "<s>" + str_psf.overall + "</s>";
 		time.innerHTML = msec_to_str(t_end - t_start);
 	    } else {
 		var pend;
@@ -431,6 +434,31 @@ function results_doit(data_raw)
     load_result_table(data_raw);
 }
 
+function filters_doit(data_raw)
+{
+    var div = document.getElementById("contest-filters");
+    var output, sep = "";
+    var execs = "Executors reported ";
+
+    output = "<h3>Patchwork reporting</h3>"
+    output += "<p><b>Executors reported:</b> ";
+    $.each(data_raw.executors, function(i, v) {
+	reported_execs.add(v);
+	output += sep + v;
+	sep = ", ";
+    });
+    output += "</p>";
+    output += "<p><b>Test ignored:</b><br />";
+    $.each(data_raw["ignore-tests"], function(i, v) {
+	output += v.group + '/' + v.test + "<br />";
+    });
+    output += "</p>";
+
+    div.innerHTML = output;
+}
+
+var reported_execs = new Set();
+
 function do_it()
 {
     $(document).ready(function() {
@@ -438,6 +466,9 @@ function do_it()
     });
     $(document).ready(function() {
         $.get("static/nipa/systemd.json", status_system)
+    });
+    $(document).ready(function() {
+        $.get("contest/filters.json", filters_doit)
     });
     $(document).ready(function() {
         $.get("contest/all-results.json", results_doit)
