@@ -1,0 +1,4 @@
+{
+  "run": ["build_tools.sh"],
+  "pull-requests": true
+}
