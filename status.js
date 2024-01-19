@@ -313,9 +313,12 @@ function avg_time_e(avgs, v)
     return avgs[v.executor]["sum"] / avgs[v.executor]["cnt"];
 }
 
+var reported_execs = new Set();
+
 function load_result_table(data_raw)
 {
     var table = document.getElementById("contest");
+    var table_nr = document.getElementById("contest-purgatory");
 
     $.each(data_raw, function(i, v) {
 	v.start = new Date(v.start);
@@ -343,7 +346,12 @@ function load_result_table(data_raw)
     data_raw = data_raw.slice(0, 75);
 
     $.each(data_raw, function(i, v) {
-	var row = table.insertRow();
+	var row;
+
+	if (reported_execs.has(v.executor))
+	    row = table.insertRow();
+	else
+	    row = table_nr.insertRow();
 
 	var branch = row.insertCell(0);
 	var remote = row.insertCell(1);
@@ -393,10 +401,7 @@ function load_result_table(data_raw)
 		link_to_contest += "\">";
 
 		cnt.innerHTML = link_to_contest + str_psf.str + "</a>";
-		if (reported_execs.has(v.executor))
-		    res.innerHTML = str_psf.overall;
-		else
-		    res.innerHTML = "<s>" + str_psf.overall + "</s>";
+		res.innerHTML = str_psf.overall;
 		time.innerHTML = msec_to_str(t_end - t_start);
 	    } else {
 		var pend;
@@ -456,8 +461,6 @@ function filters_doit(data_raw)
 
     div.innerHTML = output;
 }
-
-var reported_execs = new Set();
 
 function do_it()
 {
