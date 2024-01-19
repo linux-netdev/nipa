@@ -308,6 +308,11 @@ function colorify_str_psf(str_psf, name, value, color)
     str_psf.str = p + str_psf.str;
 }
 
+function avg_time_e(avgs, v)
+{
+    return avgs[v.executor]["sum"] / avgs[v.executor]["cnt"];
+}
+
 function load_result_table(data_raw)
 {
     var table = document.getElementById("contest");
@@ -318,7 +323,6 @@ function load_result_table(data_raw)
     });
 
     data_raw.sort(function(a, b){return b.end - a.end;});
-    data_raw.sort(function(a, b){return b.branch > a.branch;});
     data_raw = data_raw.slice(0, 200);
 
     var avgs = {};
@@ -331,6 +335,10 @@ function load_result_table(data_raw)
 	avgs[v.executor]["cnt"] += 1;
 	avgs[v.executor]["sum"] += (v.end - v.start);
     });
+
+    data_raw.sort(function(a, b){return avg_time_e(avgs, b) - avg_time_e(avgs, a);});
+    data_raw.sort(function(a, b){return b.end - a.end;});
+    data_raw.sort(function(a, b){return b.branch > a.branch;});
 
     data_raw = data_raw.slice(0, 75);
 
