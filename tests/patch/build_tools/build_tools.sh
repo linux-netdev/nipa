@@ -19,7 +19,6 @@ make O=$output_dir allmodconfig
 ./scripts/config --file $output_dir/.config -d werror
 
 echo "Using $build_flags redirect to $tmpfile_o and $tmpfile_n"
-$cc --version | head -n1
 
 HEAD=$(git rev-parse HEAD)
 
