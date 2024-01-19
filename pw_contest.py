@@ -110,10 +110,13 @@ def branch_summarize(filters: dict, results_by_branch: dict) -> dict:
     return summary
 
 
-def result_upgrades(prev: dict, outcome: dict):
-    # "unreal" results are always upgraded
-    if prev['code'] < 0:
+def result_upgrades(prev: dict, outcome: dict, branch: str):
+    # "unreal" results are always upgraded from...
+    if prev['code'] < 0 and prev['branch'] < branch:
         return True
+    # ... and never updated to.
+    if outcome['code'] < 0:
+        return False
     # real results are min (if we pass once, we pass)
     if prev['code'] > outcome['code']:
         return True
@@ -133,7 +136,7 @@ def patch_state_compute(state: dict, branches: dict, branch_outcome: dict) -> No
             # to consistently convert ids to strings
             series_id = str(series_id)
             if series_id not in series_state or \
-                    result_upgrades(series_state[series_id], outcome):
+                    result_upgrades(series_state[series_id], outcome, name):
                 series_state[series_id] = outcome.copy()
                 series_state[series_id]["branch"] = name
                 series_state[series_id]["update"] = True
@@ -141,7 +144,7 @@ def patch_state_compute(state: dict, branches: dict, branch_outcome: dict) -> No
         for pr_id in branch["prs"]:
             pr_id = str(pr_id)
             if pr_id not in pr_state or \
-                    result_upgrades(pr_state[pr_id], outcome):
+                    result_upgrades(pr_state[pr_id], outcome, name):
                 pr_state[pr_id] = outcome.copy()
                 pr_state[pr_id]["branch"] = name
                 pr_state[pr_id]["update"] = True
@@ -166,6 +169,7 @@ def update_one(pw, patch_id, outcome, link):
 
 
 def _patch_state_update(pw, state: dict, link: str):
+    update_cnt = 0
     for series_id, outcome in state["series"].items():
         if skip_update(outcome):
             continue
@@ -175,6 +179,7 @@ def _patch_state_update(pw, state: dict, link: str):
             series_pw = pw.get("series", series_id)
             for patch in series_pw["patches"]:
                 update_one(pw, patch["id"], outcome, link)
+            update_cnt += 1
 
             del outcome["update"]
         finally:
@@ -187,10 +192,13 @@ def _patch_state_update(pw, state: dict, link: str):
         try:
             log_open_sec('Updating PR ' + pr_id)
             update_one(pw, pr_id, outcome, link)
+            update_cnt += 1
 
             del outcome["update"]
         finally:
             log_end_sec()
+    if update_cnt:
+        print("Updated", update_cnt, "pw things")
 
 
 def patch_state_update(pw, state: dict, link: str):
