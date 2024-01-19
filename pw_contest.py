@@ -160,7 +160,7 @@ def update_one(pw, patch_id, outcome, link):
     description = outcome['branch']
     if outcome["code"] >= 0:
         description += f' (tests: {outcome["cnt"]})'
-    url = link + '?branch=' + outcome['branch']
+    url = link + '?pw-n=0&branch=' + outcome['branch']
     pw.post_check(patch_id, name="contest", state=code_to_pw[outcome["code"]],
                   url=url, desc=description)
 

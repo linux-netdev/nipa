@@ -10,6 +10,38 @@ function colorify_str(value)
     return ret + value + '</p>';
 }
 
+let loaded_data = null;
+let loaded_filters = null;
+
+function pw_filter_r(v, r, drop_reported)
+{
+    if (loaded_filters == null)
+	return false;
+
+    var reported_exec = false;
+    for (const exec of loaded_filters.executors) {
+	if (v.executor == exec) {
+	    reported_exec = true;
+	    break;
+	}
+    }
+
+    if (reported_exec == false && drop_reported == true)
+	return false;
+
+    var reported_test = true;
+    for (const test of loaded_filters["ignore-tests"]) {
+	if (r.group == test.group && r.test == test.test) {
+	    reported_test = false;
+	    break;
+	}
+    }
+    if ((reported_test && reported_exec) == drop_reported)
+	return true;
+
+    return false;
+}
+
 function load_result_table(data_raw)
 {
     var table = document.getElementById("results");
@@ -21,18 +53,25 @@ function load_result_table(data_raw)
     };
     var branch_filter = document.getElementById("branch").value;
     var exec_filter = document.getElementById("executor").value;
+    var pw_n = document.getElementById("pw-n").checked;
+    var pw_y = document.getElementById("pw-y").checked;
 
     // Remove all rows but first (leave headers)
     $("#results tr").slice(1).remove();
     $.each(data_raw, function(i, v) {
+	if (branch_filter &&
+	    branch_filter != v.branch)
+	    return 1;
+	if (exec_filter &&
+	    exec_filter != v.executor)
+	    return 1;
+
 	$.each(v.results, function(j, r) {
 	    if (result_filter[r.result] == false)
 		return 1;
-	    if (branch_filter &&
-		branch_filter != v.branch)
+	    if (pw_y == false && pw_filter_r(v, r, true))
 		return 1;
-	    if (exec_filter &&
-		exec_filter != v.executor)
+	    if (pw_n == false && pw_filter_r(v, r, false))
 		return 1;
 
 	    var row = table.insertRow();
@@ -56,8 +95,6 @@ function load_result_table(data_raw)
     });
 }
 
-let loaded_data = null;
-
 function add_option_filter(data_raw, elem_id, field)
 {
     var elem = document.getElementById(elem_id);
@@ -78,7 +115,7 @@ function add_option_filter(data_raw, elem_id, field)
 function set_search_from_url()
 {
     const urlParams = new URLSearchParams(window.location.search);
-    const results = ["pass", "skip", "warn", "fail"];
+    const results = ["pass", "skip", "warn", "fail", "pw-y", "pw-n"];
 
     for (const r of results) {
 	const elem = document.getElementById(r);
@@ -126,8 +163,23 @@ function results_update()
     }
 }
 
+function filters_loaded(data_raw)
+{
+    const ingredients = document.querySelectorAll("input[name=fl-pw]");
+
+    for (const ingredient of ingredients) {
+	ingredient.addEventListener("change", results_update);
+    }
+
+    loaded_filters = data_raw;
+}
+
 function do_it()
 {
+    $(document).ready(function() {
+        $.get("contest/filters.json", filters_loaded)
+    });
+
     if (loaded_data == null) {
 	loaded_data = 1;
 

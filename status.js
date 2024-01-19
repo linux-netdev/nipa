@@ -345,6 +345,8 @@ function load_result_table(data_raw)
 
     data_raw = data_raw.slice(0, 75);
 
+    reported_execs.add("brancher");
+
     $.each(data_raw, function(i, v) {
 	var row;
 
@@ -460,6 +462,10 @@ function filters_doit(data_raw)
     output += "</p>";
 
     div.innerHTML = output;
+
+    $(document).ready(function() {
+        $.get("contest/all-results.json", results_doit)
+    });
 }
 
 function do_it()
@@ -472,8 +478,5 @@ function do_it()
     });
     $(document).ready(function() {
         $.get("contest/filters.json", filters_doit)
-    });
-    $(document).ready(function() {
-        $.get("contest/all-results.json", results_doit)
     });
 }
