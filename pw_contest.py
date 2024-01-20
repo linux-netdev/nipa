@@ -129,6 +129,10 @@ def patch_state_compute(state: dict, branches: dict, branch_outcome: dict) -> No
     series_state = state["series"]
     pr_state = state["prs"]
     for name, branch in branches.items():
+        # branch got tagged but faker didn't add it to results, yet
+        if name not in branch_outcome:
+            continue
+
         outcome = branch_outcome[name]
         for series_id in branch["series"]:
             # branches store IDs in a list, so they are ints
