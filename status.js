@@ -310,6 +310,8 @@ function colorify_str_psf(str_psf, name, value, color)
 
 function avg_time_e(avgs, v)
 {
+    if (!(v.executor in avgs))
+	return 0;
     return avgs[v.executor]["sum"] / avgs[v.executor]["cnt"];
 }
 
@@ -409,7 +411,7 @@ function load_result_table(data_raw)
 		var pend;
 
 		const passed = Date.now() - v.start;
-		const expect = Math.round(avgs[v.executor]["sum"] / avgs[v.executor]["cnt"]);
+		const expect = Math.round(avg_time_e(avgs, v));
 		var remain = expect - passed;
 		var color = "pink";
 
