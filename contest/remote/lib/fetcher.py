@@ -42,6 +42,9 @@ class Fetcher:
                 for result in old_db:
                     if 'url' not in result or not result['url']:
                         continue
+                    if result["branch"] not in branch_date:
+                        continue
+
                     self._last_date = max(branch_date[result["branch"]], self._last_date)
                 print("INFO: Last run date:", self._last_date)
             except FileNotFoundError:
