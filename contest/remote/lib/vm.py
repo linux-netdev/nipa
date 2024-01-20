@@ -260,7 +260,8 @@ class VM:
         return int(stdout.split('\n')[1])
 
 
-def new_vm(results_path, vm_id, vm=None, config=None, cwd=None):
+def new_vm(results_path, vm_id, thr=None, vm=None, config=None, cwd=None):
+    thr_pfx = f"thr{thr}-" if thr else ""
     if vm is None:
         vm = VM(config)
     # For whatever reason starting sometimes hangs / crashes
@@ -269,14 +270,14 @@ def new_vm(results_path, vm_id, vm=None, config=None, cwd=None):
         try:
             vm.start(cwd=cwd)
             vm_id += 1
-            vm.dump_log(results_path + '/vm-start-' + str(vm_id))
+            vm.dump_log(results_path + '/vm-start-' + thr_pfx + str(vm_id))
             return vm_id, vm
         except TimeoutError:
             i += 1
             if i > 4:
                 raise
             print(f"WARNING: VM did not start, retrying {i}/4")
-            vm.dump_log(results_path + f'/vm-crashed-{vm_id}-{i}')
+            vm.dump_log(results_path + f'/vm-crashed-{thr_pfx}{vm_id}-{i}')
             vm.stop()
 
 
