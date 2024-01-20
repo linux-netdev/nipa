@@ -20,6 +20,9 @@ refres=#secs
 branch_info=fs/path.json
 results=fs/path2.json
 filters=fs/path/to/filters.json
+[output]
+results_by_branch=optional/dump/of/rbb
+outcomes=optional/dump/of/outcomes
 [state]
 patch_state=state.json
 [www]
@@ -233,10 +236,14 @@ def main_loop(pw) -> int:
     patch_state_compute(patch_state, branches, branch_outcome)
     patch_state_update(pw, patch_state, config.get('www', 'contest'))
 
-    with open('rbb', 'w') as fp:
-        json.dump(results_by_branch, fp)
-    with open('outcomes', 'w') as fp:
-        json.dump(branch_outcome, fp)
+    rbb = config.get('output', 'results_by_branch', fallback=None)
+    if rbb:
+        with open(rbb, 'w') as fp:
+            json.dump(results_by_branch, fp)
+    outcomes = config.get('output', 'outcomes', fallback=None)
+    if outcomes:
+        with open(outcomes, 'w') as fp:
+            json.dump(branch_outcome, fp)
     with open(config.get('state', 'patch_state'), 'w') as fp:
         json.dump(patch_state, fp)
 
