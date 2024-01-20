@@ -88,6 +88,9 @@ class VM:
         if cwd:
             cmd += ["--cwd", cwd]
         cmd += self.config.get('vm', 'virtme_opt').split(',')
+        cpus = self.config.get('vm', 'cpus', fallback="")
+        if cpus:
+            cmd += ["--cpus", cpus]
 
         print("INFO: VM starting:", " ".join(cmd))
         self.p = self.tree_popen(cmd)
