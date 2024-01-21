@@ -92,7 +92,9 @@ def vm_thread(config, results_path, thr_id, in_queue, out_queue):
         file_name = f"{test_id}-{test_name}"
 
         print(f"INFO: thr-{thr_id} testing == " + prog)
+        t1 = datetime.datetime.now()
         vm.cmd(f'make -C tools/testing/selftests TARGETS={target} TEST_PROGS={prog} TEST_GEN_PROGS="" run_tests')
+        t2 = datetime.datetime.now()
 
         try:
             vm.drain_to_prompt()
@@ -121,11 +123,13 @@ def vm_thread(config, results_path, thr_id, in_queue, out_queue):
         if vm.fail_state == 'oops':
             vm.extract_crash(results_path + f'/vm-crash-thr{thr_id}-{vm_id}')
         vm.dump_log(results_path + '/' + file_name, result=retcode,
-                    info={"vm-id": vm_id, "found": indicators, "vm_state": vm.fail_state})
+                    info={"vm-id": vm_id, "time":  (t2 - t1).seconds,
+                          "found": indicators, "vm_state": vm.fail_state})
 
         print(f"INFO: thr-{thr_id} {prog} >> retcode:", retcode, "result:", result, "found", indicators)
 
-        out_queue.put({'test': test_name, 'result': result, 'file_name': file_name})
+        out_queue.put({'prog': prog, 'test': test_name, 'file_name': file_name,
+                       'result': result, 'time': (t2 - t1).seconds})
 
         if vm.fail_state:
             print(f"INFO: thr-{thr_id} VM kernel crashed, destroying it")
@@ -141,6 +145,8 @@ def vm_thread(config, results_path, thr_id, in_queue, out_queue):
 
 def test(binfo, rinfo, cbarg):
     print("Run at", datetime.datetime.now())
+    if not hasattr(cbarg, "prev_runtime"):
+        cbarg.prev_runtime = dict()
     cbarg.refresh_config()
     config = cbarg.config
 
@@ -164,6 +170,7 @@ def test(binfo, rinfo, cbarg):
     vm.dump_log(results_path + '/build')
 
     progs = get_prog_list(vm, target)
+    progs.sort(key=lambda prog : cbarg.prev_runtime.get(prog, 0))
 
     in_queue = queue.Queue()
     out_queue = queue.Queue()
@@ -190,6 +197,7 @@ def test(binfo, rinfo, cbarg):
     cases = []
     while not out_queue.empty():
         r = out_queue.get()
+        cbarg.prev_runtime[r["prog"]] = r["time"]
         cases.append({'test': r['test'], 'group': grp_name, 'result': r["result"],
                       'link': link + '/' + r['file_name']})
     if not in_queue.empty():
