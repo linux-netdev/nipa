@@ -6,6 +6,7 @@ import datetime
 import json
 import os
 import requests
+import tempfile
 import time
 
 
@@ -21,6 +22,14 @@ dir=/path/to/output
 url_pfx=relative/within/server
 combined=name-of-manifest.json
 """
+
+
+def write_json_atomic(path, data):
+    tmp = tempfile.mkstemp()
+    with open(tmp, 'w') as fp:
+        json.dump(data, fp)
+    os.rename(tmp, path)
+
 
 def fetch_remote_run(run_info, remote_state):
     r = requests.get(run_info['url'])
@@ -158,8 +167,7 @@ def main() -> None:
 
             combined = os.path.join(config.get('output', 'dir'),
                                     config.get('output', 'combined'))
-            with open(combined, "w") as fp:
-                json.dump(results, fp)
+            write_json_atomic(combined, results)
 
         time.sleep(int(config.get('cfg', 'refresh')))
 

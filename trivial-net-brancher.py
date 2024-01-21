@@ -5,6 +5,7 @@ import configparser
 import datetime
 import json
 import os
+import tempfile
 import time
 from typing import List, Tuple
 
@@ -35,6 +36,13 @@ info=branches-info.json
 
 ignore_delegate = {}
 gate_checks = {}
+
+
+def write_json_atomic(path, data):
+    tmp = tempfile.mkstemp()
+    with open(tmp, 'w') as fp:
+        json.dump(data, fp)
+    os.rename(tmp, path)
 
 
 def hour_timestamp(when=None) -> int:
@@ -225,9 +233,7 @@ def dump_branches(config, state) -> None:
                      "base": state["hashes"].get(name, None),
                      "url": pub_url + " " + name})
 
-    branches = config.get("output", "branches")
-    with open(branches, 'w') as fp:
-        json.dump(data, fp)
+    write_json_atomic(config.get("output", "branches"), date)
 
     info = config.get("output", "info")
     with open(info, 'w') as fp:
