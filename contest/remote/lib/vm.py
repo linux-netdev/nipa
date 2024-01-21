@@ -6,6 +6,7 @@ from time import sleep
 import fcntl
 import os
 import psutil
+import re
 import signal
 
 
@@ -42,6 +43,19 @@ def decode_and_filter(buf):
 
     buf = buf.decode("utf-8", "ignore")
     return "".join([x for x in buf if (x in ['\n'] or unicodedata.category(x)[0]!="C")])
+
+
+def crash_finger_print(lines):
+    needles = []
+    need_re = re.compile(r'.*(  |0:)([a-z0-9_]+)\+0x[0-9a-f]+/0x[0-9a-f]+.*')
+    for line in lines:
+        m = need_re.match(line)
+        if not m:
+            continue
+        needles.append(m.groups()[1])
+        if len(needles) == 4:
+            break
+    return ":".join(needles)
 
 
 class VM:
@@ -231,12 +245,23 @@ class VM:
 
     def extract_crash(self, out_path):
         in_crash = False
+        start = 0
         crash_lines = []
+        finger_prints = []
+        last5 = [""] * 5
         for line in self.log_out.split('\n'):
             if in_crash:
                 in_crash &= '] ---[ end trace ' not in line
+                in_crash &= ']  </TASK>' not in line
+                finger_prints.append(crash_finger_print(crash_lines[start:]))
             else:
                 in_crash |= '] Hardware name: ' in line
+                if in_crash:
+                    start = len(crash_lines)
+                    crash_lines += last5
+
+            # Keep last 5 to get some of the stuff before stack trace
+            last5 = last5[1:] + ["| " + line]
 
             if in_crash:
                 crash_lines.append(line)
@@ -253,6 +278,7 @@ class VM:
 
         with open(out_path, 'w') as fp:
             fp.write(decoded)
+            fp.write("\n\nFinger prints:\n" + "\n".join(finger_prints))
 
     def bash_prev_retcode(self):
         self.cmd("echo $?")
