@@ -312,7 +312,8 @@ function avg_time_e(avgs, v)
 {
     if (!(v.executor in avgs))
 	return 0;
-    return avgs[v.executor]["sum"] / avgs[v.executor]["cnt"];
+    return avgs[v.executor]["min-dly"] +
+	avgs[v.executor]["sum"] / avgs[v.executor]["cnt"];
 }
 
 var reported_execs = new Set();
@@ -322,9 +323,14 @@ function load_result_table(data_raw)
     var table = document.getElementById("contest");
     var table_nr = document.getElementById("contest-purgatory");
 
+    var branch_start = {};
+
     $.each(data_raw, function(i, v) {
 	v.start = new Date(v.start);
 	v.end = new Date(v.end);
+
+	if (v.remote == "brancher")
+            branch_start[v.branch] = v.start;
     });
 
     data_raw.sort(function(a, b){return b.end - a.end;});
@@ -336,9 +342,17 @@ function load_result_table(data_raw)
 	    return 1;
 
 	if (!(v.executor in avgs))
-	    avgs[v.executor] = {"cnt": 0, "sum": 0};
+	    avgs[v.executor] = {"cnt": 0, "sum": 0, "min-dly": 0};
 	avgs[v.executor]["cnt"] += 1;
 	avgs[v.executor]["sum"] += (v.end - v.start);
+
+	if (v.branch in branch_start) {
+	    const dly = v.start - branch_start[v.branch];
+	    const old = avgs[v.executor]["min-dly"];
+
+	    if (!old || old > dly)
+		avgs[v.executor]["min-dly"] = dly;
+	}
     });
 
     data_raw.sort(function(a, b){return avg_time_e(avgs, b) - avg_time_e(avgs, a);});
@@ -460,6 +474,11 @@ function filters_doit(data_raw)
     output += "<p><b>Test ignored:</b><br />";
     $.each(data_raw["ignore-tests"], function(i, v) {
 	output += v.group + '/' + v.test + "<br />";
+    });
+    output += "</p>";
+    output += "<p><b>Crashes ignored:</b><br />";
+    $.each(data_raw["ignore-crashes"], function(i, v) {
+	output += v + "<br />";
     });
     output += "</p>";
 
