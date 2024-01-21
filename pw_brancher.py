@@ -5,7 +5,6 @@ import configparser
 import datetime
 import json
 import os
-import tempfile
 import time
 from typing import List, Tuple
 
@@ -39,7 +38,7 @@ gate_checks = {}
 
 
 def write_json_atomic(path, data):
-    tmp = tempfile.mkstemp()
+    tmp = path + '.new'
     with open(tmp, 'w') as fp:
         json.dump(data, fp)
     os.rename(tmp, path)
@@ -238,7 +237,7 @@ def dump_branches(config, state) -> None:
                      "base": state["hashes"].get(name, None),
                      "url": pub_url + " " + name})
 
-    write_json_atomic(config.get("output", "branches"), date)
+    write_json_atomic(config.get("output", "branches"), data)
 
     info = config.get("output", "info")
     with open(info, 'w') as fp:

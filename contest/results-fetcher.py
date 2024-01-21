@@ -6,7 +6,6 @@ import datetime
 import json
 import os
 import requests
-import tempfile
 import time
 
 
@@ -25,7 +24,7 @@ combined=name-of-manifest.json
 
 
 def write_json_atomic(path, data):
-    tmp = tempfile.mkstemp()
+    tmp = path + '.new'
     with open(tmp, 'w') as fp:
         json.dump(data, fp)
     os.rename(tmp, path)
