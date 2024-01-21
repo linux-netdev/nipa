@@ -315,5 +315,5 @@ def guess_indicators(output):
         "pass": output.find("[OKAY]") != -1 or output.find("[PASS]") != -1 or \
                 output.find("[ OK ]") != -1 or output.find("[OK]") != -1 or \
                 output.find("[ ok ]") != -1 or output.find("[pass]") != -1 or \
-                output.find("PASSED all ") != -1,
+                output.find("PASSED all ") != -1 or output.find("\nok 1 selftests: ") != -1,
     }
