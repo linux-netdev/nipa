@@ -94,7 +94,6 @@ def vm_thread(config, results_path, thr_id, in_queue, out_queue):
         print(f"INFO: thr-{thr_id} testing == " + prog)
         t1 = datetime.datetime.now()
         vm.cmd(f'make -C tools/testing/selftests TARGETS={target} TEST_PROGS={prog} TEST_GEN_PROGS="" run_tests')
-        t2 = datetime.datetime.now()
 
         try:
             vm.drain_to_prompt()
@@ -106,6 +105,8 @@ def vm_thread(config, results_path, thr_id, in_queue, out_queue):
             vm.ctrl_c()
             vm.drain_to_prompt()
             retcode = 1
+
+        t2 = datetime.datetime.now()
 
         indicators = guess_indicators(vm.log_out)
 
@@ -123,7 +124,7 @@ def vm_thread(config, results_path, thr_id, in_queue, out_queue):
         if vm.fail_state == 'oops':
             vm.extract_crash(results_path + f'/vm-crash-thr{thr_id}-{vm_id}')
         vm.dump_log(results_path + '/' + file_name, result=retcode,
-                    info={"vm-id": vm_id, "time":  (t2 - t1).seconds,
+                    info={"thr-id": thr_id, "vm-id": vm_id, "time": (t2 - t1).seconds,
                           "found": indicators, "vm_state": vm.fail_state})
 
         print(f"INFO: thr-{thr_id} {prog} >> retcode:", retcode, "result:", result, "found", indicators)
