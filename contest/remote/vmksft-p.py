@@ -97,13 +97,14 @@ def vm_thread(config, results_path, thr_id, in_queue, out_queue):
 
         try:
             vm.drain_to_prompt()
-            if vm.fail_state:
-                retcode = 1
-            else:
-                retcode = vm.bash_prev_retcode()
+            retcode = vm.bash_prev_retcode()
         except TimeoutError:
-            vm.ctrl_c()
-            vm.drain_to_prompt()
+            try:
+                vm.ctrl_c()
+                vm.ctrl_c()
+                vm.drain_to_prompt(dump_after=10)
+            except TimeoutError:
+                pass
             retcode = 1
 
         t2 = datetime.datetime.now()
@@ -123,6 +124,10 @@ def vm_thread(config, results_path, thr_id, in_queue, out_queue):
 
         if vm.fail_state == 'oops':
             vm.extract_crash(results_path + f'/vm-crash-thr{thr_id}-{vm_id}')
+            # Extraction will clear/discard false-positives (ignored traces)
+            # check VM is still in failed state
+            if vm.fail_state:
+                result = "fail"
         vm.dump_log(results_path + '/' + file_name, result=retcode,
                     info={"thr-id": thr_id, "vm-id": vm_id, "time": (t2 - t1).seconds,
                           "found": indicators, "vm_state": vm.fail_state})
