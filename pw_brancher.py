@@ -166,7 +166,12 @@ def create_new(pw, config, state, tree, tgt_remote) -> None:
     if pull_list:
         log_open_sec("Pulling in other trees")
         for url in pull_list.split(','):
-            tree.git_pull(url)
+            try:
+                tree.pull(url, reset=False)
+            except PullError:
+                log("PULL FAILED")
+                pass
+
         log_end_sec()
 
     state["hashes"][branch_name] = tree.head_hash()
