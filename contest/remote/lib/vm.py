@@ -1,9 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0
 
 import unicodedata
+import requests
 import subprocess
 from time import sleep
 import fcntl
+import json
 import os
 import psutil
 import re
@@ -67,6 +69,7 @@ class VM:
 
         self.cfg_boot_to = int(config.get('vm', 'boot_timeout'))
 
+        self.filter_data = None
         self.log_out = ""
         self.log_err = ""
 
@@ -243,6 +246,15 @@ class VM:
         self.log_out = ""
         self.log_err = ""
 
+    def _load_filters(self):
+        if self.filter_data is not None:
+            return
+        url = self.config.get("remote", "filters", fallback=None)
+        if not url:
+            return
+        r = requests.get(url)
+        self.filter_data = json.loads(r.content.decode('utf-8'))
+
     def extract_crash(self, out_path):
         in_crash = False
         start = 0
@@ -277,9 +289,18 @@ class VM:
         proc.stderr.close()
         decoded = stdout.decode("utf-8", "ignore")
 
-        with open(out_path, 'w') as fp:
+        with open(out_path, 'a') as fp:
+            fp.write("======================================\n")
             fp.write(decoded)
             fp.write("\n\nFinger prints:\n" + "\n".join(finger_prints))
+
+        self._load_filters()
+        if self.filter_data is not None and 'ignore-crashes' in self.filter_data:
+            ignore = set(self.filter_data["ignore-crashes"])
+            seen = set(finger_prints)
+            if not seen - ignore:
+                print("INFO: all crashes were ignored")
+                self.fail_state = ""
 
     def bash_prev_retcode(self):
         self.cmd("echo $?")
