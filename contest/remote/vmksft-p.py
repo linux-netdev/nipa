@@ -171,7 +171,7 @@ def test(binfo, rinfo, cbarg):
     vm.dump_log(results_path + '/build')
 
     progs = get_prog_list(vm, target)
-    progs.sort(key=lambda prog : cbarg.prev_runtime.get(prog, 0))
+    progs.sort(reverse=True, key=lambda prog : cbarg.prev_runtime.get(prog, 0))
 
     in_queue = queue.Queue()
     out_queue = queue.Queue()
