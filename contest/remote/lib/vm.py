@@ -253,7 +253,8 @@ class VM:
             if in_crash:
                 in_crash &= '] ---[ end trace ' not in line
                 in_crash &= ']  </TASK>' not in line
-                finger_prints.append(crash_finger_print(crash_lines[start:]))
+                if not in_crash:
+                    finger_prints.append(crash_finger_print(crash_lines[start:]))
             else:
                 in_crash |= '] Hardware name: ' in line
                 if in_crash:
