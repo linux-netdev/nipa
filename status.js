@@ -316,67 +316,36 @@ function avg_time_e(avgs, v)
 	avgs[v.executor]["sum"] / avgs[v.executor]["cnt"];
 }
 
-var reported_execs = new Set();
+let reported_execs = new Set();
+let filtered_tests = new Array();
 
-function load_result_table(data_raw)
+function pw_filted_r(v, r)
 {
-    var table = document.getElementById("contest");
-    var table_nr = document.getElementById("contest-purgatory");
+    if (!reported_execs.has(v.executor))
+	return false;
 
-    var branch_start = {};
+    for (const test of filtered_tests) {
+	if (r.group == test.group && r.test == test.test)
+	    return false;
+    }
+    return true;
+}
 
+
+function load_result_table_one(data_raw, table, reported, avgs)
+{
     $.each(data_raw, function(i, v) {
-	v.start = new Date(v.start);
-	v.end = new Date(v.end);
-
-	if (v.remote == "brancher")
-            branch_start[v.branch] = v.start;
-    });
-
-    data_raw.sort(function(a, b){return b.end - a.end;});
-    data_raw = data_raw.slice(0, 200);
-
-    var avgs = {};
-    $.each(data_raw, function(i, v) {
-	if (!v.results)
+	if (!reported_execs.has(v.executor) && reported)
 	    return 1;
 
-	if (!(v.executor in avgs))
-	    avgs[v.executor] = {"cnt": 0, "sum": 0, "min-dly": 0};
-	avgs[v.executor]["cnt"] += 1;
-	avgs[v.executor]["sum"] += (v.end - v.start);
-
-	if (v.branch in branch_start) {
-	    const dly = v.start - branch_start[v.branch];
-	    const old = avgs[v.executor]["min-dly"];
-
-	    if (!old || old > dly)
-		avgs[v.executor]["min-dly"] = dly;
-	}
-    });
-
-    data_raw.sort(function(a, b){return avg_time_e(avgs, b) - avg_time_e(avgs, a);});
-    data_raw.sort(function(a, b){return b.end - a.end;});
-    data_raw.sort(function(a, b){return b.branch > a.branch;});
-
-    data_raw = data_raw.slice(0, 75);
-
-    reported_execs.add("brancher");
-
-    $.each(data_raw, function(i, v) {
-	var row;
-
-	if (reported_execs.has(v.executor))
-	    row = table.insertRow();
-	else
-	    row = table_nr.insertRow();
-
-	var branch = row.insertCell(0);
-	var remote = row.insertCell(1);
-
-	var pass = 0, skip = 0, warn = 0, fail = 0, total = 0;
+	var pass = 0, skip = 0, warn = 0, fail = 0, total = 0, ignored = 0;
 	var link = v.link;
 	$.each(v.results, function(i, r) {
+	    if (pw_filted_r(v, r) != reported) {
+		ignored++;
+		return 1;
+	    }
+
 	    if (r.result == "pass") {
 		pass++;
 	    } else if (r.result == "skip") {
@@ -391,12 +360,29 @@ function load_result_table(data_raw)
 	    if (!link)
 		link = r.link;
 	});
+
+	if (reported_execs.has(v.executor) && !reported && !total)
+	    return 1;
+
 	var str_psf = {"str": "", "overall": ""};
 
 	colorify_str_psf(str_psf, "fail", fail, "red");
 	colorify_str_psf(str_psf, "warn", warn, "orange");
 	colorify_str_psf(str_psf, "skip", skip, "blue");
 	colorify_str_psf(str_psf, "pass", pass, "green");
+
+	const span_small = " <span style=\"font-size: small;\">(";
+	if (ignored) {
+	    if (reported)
+		str_psf.overall += span_small + "ignored: " + ignored + ")</span>";
+	    else
+		str_psf.overall += span_small + "reported: " + ignored + ")</span>";
+	}
+
+	var row = table.insertRow();
+
+	var branch = row.insertCell(0);
+	var remote = row.insertCell(1);
 
 	    var t_start = new Date(v.start);
 	    var t_end = new Date(v.end);
@@ -452,6 +438,55 @@ function load_result_table(data_raw)
     });
 }
 
+function load_result_table(data_raw)
+{
+    var table = document.getElementById("contest");
+    var table_nr = document.getElementById("contest-purgatory");
+
+    var branch_start = {};
+
+    $.each(data_raw, function(i, v) {
+	v.start = new Date(v.start);
+	v.end = new Date(v.end);
+
+	if (v.remote == "brancher")
+            branch_start[v.branch] = v.start;
+    });
+
+    data_raw.sort(function(a, b){return b.end - a.end;});
+    data_raw = data_raw.slice(0, 200);
+
+    var avgs = {};
+    $.each(data_raw, function(i, v) {
+	if (!v.results)
+	    return 1;
+
+	if (!(v.executor in avgs))
+	    avgs[v.executor] = {"cnt": 0, "sum": 0, "min-dly": 0};
+	avgs[v.executor]["cnt"] += 1;
+	avgs[v.executor]["sum"] += (v.end - v.start);
+
+	if (v.branch in branch_start) {
+	    const dly = v.start - branch_start[v.branch];
+	    const old = avgs[v.executor]["min-dly"];
+
+	    if (!old || old > dly)
+		avgs[v.executor]["min-dly"] = dly;
+	}
+    });
+
+    data_raw.sort(function(a, b){return avg_time_e(avgs, b) - avg_time_e(avgs, a);});
+    data_raw.sort(function(a, b){return b.end - a.end;});
+    data_raw.sort(function(a, b){return b.branch > a.branch;});
+
+    data_raw = data_raw.slice(0, 75);
+
+    reported_execs.add("brancher");
+
+    load_result_table_one(data_raw, table, true, avgs);
+    load_result_table_one(data_raw, table_nr, false, avgs);
+}
+
 function results_doit(data_raw)
 {
     load_result_table(data_raw);
@@ -474,6 +509,7 @@ function filters_doit(data_raw)
     output += "<p><b>Test ignored:</b><br />";
     $.each(data_raw["ignore-tests"], function(i, v) {
 	output += v.group + '/' + v.test + "<br />";
+	filtered_tests.push(v);
     });
     output += "</p>";
     output += "<p><b>Crashes ignored:</b><br />";
