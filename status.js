@@ -107,11 +107,11 @@ function run_it(data_raw)
 function colorify_str(value, good)
 {
     if (value == good) {
-	ret = '<p style="color:green">';
+	ret = '<span style="color:green">';
     } else {
-	ret = '<p style="color:red">';
+	ret = '<span style="color:red">';
     }
-    return ret + value + '</p>';
+    return ret + value + '</span>';
 }
 
 function systemd_add_one(table, sname, v)

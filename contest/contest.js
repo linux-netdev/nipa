@@ -1,13 +1,13 @@
 function colorify_str(value)
 {
     if (value == "pass") {
-	ret = '<p style="color:green">';
+	ret = '<span style="color:green">';
     } else if (value == "skip") {
-	ret = '<p style="color:blue">';
+	ret = '<span style="color:blue">';
     } else {
-	ret = '<p style="color:red">';
+	ret = '<span style="color:red">';
     }
-    return ret + value + '</p>';
+    return ret + value + '</span>';
 }
 
 let loaded_data = null;
