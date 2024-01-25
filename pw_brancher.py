@@ -151,6 +151,24 @@ def apply_pending_patches(pw, config, tree) -> Tuple[List, List]:
     return list(applied_series), list(applied_prs)
 
 
+def apply_local_patches(config, tree) -> List:
+    extras = []
+    for entry in config.get("local", "patches", fallback="").split(','):
+        with open(entry, "r") as fp:
+            data = fp.read()
+
+        log_open_sec("Applying: " + entry)
+        p = Patch(data)
+        try:
+            tree.apply(p)
+            extras.append(entry)
+        except PatchApplyError:
+            pass
+        log_end_sec()
+
+    return extras
+
+
 def create_new(pw, config, state, tree, tgt_remote) -> None:
     now = datetime.datetime.now(datetime.UTC)
     pfx = config.get("target", "branch_pfx")
@@ -177,6 +195,9 @@ def create_new(pw, config, state, tree, tgt_remote) -> None:
 
     series, prs = apply_pending_patches(pw, config, tree)
     state["info"][branch_name] = {"series": series, "prs": prs}
+
+    extras = apply_local_patches(config, tree)
+    state["info"][branch_name]["extras"] = extras
 
     state["branches"][branch_name] = now.isoformat()
 
