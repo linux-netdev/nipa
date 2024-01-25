@@ -402,6 +402,10 @@ function load_result_table_one(data_raw, table, reported, avgs)
 		var link_to_contest = "<a href=\"contest.html?";
 		link_to_contest += "branch=" + v.branch;
 		link_to_contest += "&executor=" + v.executor;
+		if (reported)
+		    link_to_contest += "&pw-n=0";
+		else
+		    link_to_contest += "&pw-y=0";
 		link_to_contest += "\">";
 
 		cnt.innerHTML = link_to_contest + str_psf.str + "</a>";
