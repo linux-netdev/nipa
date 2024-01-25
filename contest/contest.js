@@ -53,6 +53,7 @@ function load_result_table(data_raw)
     };
     var branch_filter = document.getElementById("branch").value;
     var exec_filter = document.getElementById("executor").value;
+    var test_filter = document.getElementById("test-name").value;
     var pw_n = document.getElementById("pw-n").checked;
     var pw_y = document.getElementById("pw-y").checked;
 
@@ -67,6 +68,9 @@ function load_result_table(data_raw)
 	    return 1;
 
 	$.each(v.results, function(j, r) {
+	    if (test_filter &&
+		r.test != test_filter)
+		return 1;
 	    if (result_filter[r.result] == false)
 		return 1;
 	    if (pw_y == false && pw_filter_r(v, r, true))
@@ -131,6 +135,10 @@ function set_search_from_url()
     const ex = document.getElementById("executor");
     if (urlParams.get("executor"))
 	ex.value = urlParams.get("executor");
+
+    const test = document.getElementById("test-name");
+    if (urlParams.get("test"))
+	test.value = urlParams.get("test");
 }
 
 function results_doit(data_raw)
