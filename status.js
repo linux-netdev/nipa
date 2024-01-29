@@ -498,31 +498,32 @@ function results_doit(data_raw)
 
 function filters_doit(data_raw)
 {
-    var div = document.getElementById("contest-filters");
+    let cf_crashes = document.getElementById("cf-crashes");
+    let cf_execs = document.getElementById("cf-execs");
+    let cf_tests = document.getElementById("cf-tests");
     var output, sep = "";
     var execs = "Executors reported ";
 
-    output = "<h3>Patchwork reporting</h3>"
-    output += "<p><b>Executors reported:</b> ";
+    output = "<b>Executors reported:</b> ";
     $.each(data_raw.executors, function(i, v) {
 	reported_execs.add(v);
 	output += sep + v;
 	sep = ", ";
     });
-    output += "</p>";
-    output += "<p><b>Test ignored:</b><br />";
+    cf_execs.innerHTML = output;
+
+    output = "<b>Test ignored:</b><br />";
     $.each(data_raw["ignore-tests"], function(i, v) {
 	output += v.group + '/' + v.test + "<br />";
 	filtered_tests.push(v);
     });
-    output += "</p>";
-    output += "<p><b>Crashes ignored:</b><br />";
+    cf_tests.innerHTML = output;
+
+    output = "<b>Crashes ignored:</b><br />";
     $.each(data_raw["ignore-crashes"], function(i, v) {
 	output += v + "<br />";
     });
-    output += "</p>";
-
-    div.innerHTML = output;
+    cf_crashes.innerHTML = output;
 
     $(document).ready(function() {
         $.get("contest/all-results.json", results_doit)
