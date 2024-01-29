@@ -263,6 +263,26 @@ class MlEmail:
     def get(self, item, failobj=None):
         return self.msg.get(item, failobj)
 
+    def _body(self):
+        """
+        Email is hard, get_body() doesn't decode base64, get_payload() does but
+        it's too MIME-aware. Luckily ML traffic is not multi-part 99% of the time.
+        And it's not base64 90% of the time. So hopefully we'll cover 99.9% here..
+        """
+        if self.msg.is_multipart():
+            body = self.msg.get_body(preferencelist=('plain',))
+            if body is None:
+                return None
+
+            try:
+                body_str = body.as_string()
+            except LookupError as e:
+                print('', '', "ERROR: can't parse body", e)
+                return None
+            return body_str
+        else:
+            return self.msg.get_payload()
+
     def user_authorized(self, pw=None):
         if self._authorized is None:
             self._resolve_authorized(pw)
@@ -353,13 +373,8 @@ class MlEmail:
         if self.user_bot():
             return True
 
-        body = self.msg.get_body(preferencelist=('plain',))
-        if body is None:
-            return False
-        try:
-            body_str = body.as_string()
-        except LookupError as e:
-            print('', '', "ERROR: can't parse body", e)
+        body_str = self._body()
+        if body_str is None:
             return False
         lines = body_str.split('\n')
         for line in lines:
@@ -377,7 +392,7 @@ class MlEmail:
             return
 
         if self.user_authorized(pw) or self.self_reply(pw):
-            lines = self.msg.get_body(preferencelist=('plain',)).as_string().split('\n')
+            lines = self._body().split('\n')
             for line in lines:
                 if line.startswith('pw-bot:'):
                     self.actions.append(line)
