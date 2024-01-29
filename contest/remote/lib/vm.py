@@ -29,6 +29,7 @@ url=https://url-to-reach-base-path
 paths=/extra/exec/PATH:/another/bin
 [vm]
 paths=/extra/exec/PATH:/another/bin
+configs=relative/path/config,another/config
 init_prompt=expected_on-boot#
 virtme_opt=--opt,--another one
 default_timeout=15
@@ -90,9 +91,17 @@ class VM:
         proc.stdout.close()
         proc.stderr.close()
 
-    def build(self, configs):
+    def build(self, extra_configs, override_configs=None):
         if self.log_out or self.log_err:
             raise Exception("Logs were not flushed before calling build")
+
+        configs = []
+        if override_configs is not None:
+            configs += override_configs
+        elif self.config.get('vm', 'configs', fallback=None):
+            configs += self.config.get('vm', 'configs').split(",")
+        if extra_configs:
+            configs += extra_configs
 
         print("INFO: building kernel")
         # Make sure we rebuild, config and module deps can be stale otherwise
