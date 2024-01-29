@@ -24,6 +24,10 @@
 	  padding: 8px;
       }
 
+      tr {
+        white-space: nowrap;
+      }
+
       tr:nth-child(even) {
 	  background-color: #eeeeee;
       }
@@ -38,6 +42,17 @@
       </style>
 </head>
 <body>
+<div class="row">
+    <fieldset>
+      <legend>Filtering:</legend>
+        <input type="checkbox" id="pw-y" name="fl-pw" checked />
+        <label for="pw-y">Reported to patchwork</label>
+        <input type="checkbox" id="pw-n" name="fl-pw" checked />
+        <label for="pw-n">Ignored by patchwork</label>
+        <label for="min-flip">Min state flips</label>
+        <input type="number" id="min-flip" name="fl-pw" min="1" value="1">
+    </fieldset>
+</div>
 <div class="row">
     <div class="column">
         <h3>Test flakiness, sorted by the number of flips</h3>

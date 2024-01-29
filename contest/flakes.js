@@ -12,10 +12,41 @@ function colorify(cell, value)
     cell.setAttribute("style", ret);
 }
 
+function pw_filter_r(v, r, drop_reported)
+{
+    if (loaded_filters == null)
+	return false;
+
+    var reported_exec = false;
+    for (const exec of loaded_filters.executors) {
+	if (v.executor == exec) {
+	    reported_exec = true;
+	    break;
+	}
+    }
+
+    if (reported_exec == false && drop_reported == true)
+	return false;
+
+    var reported_test = true;
+    for (const test of loaded_filters["ignore-tests"]) {
+	if (r.group == test.group && r.test == test.test) {
+	    reported_test = false;
+	    break;
+	}
+    }
+    if ((reported_test && reported_exec) == drop_reported)
+	return true;
+
+    return false;
+}
+
 let loaded_data = null;
+let loaded_filters = null;
 
 function load_result_table(data_raw)
 {
+    // Get all branch names
     var branch_set = new Set();
     $.each(data_raw, function(i, v) {
 	branch_set.add(v.branch);
@@ -23,10 +54,18 @@ function load_result_table(data_raw)
     const branches = Array.from(branch_set);
 
     // Build the result map
+    var pw_n = document.getElementById("pw-n").checked;
+    var pw_y = document.getElementById("pw-y").checked;
+
     var test_row = {};
 
     $.each(data_raw, function(i, v) {
 	$.each(v.results, function(j, r) {
+	    if (pw_y == false && pw_filter_r(v, r, true))
+		return 1;
+	    if (pw_n == false && pw_filter_r(v, r, false))
+		return 1;
+
 	    const tn = r.group + '/' + r.test;
 
 	    if (!(tn in test_row)) {
@@ -53,9 +92,14 @@ function load_result_table(data_raw)
 	test_row[tn]["cnt"] = count;
     }
 
+    // Filter out those not flaky enough to show
+    var min_flip = document.getElementById("min-flip").value;
     let test_names = Array.from(Object.keys(test_row));
+    test_names = test_names.filter(function(a){return test_row[a].cnt >= min_flip;});
     test_names.sort(function(a, b){return test_row[b].cnt - test_row[a].cnt;});
 
+    // Remove all rows but first (leave headers)
+    $("#results tr").remove();
     // Display
     let table = document.getElementById("results");
 
@@ -82,6 +126,11 @@ function load_result_table(data_raw)
     }
 }
 
+function results_update()
+{
+    load_result_table(loaded_data);
+}
+
 function results_doit(data_raw)
 {
     $.each(data_raw, function(i, v) {
@@ -93,10 +142,24 @@ function results_doit(data_raw)
 
     loaded_data = data_raw;
     load_result_table(data_raw);
+
+    const ingredients = document.querySelectorAll("input[name=fl-pw]");
+
+    for (const ingredient of ingredients) {
+	ingredient.addEventListener("change", results_update);
+    }
+}
+
+function filters_loaded(data_raw)
+{
+    loaded_filters = data_raw;
 }
 
 function do_it()
 {
+    $(document).ready(function() {
+        $.get("contest/filters.json", filters_loaded)
+    });
     $(document).ready(function() {
         $.get("contest/all-results.json", results_doit)
     });
