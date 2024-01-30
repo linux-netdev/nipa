@@ -219,6 +219,12 @@ class VM:
             if read_some:
                 if stdout.endswith(prompt):
                     break
+                # A bit of a hack, sometimes kernel spew will clobber
+                # the prompt. Until we have a good way of sending kernel
+                # logs elsewhere try to get a new prompt by sending a new line.
+                if prompt in out:
+                    self.cmd('\n')
+                    sleep(0.25)
                 waited = 0
             else:
                 total_wait += 0.03
