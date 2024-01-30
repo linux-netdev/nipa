@@ -66,7 +66,7 @@ function load_result_table(data_raw)
 	    if (pw_n == false && pw_filter_r(v, r, false))
 		return 1;
 
-	    const tn = r.group + '/' + r.test;
+	    const tn = v.remote + '/' + r.group + '/' + r.test;
 
 	    if (!(tn in test_row)) {
 		test_row[tn] = {};
