@@ -31,33 +31,35 @@ contest=https://server-with-ui/contest.html
 
 class Codes:
     UNKNOWN = -2
-    PENDING = -1
+    PENDING =  1
+
+unreal_results = {Codes.UNKNOWN, Codes.PENDING}
 
 str_to_code = {
     'pass': 0,
     'PASS': 0,
-    'skip': 1,
-    'SKIP': 1,
-    'warn': 2,
-    'fail': 3,
-    'FAIL': 3,
-    'ERROR': 3,
+    'skip': 2,
+    'SKIP': 2,
+    'warn': 3,
+    'fail': 4,
+    'FAIL': 4,
+    'ERROR': 4,
 }
 code_to_str = {
     Codes.UNKNOWN: 'unknown',
-    Codes.PENDING: 'pending',
     0: 'pass',
-    1: 'skip',
-    2: 'warn',
-    3: 'fail',
+    Codes.PENDING: 'pending',
+    2: 'skip',
+    3: 'warn',
+    4: 'fail',
 }
 code_to_pw = {
     Codes.UNKNOWN: None,
-    Codes.PENDING: PatchworkCheckState.PENDING,
     0: PatchworkCheckState.SUCCESS,
-    1: PatchworkCheckState.WARNING,
+    Codes.PENDING: PatchworkCheckState.PENDING,
     2: PatchworkCheckState.WARNING,
-    3: PatchworkCheckState.FAIL,
+    3: PatchworkCheckState.WARNING,
+    4: PatchworkCheckState.FAIL,
 }
 
 
@@ -113,13 +115,19 @@ def branch_summarize(filters: dict, results_by_branch: dict) -> dict:
     return summary
 
 
-def result_upgrades(prev: dict, outcome: dict, branch: str):
-    # "unreal" results are always upgraded from...
-    if prev['code'] < 0 and prev['branch'] < branch:
+def result_upgrades(states: dict, item_id: str, outcome: dict, branch: str):
+    # Never seen before, always report.
+    if item_id not in states:
         return True
-    # ... and never updated to.
-    if outcome['code'] < 0:
+
+    prev = states[item_id]
+    # Never upgrade to unreal.
+    if outcome['code'] in unreal_results:
         return False
+    # Anything is better than unreal
+    if prev['code'] in unreal_results:
+        return True
+
     # real results are min (if we pass once, we pass)
     if prev['code'] > outcome['code']:
         return True
@@ -142,16 +150,14 @@ def patch_state_compute(state: dict, branches: dict, branch_outcome: dict) -> No
             # but in JSON dict keys can't be ints so we need
             # to consistently convert ids to strings
             series_id = str(series_id)
-            if series_id not in series_state or \
-                    result_upgrades(series_state[series_id], outcome, name):
+            if result_upgrades(series_state, series_id, outcome, name):
                 series_state[series_id] = outcome.copy()
                 series_state[series_id]["branch"] = name
                 series_state[series_id]["update"] = True
 
         for pr_id in branch["prs"]:
             pr_id = str(pr_id)
-            if pr_id not in pr_state or \
-                    result_upgrades(pr_state[pr_id], outcome, name):
+            if result_upgrades(pr_state, pr_id, outcome, name):
                 pr_state[pr_id] = outcome.copy()
                 pr_state[pr_id]["branch"] = name
                 pr_state[pr_id]["update"] = True
