@@ -10,7 +10,7 @@ import time
 
 class Fetcher:
     def __init__(self, cb, cbarg, name, branches_url, results_path, url_path, tree_path,
-                 check_sec=60, first_run="continue"):
+                 check_sec=60, first_run="continue", single_shot=False):
         self._cb = cb
         self._cbarg = cbarg
         self.name = name
@@ -23,6 +23,7 @@ class Fetcher:
         self._results_manifest = os.path.join(results_path, 'results.json')
 
         self._tree_path = tree_path
+        self.single_shot = single_shot
 
         # Set last date to something old
         self._last_date = datetime.datetime.now(datetime.UTC) - datetime.timedelta(weeks=1)
@@ -126,10 +127,12 @@ class Fetcher:
         subprocess.run('git checkout ' + to_test["branch"],
                        cwd=self._tree_path, shell=True, check=True)
         self._run_test(to_test)
+        return self.single_shot
 
     def run(self):
         while True:
-            self._run_once()
+            if self._run_once():
+                return
             try:
                 time.sleep(self._check_secs)
             except KeyboardInterrupt:
