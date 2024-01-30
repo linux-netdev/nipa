@@ -59,6 +59,15 @@ function load_result_table(data_raw)
 
     // Remove all rows but first (leave headers)
     $("#results tr").slice(1).remove();
+
+    let warn_box = document.getElementById("fl-warn-box");
+    if (!exec_filter && !test_filter && !branch_filter) {
+	warn_box.innerHTML = "Set an executor, branch or test filter. Otherwise this page will set your browser on fire...";
+	return;
+    } else {
+	warn_box.innerHTML = "";
+    }
+
     $.each(data_raw, function(i, v) {
 	if (branch_filter &&
 	    branch_filter != v.branch)
