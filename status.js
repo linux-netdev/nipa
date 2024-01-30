@@ -114,64 +114,64 @@ function colorify_str(value, good)
     return ret + value + '</span>';
 }
 
-function systemd_add_one(table, sname, v)
+function systemd_add_one(table, system, sname, v)
 {
     var row = table.insertRow();
     var name = row.insertCell(0);
-    var as = row.insertCell(1);
-    var ss = row.insertCell(2);
-    var res = row.insertCell(3);
-    var tasks = row.insertCell(4);
-    var cpu = row.insertCell(5);
-    var mem = row.insertCell(6);
+    var ss = row.insertCell(1);
+    var tasks = row.insertCell(2);
+    var cpu = row.insertCell(3);
+    var mem = row.insertCell(4);
+
+    let sstate = "";
+    let now = system["time-mono"];
 
     if (v.TriggeredBy == 0) {
-	cpuSec = v.CPUUsageNSec / 1000000000;
-	cpuHours = (cpuSec / (60 * 60)).toFixed(0);
-	cpuHours = cpuHours + ' hours';
+	cpuSec = v.CPUUsageNSec / 1000;
+	cpuHours = cpuSec / (now - v.ExecMainStartTimestampMonotonic);
+	cpuHours = cpuHours.toFixed(2);
 
 	memGb = (v.MemoryCurrent / (1024 * 1024 * 1024)).toFixed(2);
 	memGb = memGb + 'GB';
 
-	astate = colorify_str(v.ActiveState, "active");
-	sstate = colorify_str(v.SubState, "running");
-
-	result = v.Result;
+	state = v.ActiveState + " / " + v.SubState;
+	sstate = colorify_str(state, "active / running");
 
 	taskcnt = v.TasksCurrent;
     } else {
-	cpuSec = v.CPUUsageNSec / 1000000000;
-	cpuHours = cpuSec.toFixed(2);
-	cpuHours = cpuHours + ' sec';
+	cpuSec = v.CPUUsageNSec / 1000;
+	cpuHours = cpuSec / (v.ExecMainExitTimestampMonotonic -
+			     v.ExecMainStartTimestampMonotonic);
+	cpuHours = cpuHours.toFixed(2);
 
-	result = colorify_str(v.Result, "success");
+	sstate = colorify_str(v.Result, "success");
 
-	astate = '';
-	sstate = '';
 	taskcnt = '';
 	memGb = '';
     }
 
     name.innerHTML = sname;
-    as.innerHTML = astate;
     ss.innerHTML = sstate;
-    res.innerHTML = result;
+    ss.setAttribute("style", "text-align: center");
     tasks.innerHTML = taskcnt;
+    tasks.setAttribute("style", "text-align: right");
     cpu.innerHTML = cpuHours;
+    cpu.setAttribute("style", "text-align: right");
     mem.innerHTML = memGb;
+    mem.setAttribute("style", "text-align: right");
 }
 
-function systemd(data_raw, data_remote)
+function systemd(data_raw, data_local, data_remote)
 {
     var table = document.getElementById("systemd");
 
-    $.each(data_raw, function(i, v) {
-	systemd_add_one(table, i, v);
+    $.each(data_local, function(i, v) {
+	systemd_add_one(table, data_raw, i, v);
     });
 
     $.each(data_remote, function(name, remote) {
 	$.each(remote["services"], function(service, v) {
-	    systemd_add_one(table, name + "/" + service, v);
+	    systemd_add_one(table, remote, name + "/" + service, v);
 	});
     });
 }
@@ -253,7 +253,7 @@ function load_runtime(data_raw)
 
 function status_system(data_raw)
 {
-    systemd(data_raw["services"], data_raw["remote"]);
+    systemd(data_raw, data_raw["services"], data_raw["remote"]);
     load_runners(data_raw["runners"]);
     load_runtime(data_raw["log-files"]);
 }
