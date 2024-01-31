@@ -41,9 +41,6 @@ function pw_filter_r(v, r, drop_reported)
     return false;
 }
 
-let loaded_data = null;
-let loaded_filters = null;
-
 function load_result_table(data_raw)
 {
     // Get all branch names
@@ -131,28 +128,41 @@ function results_update()
     load_result_table(loaded_data);
 }
 
-function results_doit(data_raw)
+let xfr_todo = 2;
+let loaded_data = null;
+let loaded_filters = null;
+
+function loaded_one()
 {
-    $.each(data_raw, function(i, v) {
-	v.start = new Date(v.start);
-	v.end = new Date(v.end);
-    });
+    if (--xfr_todo)
+	return;
 
-    data_raw.sort(function(a, b){return b.end - a.end;});
-
-    loaded_data = data_raw;
-    load_result_table(data_raw);
-
+    // We have all JSONs now, do processing.
     const ingredients = document.querySelectorAll("input[name=fl-pw]");
 
     for (const ingredient of ingredients) {
 	ingredient.addEventListener("change", results_update);
     }
+
+    results_update();
 }
 
 function filters_loaded(data_raw)
 {
     loaded_filters = data_raw;
+    loaded_one();
+}
+
+function results_loaded(data_raw)
+{
+    $.each(data_raw, function(i, v) {
+	v.start = new Date(v.start);
+	v.end = new Date(v.end);
+    });
+    data_raw.sort(function(a, b){return b.end - a.end;});
+
+    loaded_data = data_raw;
+    loaded_one();
 }
 
 function do_it()
@@ -161,6 +171,6 @@ function do_it()
         $.get("contest/filters.json", filters_loaded)
     });
     $(document).ready(function() {
-        $.get("contest/all-results.json", results_doit)
+        $.get("contest/all-results.json", results_loaded)
     });
 }
