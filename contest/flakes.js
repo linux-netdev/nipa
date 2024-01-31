@@ -48,11 +48,13 @@ function load_result_table(data_raw)
     $.each(data_raw, function(i, v) {
 	branch_set.add(v.branch);
     });
-    const branches = Array.from(branch_set);
+    let br_cnt = document.getElementById("br-cnt").value;
+    const branches = Array.from(branch_set).slice(0, br_cnt);
 
     // Build the result map
     var pw_n = document.getElementById("pw-n").checked;
     var pw_y = document.getElementById("pw-y").checked;
+    let needle = document.getElementById("tn-needle").value;
 
     var test_row = {};
 
@@ -64,6 +66,8 @@ function load_result_table(data_raw)
 		return 1;
 
 	    const tn = v.remote + '/' + r.group + '/' + r.test;
+	    if (needle && !tn.includes(needle))
+		return 1;
 
 	    if (!(tn in test_row)) {
 		test_row[tn] = {};
