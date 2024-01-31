@@ -45,53 +45,53 @@
       <div class="row">
           <div class="column">
               <div>
-                  <input type="checkbox" id="pass" name="fl-state" checked />
+                  <input type="checkbox" id="pass" name="fl-state" disabled checked />
                   <label for="pass">Pass</label>
               </div>
               <div>
-                  <input type="checkbox" id="skip" name="fl-state" checked />
+                  <input type="checkbox" id="skip" name="fl-state" disabled checked />
                   <label for="skip">Skip</label>
               </div>
               <div>
-                  <input type="checkbox" id="warn" name="fl-state" checked />
+                  <input type="checkbox" id="warn" name="fl-state" disabled checked />
                   <label for="warn">Warn</label>
               </div>
               <div>
-                  <input type="checkbox" id="fail" name="fl-state" checked />
+                  <input type="checkbox" id="fail" name="fl-state" disabled checked />
                   <label for="fail">Fail</label>
               </div>
           </div>
           <div class="column">
               <div>
                   <label for="branch">Branch</label>
-                  <select id="branch" name="fl-branch">
+                  <select id="branch" name="fl-branch" disabled>
                       <option value="">-- all --</option>
                   </select>
               </div>
               <div>
                   <label for="executor">Executor</label>
-                  <select id="executor" name="fl-exec">
+                  <select id="executor" name="fl-exec" disabled>
                       <option value="">-- all --</option>
                   </select>
               </div>
               <div>
                   <label for="test-name">Test</label>
-                  <input type="text" id="test-name" name="fl-state" />
+                  <input type="text" id="test-name" name="fl-state" disabled />
               </div>
           </div>
           <div class="column">
               <div>
-                  <input type="checkbox" id="pw-y" name="fl-pw" checked />
+                  <input type="checkbox" id="pw-y" name="fl-pw" disabled checked />
                   <label for="pw-y">Reported to patchwork</label>
               </div>
               <div>
-                  <input type="checkbox" id="pw-n" name="fl-pw" checked />
+                  <input type="checkbox" id="pw-n" name="fl-pw" disabled checked />
                   <label for="pw-n">Ignored by patchwork</label>
               </div>
           </div>
       </div>
       <div class="row">
-          <p id="fl-warn-box" style="color: red"></p>
+          <p id="fl-warn-box" style="color: red">Loading...</p>
       </div>
     </fieldset>
 </div>

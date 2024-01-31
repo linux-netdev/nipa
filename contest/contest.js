@@ -10,9 +10,6 @@ function colorify_str(value)
     return ret + value + '</span>';
 }
 
-let loaded_data = null;
-let loaded_filters = null;
-
 function pw_filter_r(v, r, drop_reported)
 {
     if (loaded_filters == null)
@@ -123,6 +120,7 @@ function add_option_filter(data_raw, elem_id, field)
 	elem.appendChild(opt);
     }
     elem.addEventListener("change", results_update);
+    elem.disabled = false;
 }
 
 function set_search_from_url()
@@ -150,45 +148,60 @@ function set_search_from_url()
 	test.value = urlParams.get("test");
 }
 
-function results_doit(data_raw)
-{
-    const ingredients = document.querySelectorAll("input[name=fl-state]");
-
-    for (const ingredient of ingredients) {
-	ingredient.addEventListener("change", results_update);
-    }
-
-    $.each(data_raw, function(i, v) {
-	v.start = new Date(v.start);
-	v.end = new Date(v.end);
-    });
-
-    data_raw.sort(function(a, b){return b.end - a.end;});
-
-    add_option_filter(data_raw, "branch", "branch");
-    add_option_filter(data_raw, "executor", "executor");
-
-    loaded_data = data_raw;
-    set_search_from_url();
-    load_result_table(data_raw);
-}
-
 function results_update()
 {
-    if (loaded_data != 1) {
-	load_result_table(loaded_data);
+    load_result_table(loaded_data);
+}
+
+let xfr_todo = 2;
+let loaded_data = null;
+let loaded_filters = null;
+
+function loaded_one()
+{
+    if (--xfr_todo)
+	return;
+
+    // We have all JSONs now, do processing.
+    let warn_box = document.getElementById("fl-warn-box");
+    warn_box.innerHTML = "";
+
+    add_option_filter(loaded_data, "branch", "branch");
+    add_option_filter(loaded_data, "executor", "executor");
+
+    set_search_from_url();
+
+    const fl_state = document.querySelectorAll("input[name=fl-state]");
+    for (const one of fl_state) {
+	one.addEventListener("change", results_update);
+	one.disabled = false;
     }
+
+    const fl_pw = document.querySelectorAll("input[name=fl-pw]");
+    for (const one of fl_pw) {
+	one.addEventListener("change", results_update);
+	one.disabled = false;
+    }
+
+    results_update();
 }
 
 function filters_loaded(data_raw)
 {
-    const ingredients = document.querySelectorAll("input[name=fl-pw]");
-
-    for (const ingredient of ingredients) {
-	ingredient.addEventListener("change", results_update);
-    }
-
     loaded_filters = data_raw;
+    loaded_one();
+}
+
+function results_loaded(data_raw)
+{
+    $.each(data_raw, function(i, v) {
+	v.start = new Date(v.start);
+	v.end = new Date(v.end);
+    });
+    data_raw.sort(function(a, b){return b.end - a.end;});
+
+    loaded_data = data_raw;
+    loaded_one();
 }
 
 function do_it()
@@ -197,15 +210,7 @@ function do_it()
         $.get("contest/filters.json", filters_loaded)
     });
 
-    if (loaded_data == null) {
-	loaded_data = 1;
-
-	$(document).ready(function() {
-            $.get("contest/all-results.json", results_doit)
-	});
-    } else if (loaded_data == 1) {
-	/* nothing, loading in progress */
-    } else {
-	load_result_table(loaded_data);
-    }
+    $(document).ready(function() {
+        $.get("contest/all-results.json", results_loaded)
+    });
 }
