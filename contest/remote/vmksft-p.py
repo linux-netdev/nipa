@@ -71,7 +71,7 @@ def get_prog_list(vm, target):
     return [e.split(":")[1].strip() for e in targets]
 
 
-def vm_thread(config, results_path, thr_id, in_queue, out_queue):
+def _vm_thread(config, results_path, thr_id, in_queue, out_queue):
     target = config.get('ksft', 'target')
     vm = None
     vm_id = 1
@@ -147,6 +147,14 @@ def vm_thread(config, results_path, thr_id, in_queue, out_queue):
         vm.stop()
         vm.dump_log(results_path + f'/vm-stop-thr{thr_id}-{vm_id}')
     return
+
+
+def vm_thread(config, results_path, thr_id, in_queue, out_queue):
+    try:
+        _vm_thread(config, results_path, thr_id, in_queue, out_queue)
+    except Exception:
+        print(f"ERROR: thr-{thr_id} has crashed")
+        raise
 
 
 def test(binfo, rinfo, cbarg):
