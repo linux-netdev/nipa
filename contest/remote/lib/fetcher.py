@@ -103,6 +103,15 @@ class Fetcher:
 
         self._result_set(binfo['branch'], url)
 
+    def _clean_old_branches(self, remote, current):
+        ret = subprocess.run('git branch', shell=True, capture_output=True)
+        existing = set([x.strip() for x in ret.stdout.decode('utf-8').split('\n')])
+
+        for b in remote:
+            if b["branch"] in existing and b["branch"] != current:
+                subprocess.run('git branch -d ' + b["branch"],
+                               cwd=self._tree_path, shell=True)
+
     def _run_once(self):
         r = requests.get(self._branches_url)
         branches = json.loads(r.content.decode('utf-8'))
@@ -123,9 +132,11 @@ class Fetcher:
         print("Testing ", to_test)
         self._last_date = newest
         # For now assume URL is in one of the remotes
-        subprocess.run('git fetch --all', cwd=self._tree_path, shell=True)
+        subprocess.run('git fetch --all --prune', cwd=self._tree_path,
+                       shell=True)
         subprocess.run('git checkout ' + to_test["branch"],
                        cwd=self._tree_path, shell=True, check=True)
+        self._clean_old_branches(branches, to_test["branch"])
         self._run_test(to_test)
         return self.single_shot
 
