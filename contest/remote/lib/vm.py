@@ -329,7 +329,7 @@ class VM:
 
 
 def new_vm(results_path, vm_id, thr=None, vm=None, config=None, cwd=None):
-    thr_pfx = f"thr{thr}-" if thr else ""
+    thr_pfx = f"thr{thr}-" if thr is not None else ""
     if vm is None:
         vm = VM(config)
     # For whatever reason starting sometimes hangs / crashes
