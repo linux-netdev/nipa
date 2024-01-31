@@ -153,6 +153,8 @@ class VM:
             for export in exports.split(','):
                 self.cmd("export " + export)
                 self.drain_to_prompt()
+        self.cmd("env")
+        self.drain_to_prompt()
 
     def stop(self):
         self.cmd("exit")
