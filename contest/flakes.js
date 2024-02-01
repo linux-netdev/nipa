@@ -142,10 +142,13 @@ function loaded_one()
 	return;
 
     // We have all JSONs now, do processing.
-    const ingredients = document.querySelectorAll("input[name=fl-pw]");
+    let warn_box = document.getElementById("fl-warn-box");
+    warn_box.innerHTML = "";
 
-    for (const ingredient of ingredients) {
-	ingredient.addEventListener("change", results_update);
+    const fl_pw = document.querySelectorAll("[name=fl-pw]");
+    for (const one of fl_pw) {
+	one.addEventListener("change", results_update);
+	one.disabled = false;
     }
 
     results_update();

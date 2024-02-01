@@ -48,22 +48,25 @@
         <div class="row">
             <div class="column">
                 <label for="tn-needle">Name contains: </label>
-                <input type="text" id="tn-needle" name="fl-pw">
+                <input type="text" id="tn-needle" name="fl-pw" disabled>
             </div>
             <div class="column">
                 <label for="min-flip">Min state flips: </label>
-                <input type="number" id="min-flip" name="fl-pw" min="0" value="1">
+                <input type="number" id="min-flip" name="fl-pw" min="0" value="1" disabled>
                 <br />
                 <label for="br-cnt">Number of branches / columns: </label>
-                <input type="number" id="br-cnt" name="fl-pw" min="1" value="100">
+                <input type="number" id="br-cnt" name="fl-pw" min="1" value="100" disabled>
             </div>
             <div class="column">
-                <input type="checkbox" id="pw-y" name="fl-pw" checked />
+                <input type="checkbox" id="pw-y" name="fl-pw" disabled checked />
                 <label for="pw-y">Reported to patchwork</label>
                 <br />
-                <input type="checkbox" id="pw-n" name="fl-pw" checked />
+                <input type="checkbox" id="pw-n" name="fl-pw" disabled checked />
                 <label for="pw-n">Ignored by patchwork</label>
             </div>
+        </div>
+        <div class="row">
+            <span id="fl-warn-box" style="color: red">Loading...</span>
         </div>
     </fieldset>
 </div>
