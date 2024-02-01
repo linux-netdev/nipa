@@ -161,19 +161,11 @@ function loaded_one()
 	return;
 
     // We have all JSONs now, do processing.
-    let warn_box = document.getElementById("fl-warn-box");
-    warn_box.innerHTML = "";
-
     add_option_filter(loaded_data, "branch", "branch");
     add_option_filter(loaded_data, "executor", "executor");
 
     set_search_from_url();
-
-    const fl_pw = document.querySelectorAll("[name=fl-pw]");
-    for (const one of fl_pw) {
-	one.addEventListener("change", results_update);
-	one.disabled = false;
-    }
+    nipa_filters_enable(results_update);
 
     results_update();
 }
@@ -201,7 +193,6 @@ function do_it()
     $(document).ready(function() {
         $.get("contest/filters.json", filters_loaded)
     });
-
     $(document).ready(function() {
         $.get("contest/all-results.json", results_loaded)
     });

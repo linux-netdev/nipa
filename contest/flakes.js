@@ -142,15 +142,7 @@ function loaded_one()
 	return;
 
     // We have all JSONs now, do processing.
-    let warn_box = document.getElementById("fl-warn-box");
-    warn_box.innerHTML = "";
-
-    const fl_pw = document.querySelectorAll("[name=fl-pw]");
-    for (const one of fl_pw) {
-	one.addEventListener("change", results_update);
-	one.disabled = false;
-    }
-
+    nipa_filters_enable(results_update);
     results_update();
 }
 
