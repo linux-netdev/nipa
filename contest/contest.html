@@ -64,6 +64,12 @@
           </div>
           <div class="column">
               <div>
+                  <label for="remote">Remote</label>
+                  <select id="remote" name="fl-pw" disabled>
+                      <option value="">-- all --</option>
+                  </select>
+              </div>
+              <div>
                   <label for="branch">Branch</label>
                   <select id="branch" name="fl-pw" disabled>
                       <option value="">-- all --</option>
@@ -75,10 +81,6 @@
                       <option value="">-- all --</option>
                   </select>
               </div>
-              <div>
-                  <label for="test">Test</label>
-                  <input type="text" id="test" name="fl-pw" disabled />
-              </div>
           </div>
           <div class="column">
               <div>
@@ -88,6 +90,10 @@
               <div>
                   <input type="checkbox" id="pw-n" name="fl-pw" disabled checked />
                   <label for="pw-n">Ignored by patchwork</label>
+              </div>
+              <div>
+                  <label for="test">Test</label>
+                  <input type="text" id="test" name="fl-pw" disabled />
               </div>
           </div>
       </div>

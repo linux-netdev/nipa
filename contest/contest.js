@@ -50,6 +50,7 @@ function load_result_table(data_raw)
     };
     var branch_filter = document.getElementById("branch").value;
     var exec_filter = document.getElementById("executor").value;
+    var remote_filter = document.getElementById("remote").value;
     var test_filter = document.getElementById("test").value;
     var pw_n = document.getElementById("pw-n").checked;
     var pw_y = document.getElementById("pw-y").checked;
@@ -71,6 +72,9 @@ function load_result_table(data_raw)
 	    return 1;
 	if (exec_filter &&
 	    exec_filter != v.executor)
+	    return 1;
+	if (remote_filter &&
+	    remote_filter != v.remote)
 	    return 1;
 
 	$.each(v.results, function(j, r) {
@@ -138,6 +142,7 @@ function loaded_one()
     // We have all JSONs now, do processing.
     add_option_filter(loaded_data, "branch", "branch");
     add_option_filter(loaded_data, "executor", "executor");
+    add_option_filter(loaded_data, "remote", "remote");
 
     nipa_filters_set_from_url();
     nipa_filters_enable(results_update);
