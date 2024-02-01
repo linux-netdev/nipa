@@ -65,6 +65,20 @@
                 <input type="checkbox" id="pw-n" name="fl-pw" disabled checked />
                 <label for="pw-n">Ignored by patchwork</label>
             </div>
+            <div class="column">
+                <fieldset>
+                    <legend>Sort:</legend>
+
+                    <div>
+                        <input type="radio" id="sort-flips" name="fl-pw" value="cnt" disabled checked />
+                        <label for="sort-flips">flips</label>
+                    </div>
+                    <div>
+                        <input type="radio" id="sort-streak" name="fl-pw" value="streak" disabled />
+                        <label for="sort-streak">current streak</label>
+                    </div>
+                </fieldset>
+            </div>
         </div>
         <div class="row">
             <span id="fl-warn-box" style="color: red">Loading...</span>

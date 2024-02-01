@@ -41,6 +41,13 @@ function pw_filter_r(v, r, drop_reported)
     return false;
 }
 
+function get_sort_key()
+{
+    if (document.getElementById("sort-streak").checked)
+	return "streak";
+    return "cnt";
+}
+
 function load_result_table(data_raw)
 {
     // Get all branch names
@@ -80,24 +87,33 @@ function load_result_table(data_raw)
 
     // Sort from most to least flaky
     for (const [tn, entries] of Object.entries(test_row)) {
-	let count = 0;
+	let count = 0, streak = 0;
 	let prev = "pass";
 
 	for (let i = 0; i < branches.length; i++) {
 	    let current = entries[branches[i]];
+
+	    if (current == "pass" && count == 0)
+		streak++;
+
 	    if (current != "" && current != prev) {
 		prev = current;
 		count++;
 	    }
 	}
 	test_row[tn]["cnt"] = count;
+	test_row[tn]["streak"] = streak;
     }
 
     // Filter out those not flaky enough to show
     var min_flip = document.getElementById("min-flip").value;
     let test_names = Array.from(Object.keys(test_row));
     test_names = test_names.filter(function(a){return test_row[a].cnt >= min_flip;});
-    test_names.sort(function(a, b){return test_row[b].cnt - test_row[a].cnt;});
+    // Sort by the right key
+    var sort_key = get_sort_key();
+    test_names.sort(
+	function(a, b) { return test_row[b][sort_key] - test_row[a][sort_key]; }
+    );
 
     // Remove all rows but first (leave headers)
     $("#results tr").remove();
