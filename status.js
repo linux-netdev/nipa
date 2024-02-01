@@ -317,10 +317,12 @@ function colorify_str_psf(str_psf, name, value, color)
 
 function avg_time_e(avgs, v)
 {
-    if (!(v.executor in avgs))
+    const ent_name = v.remote + '/' + v.executor;
+
+    if (!(ent_name in avgs))
 	return 0;
-    return avgs[v.executor]["min-dly"] +
-	avgs[v.executor]["sum"] / avgs[v.executor]["cnt"];
+    return avgs[ent_name]["min-dly"] +
+	avgs[ent_name]["sum"] / avgs[ent_name]["cnt"];
 }
 
 function pw_filted_r(v, r)
@@ -476,17 +478,19 @@ function load_result_table(data_raw)
 	if (!v.results)
 	    return 1;
 
-	if (!(v.executor in avgs))
-	    avgs[v.executor] = {"cnt": 0, "sum": 0, "min-dly": 0};
-	avgs[v.executor]["cnt"] += 1;
-	avgs[v.executor]["sum"] += (v.end - v.start);
+	const ent_name = v.remote + '/' + v.executor;
+
+	if (!(ent_name in avgs))
+	    avgs[ent_name] = {"cnt": 0, "sum": 0, "min-dly": 0};
+	avgs[ent_name]["cnt"] += 1;
+	avgs[ent_name]["sum"] += (v.end - v.start);
 
 	if (v.branch in branch_start) {
 	    const dly = v.start - branch_start[v.branch];
-	    const old = avgs[v.executor]["min-dly"];
+	    const old = avgs[ent_name]["min-dly"];
 
 	    if (!old || old > dly)
-		avgs[v.executor]["min-dly"] = dly;
+		avgs[ent_name]["min-dly"] = dly;
 	}
     });
 
