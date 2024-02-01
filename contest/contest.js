@@ -119,8 +119,6 @@ function add_option_filter(data_raw, elem_id, field)
 	opt.innerHTML = value;
 	elem.appendChild(opt);
     }
-    elem.addEventListener("change", results_update);
-    elem.disabled = false;
 }
 
 function set_search_from_url()
@@ -171,13 +169,7 @@ function loaded_one()
 
     set_search_from_url();
 
-    const fl_state = document.querySelectorAll("input[name=fl-state]");
-    for (const one of fl_state) {
-	one.addEventListener("change", results_update);
-	one.disabled = false;
-    }
-
-    const fl_pw = document.querySelectorAll("input[name=fl-pw]");
+    const fl_pw = document.querySelectorAll("[name=fl-pw]");
     for (const one of fl_pw) {
 	one.addEventListener("change", results_update);
 	one.disabled = false;
