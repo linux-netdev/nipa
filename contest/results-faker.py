@@ -50,9 +50,14 @@ def main() -> None:
         br_dt += datetime.timedelta(seconds=3)
         run["end"] = br_dt.isoformat()
 
+        tail = br["url"].find('.git ')
+        if br["url"].startswith('https://github.com') and tail > 0:
+            br_url = br["url"][:tail] + "/commits/" + br["url"][tail + 5:]
+        else:
+            br_url = "https://netdev.bots.linux.dev/static/nipa/branches.json"
+
         run["results"] = [
-            {"test": "branch-created", "group": "---", "result": "pass",
-             "link": "https://netdev.bots.linux.dev/static/nipa/branches.json"}
+            {"test": "branch-created", "group": "---", "result": "pass", "link": br_url}
         ]
 
         with open(os.path.join(directory, fname), "w") as fp:
