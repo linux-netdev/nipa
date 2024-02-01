@@ -50,7 +50,7 @@ function load_result_table(data_raw)
     };
     var branch_filter = document.getElementById("branch").value;
     var exec_filter = document.getElementById("executor").value;
-    var test_filter = document.getElementById("test-name").value;
+    var test_filter = document.getElementById("test").value;
     var pw_n = document.getElementById("pw-n").checked;
     var pw_y = document.getElementById("pw-y").checked;
 
@@ -121,31 +121,6 @@ function add_option_filter(data_raw, elem_id, field)
     }
 }
 
-function set_search_from_url()
-{
-    const urlParams = new URLSearchParams(window.location.search);
-    const results = ["pass", "skip", "warn", "fail", "pw-y", "pw-n"];
-
-    for (const r of results) {
-	const elem = document.getElementById(r);
-
-	if (urlParams.get(r) == "0")
-	    elem.checked = false;
-    }
-
-    const br = document.getElementById("branch");
-    if (urlParams.get("branch"))
-	br.value = urlParams.get("branch");
-
-    const ex = document.getElementById("executor");
-    if (urlParams.get("executor"))
-	ex.value = urlParams.get("executor");
-
-    const test = document.getElementById("test-name");
-    if (urlParams.get("test"))
-	test.value = urlParams.get("test");
-}
-
 function results_update()
 {
     load_result_table(loaded_data);
@@ -164,7 +139,7 @@ function loaded_one()
     add_option_filter(loaded_data, "branch", "branch");
     add_option_filter(loaded_data, "executor", "executor");
 
-    set_search_from_url();
+    nipa_filters_set_from_url();
     nipa_filters_enable(results_update);
 
     results_update();

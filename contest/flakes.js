@@ -142,6 +142,7 @@ function loaded_one()
 	return;
 
     // We have all JSONs now, do processing.
+    nipa_filters_set_from_url();
     nipa_filters_enable(results_update);
     results_update();
 }
