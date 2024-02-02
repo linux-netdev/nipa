@@ -33,7 +33,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--mdir', required=True, help='path to the directory with the patches')
 parser.add_argument('--tree', required=True, help='path to the tree to test on')
 parser.add_argument('--tree-name', default='unknown', help='the tree name to expect')
-parser.add_argument('--tree-branch', default='master',
+parser.add_argument('--tree-branch', default='main',
                     help='the branch or commit to use as a base for applying patches')
 parser.add_argument('--result-dir', default=results_dir,
                     help='the directory where results will be generated')

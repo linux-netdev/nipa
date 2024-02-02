@@ -39,7 +39,7 @@ class Tree:
         self.branch = branch
 
         if remote and not branch:
-            self.branch = remote + "/master"
+            self.branch = remote + "/main"
 
         self._saved_path = None
 
