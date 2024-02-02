@@ -210,6 +210,8 @@ class VM:
     def drain_to_prompt(self, prompt="xx__-> ", dump_after=None):
         if dump_after is None:
             dump_after = int(self.config.get('vm', 'default_timeout'))
+        hard_stop = int(self.config.get('vm', 'hard_timeout',
+                                        fallback=(1 << 63)))
         waited = 0
         total_wait = 0
         stdout = ""
@@ -238,8 +240,11 @@ class VM:
                 waited += 0.03
                 sleep(0.03)
 
+            if total_wait > hard_stop:
+                waited = 1 << 63
             if waited > dump_after:
-                print("WAIT TIMEOUT retcode:", self.p.returncode)
+                print("WAIT TIMEOUT retcode:", self.p.returncode,
+                      "waited:", waited, "total:", total_wait)
                 self.log_out += '\nWAIT TIMEOUT stdout\n'
                 self.log_err += '\nWAIT TIMEOUT stderr\n'
                 raise TimeoutError(stderr, stdout)

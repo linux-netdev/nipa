@@ -100,6 +100,7 @@ def _vm_thread(config, results_path, thr_id, in_queue, out_queue):
             retcode = vm.bash_prev_retcode()
         except TimeoutError:
             try:
+                print(f"INFO: thr-{thr_id} test timed out:", prog)
                 vm.ctrl_c()
                 vm.ctrl_c()
                 vm.drain_to_prompt(dump_after=10)
@@ -123,6 +124,7 @@ def _vm_thread(config, results_path, thr_id, in_queue, out_queue):
             result = 'fail'
 
         if vm.fail_state == 'oops':
+            print(f"INFO: thr-{thr_id} test crashed kernel:", prog)
             vm.extract_crash(results_path + f'/vm-crash-thr{thr_id}-{vm_id}')
             # Extraction will clear/discard false-positives (ignored traces)
             # check VM is still in failed state
