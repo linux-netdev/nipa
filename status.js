@@ -425,7 +425,10 @@ function load_result_table_one(data_raw, table, reported, avgs)
 		var remain = expect - passed;
 		var color = "pink";
 
-		if (remain > 0) {
+		if (v.end == 0) {
+		    pend = "no result";
+		    color = "red";
+		} else if (remain > 0) {
 		    pend = "pending (expected in " + (msec_to_str(remain)).toString() + ")";
 		    color = "blue";
 		} else if (remain < -1000 * 60 * 60 * 2) { /* 2 h */
@@ -455,11 +458,15 @@ function load_result_table_one(data_raw, table, reported, avgs)
     });
 }
 
+function rem_exe(v)
+{
+    return v.remote + "/" + v.executor;
+}
+
 function load_result_table(data_raw)
 {
     var table = document.getElementById("contest");
     var table_nr = document.getElementById("contest-purgatory");
-
     var branch_start = {};
 
     $.each(data_raw, function(i, v) {
@@ -472,12 +479,12 @@ function load_result_table(data_raw)
             branch_start[v.branch] = v.start;
     });
 
-    data_raw.sort(function(a, b){return b.end - a.end;});
-
+    // Continue with only 6 most recent branches
     let recent_branches = new Set(Array.from(branches).sort().slice(-6));
     data_raw = $.grep(data_raw,
 		      function(v, i) { return recent_branches.has(v.branch); });
 
+    // Calculate expected runtimes
     var avgs = {};
     $.each(data_raw, function(i, v) {
 	if (!v.results)
@@ -499,8 +506,43 @@ function load_result_table(data_raw)
 	}
     });
 
+    // Fill in runs for "AWOL" executors
+    let known_execs = {};
+    let branch_execs = {};
+    for (v of data_raw) {
+	let re = rem_exe(v);
+
+	if (!(v.branch in branch_execs))
+	    branch_execs[v.branch] = new Set();
+	branch_execs[v.branch].add(re);
+
+	if (!(re in known_execs))
+	    known_execs[re] = {
+		"executor": v.executor,
+		"remote" : v.remote,
+		"branches" : new Set()
+	    };
+	known_execs[re].branches.add(v.branch);
+    }
+
+    let known_exec_set = new Set(Object.keys(known_execs));
+    for (br of recent_branches) {
+	for (re of known_exec_set) {
+	    if (branch_execs[br].has(re))
+		continue;
+
+	    data_raw.push({
+		"executor" : known_execs[re].executor,
+		"remote" : known_execs[re].remote,
+		"branch" : br,
+		"end" : 0,
+	    });
+	}
+    }
+
+    // Sort & display
     data_raw.sort(function(a, b){return avg_time_e(avgs, b) - avg_time_e(avgs, a);});
-    data_raw.sort(function(a, b){return b.end - a.end;});
+    data_raw.sort(function(a, b){return b.end == 0 || b.end - a.end;});
     data_raw.sort(function(a, b){return b.branch > a.branch;});
 
     reported_execs.add("brancher");
