@@ -99,13 +99,21 @@ function load_result_table(data_raw)
 	    var res = row.insertCell(6);
 
 	    date.innerHTML = v.end.toLocaleString();
-	    branch.innerHTML = v.branch;
+	    branch.innerHTML = "<a href=\"" + branch_urls[v.branch] + "\">" + v.branch + "</a>";
 	    remote.innerHTML = v.remote;
 	    exe.innerHTML = v.executor;
 	    group.innerHTML = r.group;
 	    test.innerHTML = "<a href=\"" + r.link + "\">" + r.test + "</a>";
 	    res.innerHTML = colorify_str(r.result);
 	});
+    });
+}
+
+function find_branch_urls(loaded_data)
+{
+    $.each(loaded_data, function(i, v) {
+	if (v.remote == "brancher")
+	    branch_urls[v.branch] = v.results[0].link;
     });
 }
 
@@ -131,6 +139,7 @@ function results_update()
 }
 
 let xfr_todo = 2;
+let branch_urls = {};
 let loaded_data = null;
 let loaded_filters = null;
 
@@ -163,6 +172,8 @@ function results_loaded(data_raw)
 	v.end = new Date(v.end);
     });
     data_raw.sort(function(a, b){return b.end - a.end;});
+
+    find_branch_urls(data_raw);
 
     loaded_data = data_raw;
     loaded_one();
