@@ -1,5 +1,5 @@
 {
-  "source": "https://raw.githubusercontent.com/gregkh/gregkh-linux/master/work/verify_signedoff.sh",
+  "source": "https://raw.githubusercontent.com/gregkh/gregkh-linux/master/work/scripts/verify_signedoff.sh",
   "run": ["verify_signedoff.sh", "HEAD~..HEAD"],
   "pull-requests": true
 }
