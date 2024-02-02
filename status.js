@@ -466,12 +466,17 @@ function load_result_table(data_raw)
 	v.start = new Date(v.start);
 	v.end = new Date(v.end);
 
+	branches.add(v.branch);
+
 	if (v.remote == "brancher")
             branch_start[v.branch] = v.start;
     });
 
     data_raw.sort(function(a, b){return b.end - a.end;});
-    data_raw = data_raw.slice(0, 200);
+
+    let recent_branches = new Set(Array.from(branches).sort().slice(-6));
+    data_raw = $.grep(data_raw,
+		      function(v, i) { return recent_branches.has(v.branch); });
 
     var avgs = {};
     $.each(data_raw, function(i, v) {
@@ -498,8 +503,6 @@ function load_result_table(data_raw)
     data_raw.sort(function(a, b){return b.end - a.end;});
     data_raw.sort(function(a, b){return b.branch > a.branch;});
 
-    data_raw = data_raw.slice(0, 75);
-
     reported_execs.add("brancher");
     load_result_table_one(data_raw, table, true, avgs);
     reported_execs.delete("brancher");
@@ -508,6 +511,7 @@ function load_result_table(data_raw)
 
 let xfr_todo = 3;
 let all_results = null;
+let branches = new Set();
 let reported_execs = new Set();
 let filtered_tests = new Array();
 let branch_results = {};
