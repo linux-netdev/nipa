@@ -97,14 +97,21 @@ function load_result_table(data_raw)
 	    var group = row.insertCell(4);
 	    var test = row.insertCell(5);
 	    var res = row.insertCell(6);
+	    let row_id = 7;
+	    var outputs = row.insertCell(row_id++);
+	    var flake = row.insertCell(row_id++);
+	    var hist = row.insertCell(row_id++);
 
 	    date.innerHTML = v.end.toLocaleString();
 	    branch.innerHTML = "<a href=\"" + branch_urls[v.branch] + "\">" + v.branch + "</a>";
 	    remote.innerHTML = v.remote;
 	    exe.innerHTML = v.executor;
 	    group.innerHTML = r.group;
-	    test.innerHTML = "<a href=\"" + r.link + "\">" + r.test + "</a>";
+	    test.innerHTML = "<b>" + r.test + "</b>";
 	    res.innerHTML = colorify_str(r.result);
+	    outputs.innerHTML = "<a href=\"" + r.link + "\">outputs</a>";
+	    hist.innerHTML = "<a href=\"contest.html?test=" + r.test + "\">history</a>";
+	    flake.innerHTML = "<a href=\"flakes.html?tn-needle=" + r.test + "\">matrix</a>";
 	});
     });
 }
