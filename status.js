@@ -538,6 +538,7 @@ function load_result_table(data_raw)
 		"executor" : known_execs[re].executor,
 		"remote" : known_execs[re].remote,
 		"branch" : br,
+		"start" : branch_start[br],
 		"end" : 0,
 	    });
 	}
@@ -549,7 +550,7 @@ function load_result_table(data_raw)
 	    return b.branch > a.branch ? 1 : -1;
 
 	// fake entry for "no result" always up top
-	if (b.end == 0)
+	if (b.end === 0)
 	    return 1;
 
 	// both pending, sort by expected time
@@ -558,6 +559,8 @@ function load_result_table(data_raw)
 	// pending before not pending
 	if (b.results == null)
 	    return 1;
+	if (a.results == null)
+	    return -1;
 
 	return b.end - a.end;
     });
