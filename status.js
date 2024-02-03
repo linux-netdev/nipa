@@ -427,7 +427,10 @@ function load_result_table_one(data_raw, table, reported, avgs)
 
 		if (v.end == 0) {
 		    pend = "no result";
-		    color = "red";
+		    if (passed > 1000 * 60 * 15 /* 15 min */)
+			color = "red";
+		    else
+			color = "blue";
 		} else if (remain > 0) {
 		    pend = "pending (expected in " + (msec_to_str(remain)).toString() + ")";
 		    color = "blue";
