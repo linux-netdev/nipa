@@ -197,6 +197,14 @@ class VM:
         self.p.stdin.write(b'\x03')
         self.p.stdin.flush()
 
+    def kill_current_cmd(self):
+        try:
+            self.ctrl_c()
+            self.ctrl_c()
+            self.drain_to_prompt(dump_after=12)
+        except TimeoutError:
+            print(f"WARN{self.print_pfx} failed to interrupt process")
+
     def _read_pipe_nonblock(self, pipe):
         read_some = False
         output = ""

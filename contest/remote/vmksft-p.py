@@ -99,13 +99,8 @@ def _vm_thread(config, results_path, thr_id, in_queue, out_queue):
             vm.drain_to_prompt()
             retcode = vm.bash_prev_retcode()
         except TimeoutError:
-            try:
-                print(f"INFO: thr-{thr_id} test timed out:", prog)
-                vm.ctrl_c()
-                vm.ctrl_c()
-                vm.drain_to_prompt(dump_after=10)
-            except TimeoutError:
-                pass
+            print(f"INFO: thr-{thr_id} test timed out:", prog)
+            vm.kill_current_cmd()
             retcode = 1
 
         t2 = datetime.datetime.now()
