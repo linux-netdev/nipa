@@ -62,11 +62,13 @@ def crash_finger_print(lines):
 
 
 class VM:
-    def __init__(self, config):
+    def __init__(self, config, vm_name=""):
         self.fail_state = ""
         self.p = None
         self.procs = []
         self.config = config
+        self.vm_name = vm_name
+        self.print_pfx = (": " + vm_name) if vm_name else ":"
 
         self.cfg_boot_to = int(config.get('vm', 'boot_timeout'))
 
@@ -103,7 +105,7 @@ class VM:
         if extra_configs:
             configs += extra_configs
 
-        print("INFO: building kernel")
+        print(f"INFO{self.print_pfx} building kernel")
         # Make sure we rebuild, config and module deps can be stale otherwise
         self.tree_cmd("make mrproper")
         self.tree_cmd("vng -v -b" + " -f ".join([""] + configs))
@@ -121,7 +123,7 @@ class VM:
         if cpus:
             cmd += ["--cpus", cpus]
 
-        print("INFO: VM starting:", " ".join(cmd))
+        print(f"INFO{self.print_pfx} VM starting:", " ".join(cmd))
         self.p = self.tree_popen(cmd)
 
         for pipe in [self.p.stdout, self.p.stderr]:
@@ -132,7 +134,7 @@ class VM:
         init_prompt = self.config.get('vm', 'init_prompt')
         if init_prompt[-1] != ' ':
             init_prompt += ' '
-        print(f"INFO: expecting prompt: '{init_prompt}'")
+        print(f"INFO{self.print_pfx} expecting prompt: '{init_prompt}'")
         try:
             self.drain_to_prompt(prompt=init_prompt, dump_after=self.cfg_boot_to)
         finally:
@@ -140,7 +142,7 @@ class VM:
             proc = psutil.Process(self.p.pid)
             self.procs = proc.children(recursive=True) + [proc]
 
-        print("INFO: reached initial prompt")
+        print(f"INFO{self.print_pfx} reached initial prompt")
         self.cmd("PS1='xx__-> '")
         self.drain_to_prompt()
 
@@ -164,7 +166,7 @@ class VM:
         try:
             stdout, stderr = self.p.communicate(timeout=3)
         except subprocess.TimeoutExpired:
-            print("WARNING: process did not exit, sending a KILL to", self.p.pid, self.procs)
+            print(f"WARN{self.print_pfx} process did not exit, sending a KILL to", self.p.pid, self.procs)
             for p in self.procs:
                 try:
                     p.kill()
@@ -177,7 +179,7 @@ class VM:
         stdout = stdout.decode("utf-8", "ignore")
         stderr = stderr.decode("utf-8", "ignore")
 
-        print("INFO: VM stopped")
+        print(f"INFO{self.print_pfx} VM stopped")
         self.log_out += stdout
         self.log_err += stderr
 
@@ -246,7 +248,7 @@ class VM:
             if total_wait > hard_stop:
                 waited = 1 << 63
             if waited > dump_after:
-                print("WAIT TIMEOUT retcode:", self.p.returncode,
+                print(f"WARN{self.print_pfx} TIMEOUT retcode:", self.p.returncode,
                       "waited:", waited, "total:", total_wait)
                 self.log_out += '\nWAIT TIMEOUT stdout\n'
                 self.log_err += '\nWAIT TIMEOUT stderr\n'
@@ -309,7 +311,7 @@ class VM:
             if in_crash:
                 crash_lines.append(line)
         if not crash_lines:
-            print("WARNING: extract_crash found no crashes")
+            print(f"WARN{self.print_pfx} extract_crash found no crashes")
             return
 
         proc = self.tree_popen("./scripts/decode_stacktrace.sh vmlinux auto ./".split())
@@ -329,7 +331,7 @@ class VM:
             ignore = set(self.filter_data["ignore-crashes"])
             seen = set(finger_prints)
             if not seen - ignore:
-                print("INFO: all crashes were ignored")
+                print(f"INFO{self.print_pfx} all crashes were ignored")
                 self.fail_state = ""
 
     def bash_prev_retcode(self):
@@ -341,7 +343,7 @@ class VM:
 def new_vm(results_path, vm_id, thr=None, vm=None, config=None, cwd=None):
     thr_pfx = f"thr{thr}-" if thr is not None else ""
     if vm is None:
-        vm = VM(config)
+        vm = VM(config, vm_name=f"{thr_pfx}{vm_id}")
     # For whatever reason starting sometimes hangs / crashes
     i = 0
     while True:
@@ -354,7 +356,7 @@ def new_vm(results_path, vm_id, thr=None, vm=None, config=None, cwd=None):
             i += 1
             if i > 4:
                 raise
-            print(f"WARNING: VM did not start, retrying {i}/4")
+            print(f"WARN{vm.print_pfx} VM did not start, retrying {i}/4")
             vm.dump_log(results_path + f'/vm-crashed-{thr_pfx}{vm_id}-{i}')
             vm.stop()
 
