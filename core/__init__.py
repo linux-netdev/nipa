@@ -19,6 +19,7 @@ NIPA_DIR : str
 
 import os
 
+from .lifetime import NipaLifetime
 from .logger import log, log_open_sec, log_end_sec, log_init
 from .patch import Patch
 from .test import Test

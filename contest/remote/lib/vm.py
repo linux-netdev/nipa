@@ -260,7 +260,12 @@ class VM:
                       "waited:", waited, "total:", total_wait)
                 self.log_out += '\nWAIT TIMEOUT stdout\n'
                 self.log_err += '\nWAIT TIMEOUT stderr\n'
+                if not self.fail_state:
+                    self.fail_state = "timeout"
                 raise TimeoutError(stderr, stdout)
+
+        if self.fail_state == "timeout":
+            self.fail_state = ""
 
         return stdout, stderr
 
