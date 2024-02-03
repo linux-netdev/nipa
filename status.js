@@ -344,7 +344,7 @@ function load_result_table_one(data_raw, table, reported, avgs)
 	if (!reported_execs.has(v.executor) && reported)
 	    return 1;
 
-	var pass = 0, skip = 0, warn = 0, fail = 0, total = 0, ignored = 0;
+	var pass = 0, skip = 0, fail = 0, total = 0, ignored = 0;
 	var link = v.link;
 	$.each(v.results, function(i, r) {
 	    if (pw_filted_r(v, r) != reported) {
@@ -356,9 +356,7 @@ function load_result_table_one(data_raw, table, reported, avgs)
 		pass++;
 	    } else if (r.result == "skip") {
 		skip++;
-	    } else if (r.result == "warn") {
-		warn++;
-	    } else if (r.result == "fail") {
+	    } else {
 		fail++;
 	    }
 
@@ -373,7 +371,6 @@ function load_result_table_one(data_raw, table, reported, avgs)
 	var str_psf = {"str": "", "overall": ""};
 
 	colorify_str_psf(str_psf, "fail", fail, "red");
-	colorify_str_psf(str_psf, "warn", warn, "orange");
 	colorify_str_psf(str_psf, "skip", skip, "blue");
 	colorify_str_psf(str_psf, "pass", pass, "green");
 
