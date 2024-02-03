@@ -546,18 +546,18 @@ function load_result_table(data_raw)
     // Sort & display
     data_raw.sort(function(a, b){
 	if (b.branch != a.branch)
-	    return b.branch > a.branch;
+	    return b.branch > a.branch ? 1 : -1;
 
 	// fake entry for "no result" always up top
 	if (b.end == 0)
-	    return true;
+	    return 1;
 
 	// both pending, sort by expected time
 	if (a.results == null && b.results == null)
 	    return avg_time_e(avgs, b) - avg_time_e(avgs, a);
 	// pending before not pending
 	if (b.results == null)
-	    return true;
+	    return 1;
 
 	return b.end - a.end;
     });
