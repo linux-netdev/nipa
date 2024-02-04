@@ -443,7 +443,10 @@ function load_result_table_one(data_raw, table, reported, avgs)
 	    let res = row.insertCell(2);
 	    let br_res;
 
-	    remote.innerHTML = v.start.toLocaleString();
+	    if (v.start)
+		remote.innerHTML = v.start.toLocaleString();
+	    else
+		remote.innerHTML = "unknown";
 	    remote.setAttribute("colspan", "2");
 	    branch.innerHTML = a + v.branch + "</a>";
 	    branch.setAttribute("colspan", "2");
