@@ -27,7 +27,7 @@ def sig_init():
 
 def nipa_git_version():
     cwd = os.path.dirname(os.path.abspath(__file__))
-    res = subprocess.run(["git", "show", "HEAD", "--format=quote", "--no-patch"],
+    res = subprocess.run(["git", "show", "HEAD", "--format=reference", "--no-patch"],
                          capture_output=True, cwd=cwd, check=True)
     return res.stdout.decode("utf-8").strip()
 
