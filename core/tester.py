@@ -162,25 +162,27 @@ class Tester(threading.Thread):
         tree.apply(series)
         for test in self.series_tests:
             test.exec(tree, series, series_dir)
-        tree.reset(fetch=False)
 
-        cnt = 1
-        for patch in series.patches:
-            core.log_open_sec(f"Testing patch {cnt}/{len(series.patches)}| {patch.title}")
-            cnt += 1
+        tcnt = 0
+        for test in self.patch_tests:
+            tcnt += 1
+            tree.reset(fetch=False)
 
-            patch_dir = os.path.join(series_dir, str(patch.id))
-            if not os.path.exists(patch_dir):
-                os.makedirs(patch_dir)
+            pcnt = 0
+            for patch in series.patches:
+                pcnt += 1
+                cnts = f"{tcnt}/{len(self.patch_tests)}|{pcnt}/{len(series.patches)}"
+                core.log_open_sec(f"Testing patch {cnts}| {patch.title}")
 
-            try:
-                tree.apply(patch)
+                patch_dir = os.path.join(series_dir, str(patch.id))
+                if not os.path.exists(patch_dir):
+                    os.makedirs(patch_dir)
 
-                for test in self.patch_tests:
+                try:
+                    tree.apply(patch)
                     test.exec(tree, patch, patch_dir)
-            finally:
-                core.log_end_sec()
-
+                finally:
+                    core.log_end_sec()
 
     def _test_series_pull(self, tree, series, series_dir):
         try:
