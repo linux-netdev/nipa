@@ -87,11 +87,14 @@ function load_result_table(data_raw)
 
     // Sort from most to least flaky
     for (const [tn, entries] of Object.entries(test_row)) {
-	let count = 0, streak = 0;
+	let count = 0, streak = 0, total = 0;
 	let prev = "pass";
 
 	for (let i = 0; i < branches.length; i++) {
 	    let current = entries[branches[i]];
+
+	    if (current != "")
+		total++;
 
 	    if (current == "pass" && count == 0)
 		streak++;
@@ -101,6 +104,7 @@ function load_result_table(data_raw)
 		count++;
 	    }
 	}
+	test_row[tn]["total"] = total;
 	test_row[tn]["cnt"] = count;
 	test_row[tn]["streak"] = streak;
     }
@@ -130,8 +134,11 @@ function load_result_table(data_raw)
 
     for (const tn of test_names) {
 	let entries = test_row[tn];
-	let row = table.insertRow();
 
+	if (entries.total == 0)
+	    continue;
+
+	let row = table.insertRow();
 	let name = row.insertCell(0);
 	name.innerHTML = tn;
 	name.setAttribute("style", "padding: 0px");
