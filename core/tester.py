@@ -127,17 +127,15 @@ class Tester(threading.Thread):
         elif os.path.exists(os.path.join(series_dir, ".tester_done")):
             core.log(f"Already tested in {series_dir}", "")
             core.log_end_sec()
-            return [], []
+            return
 
         try:
             if series.is_pure_pull():
-                ret = self._test_series_pull(tree, series, series_dir)
+                self._test_series_pull(tree, series, series_dir)
             else:
-                ret = self._test_series_patches(tree, series, series_dir)
+                self._test_series_patches(tree, series, series_dir)
         finally:
             core.log_end_sec()
-
-        return ret
 
     def _test_series_patches(self, tree, series, series_dir):
         if not tree.check_applies(series):
@@ -157,24 +155,19 @@ class Tester(threading.Thread):
                     fp.write("1")
                 with open(os.path.join(series_apply, "desc"), "w+") as fp:
                     fp.write(f"Patch does not apply to {tree.name}")
-            return [already_applied], [already_applied]
+            return
 
-        series_ret = []
-        patch_ret = []
         tree.reset(fetch=False)
 
         tree.apply(series)
         for test in self.series_tests:
-            ret = test.exec(tree, series, series_dir)
-            series_ret.append(ret)
+            test.exec(tree, series, series_dir)
         tree.reset(fetch=False)
 
         cnt = 1
         for patch in series.patches:
             core.log_open_sec(f"Testing patch {cnt}/{len(series.patches)}| {patch.title}")
             cnt += 1
-
-            current_patch_ret = []
 
             patch_dir = os.path.join(series_dir, str(patch.id))
             if not os.path.exists(patch_dir):
@@ -184,14 +177,10 @@ class Tester(threading.Thread):
                 tree.apply(patch)
 
                 for test in self.patch_tests:
-                    ret = test.exec(tree, patch, patch_dir)
-                    current_patch_ret.append(ret)
+                    test.exec(tree, patch, patch_dir)
             finally:
                 core.log_end_sec()
 
-            patch_ret.append(current_patch_ret)
-
-        return series_ret, patch_ret
 
     def _test_series_pull(self, tree, series, series_dir):
         try:
@@ -205,10 +194,9 @@ class Tester(threading.Thread):
                 fp.write("1")
             with open(os.path.join(series_apply, "desc"), "w+") as fp:
                 fp.write(f"Pull to {tree.name} failed")
-            return [], []
+            return
 
         patch = series.patches[0]
-        current_patch_ret = []
 
         core.log_open_sec(f"Testing pull request {patch.title}")
 
@@ -219,9 +207,7 @@ class Tester(threading.Thread):
         try:
             for test in self.patch_tests:
                 if test.is_pull_compatible():
-                    ret = test.exec(tree, patch, patch_dir)
-                    current_patch_ret.append(ret)
+                    test.exec(tree, patch, patch_dir)
         finally:
             core.log_end_sec()
 
-        return [], [current_patch_ret]
