@@ -28,6 +28,13 @@ git log -1 --pretty='%h ("%s")' HEAD~
 echo "Cleaning"
 make O=$output_dir $build_flags -C tools/testing/selftests/ clean
 
+echo "Baseline building the tree"
+make O=$output_dir $build_flags headers
+for what in net net/forwarding net/tcp_ao; do
+    make O=$output_dir $build_flags -C tools/testing/selftests/ \
+	 TARGETS=$what
+done
+
 echo "Building the tree before the patch"
 git checkout -q HEAD~
 
