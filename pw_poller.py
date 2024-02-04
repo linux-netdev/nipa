@@ -15,6 +15,7 @@ import queue
 from typing import Dict
 
 from core import NIPA_DIR
+from core import NipaLifetime
 from core import log, log_open_sec, log_end_sec, log_init
 from core import Tester
 from core import Tree
@@ -29,13 +30,7 @@ class IncompleteSeries(Exception):
 
 
 class PwPoller:
-    def __init__(self) -> None:
-        config = configparser.ConfigParser()
-        config.read(['nipa.config', 'pw.config', 'poller.config'])
-
-        log_init(config.get('log', 'type', fallback='org'),
-                 config.get('log', 'file', fallback=os.path.join(NIPA_DIR, "poller.org")))
-
+    def __init__(self, config) -> None:
         self._worker_id = 0
         self._async_workers = []
 
@@ -187,7 +182,7 @@ class PwPoller:
         finally:
             log_end_sec()
 
-    def run(self) -> None:
+    def run(self, life) -> None:
         partial_series = {}
 
         prev_big_scan = datetime.datetime.fromtimestamp(self._state['last_poll'])
@@ -198,7 +193,8 @@ class PwPoller:
         # apparently patchwork uses the time from the email headers and people back date their emails, a lot
         # We keep a history of the series we've seen in and since the last big poll to not process twice
         try:
-            while True:
+            secs = 0
+            while life.next_poll(secs):
                 this_poll_seen = set()
                 req_time = datetime.datetime.now()
 
@@ -252,11 +248,7 @@ class PwPoller:
                 secs = 120 - (datetime.datetime.now() - req_time).total_seconds()
                 if secs > 0:
                     log("Sleep", secs)
-                    time.sleep(secs)
                 log_end_sec()
-                if os.path.exists('poller.quit'):
-                    os.remove('poller.quit')
-                    break
         finally:
             log_open_sec(f"Stopping threads")
             self._barrier.abort()
@@ -277,5 +269,14 @@ class PwPoller:
 
 if __name__ == "__main__":
     os.umask(0o002)
-    poller = PwPoller()
-    poller.run()
+
+    config = configparser.ConfigParser()
+    config.read(['nipa.config', 'pw.config', 'poller.config'])
+
+    log_init(config.get('log', 'type', fallback='org'),
+             config.get('log', 'file', fallback=os.path.join(NIPA_DIR, "poller.org")))
+
+    life = NipaLifetime(config)
+    poller = PwPoller(config)
+    poller.run(life)
+    life.exit()
