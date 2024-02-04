@@ -8,6 +8,7 @@ import os
 import re
 import sys
 
+from core import NipaLifetime
 from lib import CbArg
 from lib import Fetcher
 from lib import VM, new_vm, guess_indicators
@@ -217,14 +218,18 @@ def main() -> None:
 
     base_dir = config.get('local', 'base_path')
 
+    life = NipaLifetime(config)
+
     f = Fetcher(test, cbarg,
                 name=config.get('executor', 'name'),
                 branches_url=config.get('remote', 'branches'),
                 results_path=os.path.join(base_dir, config.get('local', 'json_path')),
                 url_path=config.get('www', 'url') + '/' + config.get('local', 'json_path'),
                 tree_path=config.get('local', 'tree_path'),
+                life=life,
                 first_run=config.get('executor', 'init', fallback="continue"))
     f.run()
+    life.exit()
 
 
 if __name__ == "__main__":

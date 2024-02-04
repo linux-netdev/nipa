@@ -7,6 +7,7 @@ import json
 import os
 import subprocess
 
+from core import NipaLifetime
 from lib import Fetcher
 
 
@@ -161,13 +162,17 @@ def main() -> None:
 
     base_dir = config.get('local', 'base_path')
 
+    life = NipaLifetime(config)
+
     f = Fetcher(test, config,
                 name=config.get('executor', 'name'),
                 branches_url=config.get('remote', 'branches'),
                 results_path=os.path.join(base_dir, config.get('local', 'json_path')),
                 url_path=config.get('www', 'url') + '/' + config.get('local', 'json_path'),
+                life=life,
                 tree_path=config.get('local', 'tree_path'))
     f.run()
+    life.exit()
 
 
 if __name__ == "__main__":

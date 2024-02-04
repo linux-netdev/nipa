@@ -10,20 +10,19 @@ import time
 
 class Fetcher:
     def __init__(self, cb, cbarg, name, branches_url, results_path, url_path, tree_path,
-                 check_sec=60, first_run="continue", single_shot=False):
+                 life, first_run="continue"):
         self._cb = cb
         self._cbarg = cbarg
         self.name = name
+        self.life = life
 
         self._branches_url = branches_url
-        self._check_secs = check_sec
 
         self._results_path = results_path
         self._url_path = url_path
         self._results_manifest = os.path.join(results_path, 'results.json')
 
         self._tree_path = tree_path
-        self.single_shot = single_shot
 
         # Set last date to something old
         self._last_date = datetime.datetime.now(datetime.UTC) - datetime.timedelta(weeks=1)
@@ -138,13 +137,7 @@ class Fetcher:
                        cwd=self._tree_path, shell=True, check=True)
         self._clean_old_branches(branches, to_test["branch"])
         self._run_test(to_test)
-        return self.single_shot
 
     def run(self):
-        while True:
-            if self._run_once():
-                return
-            try:
-                time.sleep(self._check_secs)
-            except KeyboardInterrupt:
-                return
+        while self.life.next_poll():
+            self._run_once()
