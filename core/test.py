@@ -126,7 +126,7 @@ class Test(object):
                     "BRANCH_BASE": tree.branch }
 
             if hasattr(thing, 'first_in_series'):
-                env["FIRST_IN_SERIES"] = int(thing.first_in_series)
+                env["FIRST_IN_SERIES"] = str(int(thing.first_in_series))
 
             out, err = CMD.cmd_run(self.info["run"], include_stderr=True, cwd=tree.path,
                                    pass_fds=[wfd], add_env=env)
