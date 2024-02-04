@@ -43,7 +43,7 @@ echo "Building the tree with the patch"
 git checkout -q $HEAD
 
 prep_config
-make CC="$cc" O=$output_dir ARCH=i386 $build_flags -j $ncpu 2> >(tee $tmpfile_n >&2) || rc=1
+make CC="$cc" O=$output_dir ARCH=i386 $build_flags 2> >(tee $tmpfile_n >&2) || rc=1
 
 current=$(grep -i -c "\(warn\|error\)" $tmpfile_n)
 

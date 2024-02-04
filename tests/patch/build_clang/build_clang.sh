@@ -47,7 +47,7 @@ echo "Building the tree with the patch"
 git checkout -q $HEAD
 
 prep_config
-make LLVM=1 O=$output_dir $build_flags -j $ncpu 2> >(tee $tmpfile_n >&2) || rc=1
+make LLVM=1 O=$output_dir $build_flags 2> >(tee $tmpfile_n >&2) || rc=1
 
 current=$(grep -i -c "\(warn\|error\)" $tmpfile_n)
 
