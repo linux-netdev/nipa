@@ -54,7 +54,7 @@ class NipaLifetime:
         self._first_run = True
         self._restart = False
 
-    def next_poll(self):
+    def next_poll(self, wait_time=None):
         global got_sigusr1
 
         if self._first_run:
@@ -67,6 +67,8 @@ class NipaLifetime:
             self._restart = True
 
         to_sleep = self._sleep
+        if wait_time is not None:
+            to_sleep = wait_time
         while not self._restart and to_sleep > 0:
             if self.use_usrsig and got_sigusr1:
                 self._restart = True
