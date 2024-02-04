@@ -72,7 +72,7 @@ class PwSeries(Series):
 
         for pid in pids:
             raw_patch = pw.get_mbox('patch', pid)
-            self.patches.append(Patch(raw_patch, pid))
+            self.add_patch(Patch(raw_patch, pid))
 
         if not pw_series['cover_letter']:
             if len(self.patches) == 1:

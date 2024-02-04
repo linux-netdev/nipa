@@ -121,10 +121,15 @@ class Test(object):
         try:
             rfd, wfd = os.pipe()
 
+            env = { "DESC_FD": str(wfd),
+                    "RESULTS_DIR": os.path.join(result_dir, self.name),
+                    "BRANCH_BASE": tree.branch }
+
+            if hasattr(thing, 'first_in_series'):
+                env["FIRST_IN_SERIES"] = int(thing.first_in_series)
+
             out, err = CMD.cmd_run(self.info["run"], include_stderr=True, cwd=tree.path,
-                                   pass_fds=[wfd], add_env={"DESC_FD": str(wfd),
-                                                            "RESULTS_DIR": os.path.join(result_dir, self.name),
-                                                            "BRANCH_BASE": tree.branch})
+                                   pass_fds=[wfd], add_env=env)
         except core.cmd.CmdError as e:
             retcode = e.retcode
             out = e.stdout

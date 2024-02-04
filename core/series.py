@@ -39,6 +39,7 @@ class Series(object):
             self.subject = subj.group(0)[9:]
 
     def add_patch(self, patch):
+        patch.first_in_series = len(self.patches) == 0
         self.patches.append(patch)
 
     def is_pure_pull(self):

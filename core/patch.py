@@ -35,6 +35,9 @@ class Patch(object):
         self.subject = ""
         self.series = series
 
+        # Whether the patch is first in the series, set by series.add_patch()
+        self.first_in_series = None
+
         subj = re.search(r'Subject: \[.*\](.*)', raw_patch)
         if not subj:
             subj = re.search(r'Subject: (.*)', raw_patch)
