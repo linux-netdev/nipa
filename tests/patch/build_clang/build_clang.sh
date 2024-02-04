@@ -25,10 +25,14 @@ HEAD=$(git rev-parse HEAD)
 echo "Tree base:"
 git log -1 --pretty='%h ("%s")' HEAD~
 
-echo "Baseline building the tree"
+if [ x$FIRST_IN_SERIES == x0 ]; then
+    echo "Skip baseline build, not the first patch"
+else
+    echo "Baseline building the tree"
 
-prep_config
-make LLVM=1 O=$output_dir $build_flags
+    prep_config
+    make LLVM=1 O=$output_dir $build_flags
+fi
 
 git checkout -q HEAD~
 
@@ -67,6 +71,8 @@ if [ $current -gt $incumbent ]; then
 
   rc=1
 fi
+
+echo "Output lengths:" $(wc -l $tmpfile_n) $(wc -l $tmpfile_o)
 
 rm $tmpfile_o $tmpfile_n
 
