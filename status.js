@@ -189,15 +189,18 @@ function load_runners(data_raw)
 
     $.each(data_raw, function(i, v) {
 	var row = table.insertRow();
-	var name = row.insertCell(0);
-	var qlen = row.insertCell(1);
-	var pid = row.insertCell(2);
-	var patch = row.insertCell(3);
-	var test = row.insertCell(4);
+	let cell_id = 0;
+	var name = row.insertCell(cell_id++);
+	var qlen = row.insertCell(cell_id++);
+	var tid = row.insertCell(cell_id++);
+	var test = row.insertCell(cell_id++);
+	var pid = row.insertCell(cell_id++);
+	var patch = row.insertCell(cell_id++);
 
 	name.innerHTML = i;
 	pid.innerHTML = v.progress;
 	patch.innerHTML = v.patch;
+	tid.innerHTML = v["test-progress"];
 	test.innerHTML = v.test;
 	qlen.innerHTML = v.backlog;
     });

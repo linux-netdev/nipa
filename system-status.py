@@ -49,13 +49,19 @@ def add_one_tree(result, pfx, name):
         lines = fp.readlines()
     last = None
     test = ''
+    test_prog = ''
     blog = ''
     progress = ''
     for line in lines:
         if 'Testing patch' in line:
             patch = pre_strip(line, 'Testing patch')
-            progress = patch[:patch.find('|')]
-            patch = patch[patch.find('|') + 2:]
+
+            test_sep = patch.find('|')
+            patch_sep = patch.find('|', test_sep + 1)
+
+            test_prog = patch[:test_sep]
+            progress = patch[test_sep + 1:patch_sep]
+            patch = patch[patch_sep + 2:]
             last = re.sub(char_filter, "", patch)
             test = ''
         elif '* Testing pull request' in line:
@@ -73,8 +79,13 @@ def add_one_tree(result, pfx, name):
             last = None
             progress = ''
             test = ''
+            test_prog = ''
             blog = ''
-    result['runners'][name] = {"patch": last, "progress": progress, "test": test, "backlog": blog}
+    result['runners'][name] = {"patch": last,
+                               "progress": progress,
+                               "test": test,
+                               "test-progress": test_prog,
+                               "backlog": blog}
 
 
 def add_one_runtime(fname, total, res):
