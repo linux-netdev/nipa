@@ -6,6 +6,7 @@ import datetime
 import os
 import subprocess
 
+from core import NipaLifetime
 from lib import Fetcher
 
 
@@ -81,13 +82,18 @@ def main() -> None:
 
     base_dir = config.get('local', 'base_path')
 
+    life = NipaLifetime(config)
+
     f = Fetcher(test, config,
                 name=config.get('executor', 'name'),
                 branches_url=config.get('remote', 'branches'),
                 results_path=os.path.join(base_dir, config.get('local', 'json_path')),
                 url_path=config.get('www', 'url') + '/' + config.get('local', 'json_path'),
-                tree_path=config.get('local', 'tree_path'))
+                tree_path=config.get('local', 'tree_path'),
+                life=life,
+                first_run=config.get('executor', 'init', fallback="continue"))
     f.run()
+    life.exit()
 
 
 if __name__ == "__main__":
