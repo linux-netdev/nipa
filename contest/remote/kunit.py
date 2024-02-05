@@ -25,6 +25,7 @@ base_path=/common/path
 json_path=base-relative/path/to/json
 results_path=base-relative/path/to/raw/outputs
 tree_path=/root-path/to/kernel/git
+patches_path=/root-path/to/patches/dir
 [www]
 url=https://url-to-reach-base-path
 
@@ -169,6 +170,7 @@ def main() -> None:
                 branches_url=config.get('remote', 'branches'),
                 results_path=os.path.join(base_dir, config.get('local', 'json_path')),
                 url_path=config.get('www', 'url') + '/' + config.get('local', 'json_path'),
+                patches_path=config.get('local', 'patches_path'),
                 life=life,
                 tree_path=config.get('local', 'tree_path'))
     f.run()
