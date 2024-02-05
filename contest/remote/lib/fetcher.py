@@ -10,7 +10,7 @@ import time
 
 class Fetcher:
     def __init__(self, cb, cbarg, name, branches_url, results_path, url_path, tree_path,
-                 life, first_run="continue"):
+                 patches_path, life, first_run="continue"):
         self._cb = cb
         self._cbarg = cbarg
         self.name = name
@@ -23,6 +23,7 @@ class Fetcher:
         self._results_manifest = os.path.join(results_path, 'results.json')
 
         self._tree_path = tree_path
+        self._patches_path = patches_path
 
         # Set last date to something old
         self._last_date = datetime.datetime.now(datetime.UTC) - datetime.timedelta(weeks=1)
@@ -130,11 +131,23 @@ class Fetcher:
 
         print("Testing ", to_test)
         self._last_date = newest
+
+        if self._patches_path is not None:
+            subprocess.run('git restore .', cwd=self._tree_path,
+                           shell=True)
+
         # For now assume URL is in one of the remotes
         subprocess.run('git fetch --all --prune', cwd=self._tree_path,
                        shell=True)
         subprocess.run('git checkout ' + to_test["branch"],
                        cwd=self._tree_path, shell=True, check=True)
+
+        if self._patches_path is not None:
+            for patch in os.listdir(self._patches_path):
+                realpath = '{}/{}'.format(self._patches_path, patch)
+                subprocess.run('git apply -v {}'.format(realpath),
+                               cwd=self._tree_path, shell=True)
+
         self._clean_old_branches(branches, to_test["branch"])
         self._run_test(to_test)
 
