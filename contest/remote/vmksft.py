@@ -56,7 +56,7 @@ def ktap_split(full_run):
     test = None
     test_id = 0
 
-    result_re = re.compile(r"(not )?ok (\d+) ([^#]*[^ ])( # )?([^ ].*)?$")
+    result_re = re.compile(r"(not )?ok (\d+)( -)? ([^#]*[^ ])( # )?([^ ].*)?$")
 
     for line in full_run.split('\n'):
         if test is None:
@@ -82,10 +82,10 @@ def ktap_split(full_run):
         v = result_re.match(line).groups()
         test["output"] = "\n".join(test["output"])
         test["sid"] = int(v[1])
-        test["name"] = v[2]
-        if len(v) > 4:
-            test["comment"] = v[4]
-            if v[4] == "SKIP" and test["result"] == "pass":
+        test["name"] = v[3]
+        if len(v) > 5:
+            test["comment"] = v[5]
+            if v[5] == "SKIP" and test["result"] == "pass":
                 test["result"] = "skip"
         tests.append(test)
         test = None
