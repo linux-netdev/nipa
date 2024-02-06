@@ -42,6 +42,7 @@ default_timeout=15
 boot_timeout=45
 [ksft]
 targets=net
+nested_tests=off / on
 
 
 Expected:
@@ -51,14 +52,28 @@ group3 testV skip
 """
 
 
-def ktap_split(full_run):
+def ktap_split(full_run, parse_nested_tests):
     tests = []
     test = None
     test_id = 0
+    test_main = None
 
     result_re = re.compile(r"(not )?ok (\d+)( -)? ([^#]*[^ ])( # )?([^ ].*)?$")
 
     for line in full_run.split('\n'):
+        if parse_nested_tests:
+            # nested tests support: we parse the comments from 'TAP version'
+            if test_main:
+                if line.startswith("# "):
+                    line = line[2:]
+                else:
+                    # back to the main test
+                    test = test_main
+                    test_main = None
+            elif line.startswith("# TAP version "):
+                test_main = test
+                test = None
+
         if test is None:
             test = {
                 "tid": test_id,
@@ -168,7 +183,9 @@ def test(binfo, rinfo, cbarg):
     full_run = vm.log_out
     vm.dump_log(results_path + '/full', result=retcode, info={"vm_state": vm.fail_state})
 
-    tests = ktap_split(full_run)
+    parse_nested_tests = config.getboolean('ksft', 'nested_tests',
+                                                fallback=False)
+    tests = ktap_split(full_run, parse_nested_tests)
     if tests:
         pfx = ktap_extract_pfx(tests)
         grp_name = namify(pfx)
