@@ -36,6 +36,7 @@ init_prompt=expected_on-boot#
 virtme_opt=--opt,--another one
 default_timeout=15
 boot_timeout=45
+slowdown=2.5 # mark the machine as slow and multiply the ksft timeout by 2.5
 """
 
 
@@ -112,6 +113,26 @@ class VM:
         self.tree_cmd("make mrproper")
         self.tree_cmd("vng -v -b" + " -f ".join([""] + configs))
 
+    def _get_ksft_timeout(self):
+        default_timeout = 45 # from tools/testing/selftests/kselftest/runner.sh
+
+        target = self.config.get('ksft', 'target', fallback=None)
+        tree_path = self.config.get('local', 'tree_path', fallback=None)
+        if not target or not tree_path:
+            return default_timeout
+
+        settings_path = f'{tree_path}/tools/testing/selftests/{target}/settings'
+        if not os.path.isfile(settings_path):
+            return default_timeout
+
+        with open(settings_path, 'r') as fp:
+            lines = fp.readlines()
+            for l in lines:
+                if l.startswith('timeout='):
+                    return int(l.split('=')[1])
+
+        return default_timeout
+
     def _set_env(self):
         # Install extra PATHs
         if self.config.get('vm', 'paths', fallback=None):
@@ -126,6 +147,17 @@ class VM:
         if exports:
             for export in exports.split(','):
                 self.cmd("export " + export)
+                self.drain_to_prompt()
+
+        slowdown = self.config.getfloat('vm', 'slowdown', fallback=0)
+        if slowdown:
+            self.cmd("export KSFT_MACHINE_SLOW=yes")
+            self.drain_to_prompt()
+
+            # only when needed, to avoid 'overriding timeout' message
+            if slowdown > 1:
+                timeout = self._get_ksft_timeout() * slowdown
+                self.cmd(f"export kselftest_override_timeout={timeout}")
                 self.drain_to_prompt()
 
         self.cmd("env")
