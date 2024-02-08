@@ -29,18 +29,48 @@ clean_up_output() {
     sed -i '/An error occurred when attempting /d' $file
 }
 
+# Figure out the number of physical cores, save 8 or half for other stuff
+THREADS_PER_CORE=$(LANG=C lscpu | grep "Thread(s) per core: " | tr -cd "[:digit:]")
+NPROC=$(getconf _NPROCESSORS_ONLN)
+JOBS=$((NPROC / THREADS_PER_CORE))
+
+if [ $JOBS -gt 16 ]; then
+    JOBS=$((JOBS - 8))
+else
+    JOBS=$((JOBS / 2))
+fi
+
 echo " === Start ==="
 echo "Base: $BASE"
 echo "Branch: $BRANCH ($branch_rev)"
+echo "Jobs: $JOBS"
 echo
+
+echo " === Waiting for loadavg to die down ==="
+while true; do
+    # Sleep first to make sure others get a chance to start
+    sleep 120
+
+    load=$(cat /proc/loadavg | sed -e 's/\([0-9.]\) .*/\1/;s/\.//;s/^0*//')
+    [ $load -lt 800 ] && break
+done
+
+echo "Starting at $(date)"
+echo
+
+IGNORED=( scripts/coccinelle/misc/minmax.cocci )
+for ign_file in ${IGNORED[@]}; do
+    echo "Ignoring " $ign_file
+    mv $ign_file $ign_file.ignore
+done
 
 echo " === Checking the base tree ==="
 git checkout -q $BASE
-make coccicheck MODE=report SPFLAGS="$SPFLAGS" > $out_o
+make coccicheck MODE=report J=$JOBS SPFLAGS="$SPFLAGS" > $out_o
 
 echo " === Building the new tree ==="
 git checkout -q $BRANCH
-make coccicheck MODE=report SPFLAGS="$SPFLAGS" > $out_n
+make coccicheck MODE=report J=$JOBS SPFLAGS="$SPFLAGS" > $out_n
 
 dirty=( $(grep -c . $out_o) $(grep -i -c "warn" $out_o) $(grep -i -c "error" $out_o)
 	$(grep -c . $out_n) $(grep -i -c "warn" $out_n) $(grep -i -c "error" $out_n)
@@ -72,6 +102,25 @@ elif [ ${current[0]} -gt ${incumbent[0]} ]; then
   diff -U 0 $out_of $out_nf 1>&2
   rc=5
 fi
+
+if [ $rc -ne 0 ]; then
+  echo "Per-file breakdown" 1>&2
+  tmpfile_fo=$(mktemp)
+  tmpfile_fn=$(mktemp)
+
+  grep -i "^$PWD" $tmpfile_o | sed -n 's@\(^\.\./[/a-zA-Z0-9_.-]*.[ch]\):.*@\1@p' | sort | uniq -c \
+    > $tmpfile_fo
+  grep -i "^$PWD" $tmpfile_n | sed -n 's@\(^\.\./[/a-zA-Z0-9_.-]*.[ch]\):.*@\1@p' | sort | uniq -c \
+    > $tmpfile_fn
+
+  diff -U 0 $tmpfile_fo $tmpfile_fn 1>&2
+  rm $tmpfile_fo $tmpfile_fn
+fi
+
+for ign_file in ${IGNORED[@]}; do
+    echo "Un-ignoring " $ign_file
+    mv $ign_file.ignore $ign_file
+done
 
 echo
 echo " === Summary === "
