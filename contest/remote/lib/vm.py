@@ -29,6 +29,7 @@ url=https://url-to-reach-base-path
 paths=/extra/exec/PATH:/another/bin
 [vm]
 paths=/extra/exec/PATH:/another/bin
+ld_paths=/extra/lib/PATH:/another/lib
 configs=relative/path/config,another/config
 init_prompt=expected_on-boot#
 virtme_opt=--opt,--another one
