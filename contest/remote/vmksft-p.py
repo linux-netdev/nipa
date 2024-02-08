@@ -47,6 +47,7 @@ default_timeout=15
 boot_timeout=45
 [ksft]
 targets=net
+nested_tests=off / on
 
 
 Expected:
@@ -72,6 +73,42 @@ def get_prog_list(vm, target):
     vm.tree_cmd("rm -rf " + tmpdir)
     return [e.split(":")[1].strip() for e in targets]
 
+
+def _parse_nested_tests(full_run):
+    tests = []
+    nested_tests = False
+
+    result_re = re.compile(r"(not )?ok (\d+)( -)? ([^#]*[^ ])( # )?([^ ].*)?$")
+
+    for line in full_run.split('\n'):
+        # nested subtests support: we parse the comments from 'TAP version'
+        if nested_tests:
+            if line.startswith("# "):
+                line = line[2:]
+            else:
+                nested_tests = False
+        elif line.startswith("# TAP version "):
+            nested_tests = True
+            continue
+
+        if not nested_tests:
+            continue
+
+        if line.startswith("ok "):
+            result = "pass"
+        elif line.startswith("not ok "):
+            result = "fail"
+        else:
+            continue
+
+        v = result_re.match(line).groups()
+        name = v[3]
+        if len(v) > 5 and v[5]:
+            if v[5].lower().startswith('skip') and result == "pass":
+                result = "skip"
+        tests.append((name, result))
+
+    return tests
 
 def _vm_thread(config, results_path, thr_id, in_queue, out_queue):
     target = config.get('ksft', 'target')
@@ -135,6 +172,14 @@ def _vm_thread(config, results_path, thr_id, in_queue, out_queue):
 
         out_queue.put({'prog': prog, 'test': test_name, 'file_name': file_name,
                        'result': result, 'time': (t2 - t1).seconds})
+
+        if config.getboolean('ksft', 'nested_tests', fallback=False):
+            # this will only parse nested tests inside the TAP comments
+            tests = _parse_nested_tests(vm.log_out)
+
+            for r_name, r_result in tests:
+                out_queue.put({'prog': prog, 'test': namify(r_name),
+                               'file_name': file_name, 'result': r_result})
 
         if vm.fail_state:
             print(f"INFO: thr-{thr_id} VM kernel crashed, destroying it")
@@ -214,7 +259,8 @@ def test(binfo, rinfo, cbarg):
     cases = []
     while not out_queue.empty():
         r = out_queue.get()
-        cbarg.prev_runtime[r["prog"]] = r["time"]
+        if 'time' in r:
+            cbarg.prev_runtime[r["prog"]] = r["time"]
         cases.append({'test': r['test'], 'group': grp_name, 'result': r["result"],
                       'link': link + '/' + r['file_name']})
     if not in_queue.empty():
