@@ -261,8 +261,9 @@ class VM:
         return read_some, output
 
     def drain_to_prompt(self, prompt="xx__-> ", dump_after=None):
+        _dump_after = dump_after
         if dump_after is None:
-            dump_after = int(self.config.get('vm', 'default_timeout'))
+            dump_after = self.config.getint('vm', 'default_timeout')
         hard_stop = int(self.config.get('vm', 'hard_timeout',
                                         fallback=(1 << 63)))
         waited = 0
@@ -281,6 +282,10 @@ class VM:
             if read_some:
                 if stdout.endswith(prompt):
                     break
+                if self.fail_state == "oops" and _dump_after is None and dump_after > 300:
+                    dump_after = 300
+                    self.log_out += '\nDETECTED CRASH, lowering timeout\n'
+
                 # A bit of a hack, sometimes kernel spew will clobber
                 # the prompt. Until we have a good way of sending kernel
                 # logs elsewhere try to get a new prompt by sending a new line.
