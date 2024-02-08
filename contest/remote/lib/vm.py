@@ -112,6 +112,25 @@ class VM:
         self.tree_cmd("make mrproper")
         self.tree_cmd("vng -v -b" + " -f ".join([""] + configs))
 
+    def _set_env(self):
+        # Install extra PATHs
+        if self.config.get('vm', 'paths', fallback=None):
+            self.cmd("export PATH=" + self.config.get('vm', 'paths') + ':$PATH')
+            self.drain_to_prompt()
+
+        if self.config.get('vm', 'ld_paths', fallback=None):
+            self.cmd("export LD_LIBRARY_PATH=" + self.config.get('vm', 'ld_paths') + ':$LD_LIBRARY_PATH')
+            self.drain_to_prompt()
+
+        exports = self.config.get('vm', 'exports', fallback=None)
+        if exports:
+            for export in exports.split(','):
+                self.cmd("export " + export)
+                self.drain_to_prompt()
+
+        self.cmd("env")
+        self.drain_to_prompt()
+
     def start(self, cwd=None):
         cmd = "vng -v -r arch/x86/boot/bzImage --user root"
         cmd = cmd.split(' ')
@@ -148,20 +167,7 @@ class VM:
         self.cmd("PS1='xx__-> '")
         self.drain_to_prompt()
 
-        # Install extra PATHs
-        if self.config.get('vm', 'paths', fallback=None):
-            self.cmd("export PATH=" + self.config.get('vm', 'paths') + ':$PATH')
-            self.drain_to_prompt()
-        if self.config.get('vm', 'ld_paths', fallback=None):
-            self.cmd("export LD_LIBRARY_PATH=" + self.config.get('vm', 'ld_paths') + ':$LD_LIBRARY_PATH')
-            self.drain_to_prompt()
-        exports = self.config.get('vm', 'exports', fallback=None)
-        if exports:
-            for export in exports.split(','):
-                self.cmd("export " + export)
-                self.drain_to_prompt()
-        self.cmd("env")
-        self.drain_to_prompt()
+        self._set_env()
 
     def stop(self):
         self.cmd("exit")
