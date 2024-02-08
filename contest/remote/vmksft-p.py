@@ -13,6 +13,7 @@ import threading
 import time
 
 from core import NipaLifetime
+from lib import wait_loadavg
 from lib import CbArg
 from lib import Fetcher
 from lib import VM, new_vm, guess_indicators
@@ -193,9 +194,13 @@ def test(binfo, rinfo, cbarg):
         i += 1
         in_queue.put((i, prog, ))
 
+    # In case we have multiple tests kicking off on the same machine,
+    # add optional wait to make sure others have finished building
+    load_tgt = config.getfloat("cfg", "wait_loadavg", fallback=None)
     thr_cnt = int(config.get("cfg", "thread_cnt"))
     delay = float(config.get("cfg", "thread_spawn_delay", fallback=0))
     for i in range(thr_cnt):
+        wait_loadavg(load_tgt)
         print("INFO: starting VM", i)
         threads.append(threading.Thread(target=vm_thread,
                                         args=[config, results_path, i, in_queue, out_queue]))
