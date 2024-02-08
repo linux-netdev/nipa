@@ -33,12 +33,22 @@
       }
 
       .column {
-        flex: 50%;
+        flex: max-content;
         padding: 1em;
+      }
+      .box {
+        position: absolute;
+        right: 1em;
+      }
+      .box p {
+        border: 1px solid grey;
+        padding: 1em;
+        border-radius: 0.2em;
       }
       </style>
 </head>
 <body>
+<div></div>
 <div class="row">
     <fieldset>
       <legend>Filtering:</legend>
@@ -101,6 +111,11 @@
           <span id="fl-warn-box" style="color: red">Loading...</span>
       </div>
     </fieldset>
+    <div class="box">
+        <p>
+            <a href="https://github.com/linux-netdev/nipa/wiki/How-to-run-netdev-selftests-CI-style">How to reproduce</a>
+        </p>
+    </div>
 </div>
 <div class="row">
     <div class="column">
