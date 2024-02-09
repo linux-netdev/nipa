@@ -328,29 +328,14 @@ function avg_time_e(avgs, v)
 	avgs[ent_name]["sum"] / avgs[ent_name]["cnt"];
 }
 
-function pw_filted_r(v, r)
-{
-    if (!reported_execs.has(v.executor))
-	return false;
-
-    for (const test of filtered_tests) {
-	if (r.group == test.group && r.test == test.test)
-	    return false;
-    }
-    return true;
-}
-
 
 function load_result_table_one(data_raw, table, reported, avgs)
 {
     $.each(data_raw, function(i, v) {
-	if (!reported_execs.has(v.executor) && reported)
-	    return 1;
-
 	var pass = 0, skip = 0, fail = 0, total = 0, ignored = 0;
 	var link = v.link;
 	$.each(v.results, function(i, r) {
-	    if (pw_filted_r(v, r) != reported) {
+	    if (nipa_pw_reported(v, r) != reported) {
 		ignored++;
 		return 1;
 	    }
@@ -368,7 +353,7 @@ function load_result_table_one(data_raw, table, reported, avgs)
 		link = r.link;
 	});
 
-	if (reported_execs.has(v.executor) && !reported && !total)
+	if (!total && ignored && v.executor != "brancher")
 	    return 1;
 
 	var str_psf = {"str": "", "overall": ""};
@@ -568,16 +553,13 @@ function load_result_table(data_raw)
 	return b.end - a.end;
     });
 
-    reported_execs.add("brancher");
     load_result_table_one(data_raw, table, true, avgs);
-    reported_execs.delete("brancher");
     load_result_table_one(data_raw, table_nr, false, avgs);
 }
 
 let xfr_todo = 3;
 let all_results = null;
 let branches = new Set();
-let reported_execs = new Set();
 let filtered_tests = new Array();
 let branch_results = {};
 
@@ -612,7 +594,6 @@ function filters_doit(data_raw)
 
     output = "<b>Executors reported:</b> ";
     $.each(data_raw.executors, function(i, v) {
-	reported_execs.add(v);
 	output += sep + v;
 	sep = ", ";
     });
@@ -631,6 +612,7 @@ function filters_doit(data_raw)
     });
     cf_crashes.innerHTML = output;
 
+    nipa_set_filters_json(data_raw);
     loaded_one();
 }
 

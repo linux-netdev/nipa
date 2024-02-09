@@ -10,35 +10,6 @@ function colorify_str(value)
     return ret + value + '</span>';
 }
 
-function pw_filter_r(v, r, drop_reported)
-{
-    if (loaded_filters == null)
-	return false;
-
-    var reported_exec = false;
-    for (const exec of loaded_filters.executors) {
-	if (v.executor == exec) {
-	    reported_exec = true;
-	    break;
-	}
-    }
-
-    if (reported_exec == false && drop_reported == true)
-	return false;
-
-    var reported_test = true;
-    for (const test of loaded_filters["ignore-tests"]) {
-	if (r.group == test.group && r.test == test.test) {
-	    reported_test = false;
-	    break;
-	}
-    }
-    if ((reported_test && reported_exec) == drop_reported)
-	return true;
-
-    return false;
-}
-
 function load_result_table(data_raw)
 {
     var table = document.getElementById("results");
@@ -83,9 +54,9 @@ function load_result_table(data_raw)
 		return 1;
 	    if (result_filter[r.result] == false)
 		return 1;
-	    if (pw_y == false && pw_filter_r(v, r, true))
+	    if (pw_y == false && nipa_pw_reported(v, r) == true)
 		return 1;
-	    if (pw_n == false && pw_filter_r(v, r, false))
+	    if (pw_n == false && nipa_pw_reported(v, r) == false)
 		return 1;
 
 	    var row = table.insertRow();
@@ -148,7 +119,6 @@ function results_update()
 let xfr_todo = 2;
 let branch_urls = {};
 let loaded_data = null;
-let loaded_filters = null;
 
 function loaded_one()
 {
@@ -168,7 +138,7 @@ function loaded_one()
 
 function filters_loaded(data_raw)
 {
-    loaded_filters = data_raw;
+    nipa_set_filters_json(data_raw);
     loaded_one();
 }
 
