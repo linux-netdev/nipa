@@ -164,9 +164,6 @@ def _vm_thread(config, results_path, thr_id, in_queue, out_queue):
             # check VM is still in failed state
             if vm.fail_state:
                 result = "fail"
-        vm.dump_log(results_path + '/' + file_name, result=retcode,
-                    info={"thr-id": thr_id, "vm-id": vm_id, "time": (t2 - t1).seconds,
-                          "found": indicators, "vm_state": vm.fail_state})
 
         print(f"INFO: thr-{thr_id} {prog} >> retcode:", retcode, "result:", result, "found", indicators)
 
@@ -180,6 +177,12 @@ def _vm_thread(config, results_path, thr_id, in_queue, out_queue):
             for r_name, r_result in tests:
                 out_queue.put({'prog': prog, 'test': namify(r_name),
                                'file_name': file_name, 'result': r_result})
+
+            print(f"INFO: thr-{thr_id} {prog} >> nested tests: {len(tests)} subtests")
+
+        vm.dump_log(results_path + '/' + file_name, result=retcode,
+                    info={"thr-id": thr_id, "vm-id": vm_id, "time": (t2 - t1).seconds,
+                          "found": indicators, "vm_state": vm.fail_state})
 
         if vm.fail_state:
             print(f"INFO: thr-{thr_id} VM kernel crashed, destroying it")
