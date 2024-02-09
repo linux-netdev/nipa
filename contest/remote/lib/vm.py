@@ -157,7 +157,7 @@ class VM:
             # only when needed, to avoid 'overriding timeout' message
             if slowdown > 1:
                 timeout = self._get_ksft_timeout() * slowdown
-                self.cmd(f"export kselftest_override_timeout={timeout}")
+                self.cmd(f"export kselftest_override_timeout={round(timeout)}")
                 self.drain_to_prompt()
 
         self.cmd("env")
