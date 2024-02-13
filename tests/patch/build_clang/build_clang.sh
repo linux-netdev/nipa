@@ -34,6 +34,15 @@ else
     make LLVM=1 O=$output_dir $build_flags
 fi
 
+# Check if new files were added, new files will cause mod re-linking
+# so all module and linker related warnings will pop up in the "after"
+# but not "before". To avoid this we need to force re-linking on
+# the "before", too.
+if ! git log --diff-filter=A HEAD~.. --exit-code >>/dev/null; then
+    echo "Trying to force re-linking, new files were added"
+    touch ${output_dir}/include/generated/utsrelease.h
+fi
+
 git checkout -q HEAD~
 
 echo "Building the tree before the patch"
@@ -45,6 +54,11 @@ incumbent=$(grep -i -c "\(warn\|error\)" $tmpfile_o)
 echo "Building the tree with the patch"
 
 git checkout -q $HEAD
+
+# Also force rebuild "after" in case the file added isn't important.
+if ! git log --diff-filter=A HEAD~.. --exit-code >>/dev/null; then
+    touch ${output_dir}/include/generated/utsrelease.h
+fi
 
 prep_config
 make LLVM=1 O=$output_dir $build_flags 2> >(tee $tmpfile_n >&2) || rc=1
