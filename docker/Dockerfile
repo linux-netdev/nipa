@@ -4,13 +4,29 @@ FROM debian:bookworm
 ARG nipauid
 RUN useradd -o -m -u $nipauid nipa
 
-RUN apt-get update
-RUN apt-get install -y procps python3 git patatt build-essential \
-        ccache flex bison libssl-dev libelf-dev clang sparse bc cpio \
-        gdb strace vim python3-requests
-
-# needed for spdxcheck.py from kernel sources
-RUN apt-get install -y python3-ply python3-git
+RUN apt-get update && apt-get install -y \
+	procps \
+	python3 \
+	git \
+	patatt \
+	build-essential \
+	ccache \
+	flex \
+	bison \
+	libssl-dev \
+	libelf-dev \
+	clang \
+	sparse \
+	bc \
+	cpio \
+	gdb \
+	strace \
+	vim \
+	python3-requests \
+	# for spdxcheck.py:
+	python3-ply \
+	python3-git \
+ && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /home/nipa/.local/share/patatt && chown -R nipa: /home/nipa
 
