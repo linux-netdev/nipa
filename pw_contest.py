@@ -63,22 +63,28 @@ code_to_pw = {
 }
 
 
-def result_can_skip(entry, filters):
-    for ignore in filters["ignore-tests"]:
-        if entry["group"] == ignore["group"] and entry["test"] == ignore["test"]:
-            return True
+def result_can_skip(results, entry, filters):
+    for ignore in filters["ignore-results"]:
+        if "remote" not in ignore or results["remote"] == ignore["remote"] and \
+                "executor" not in ignore or results["executor"] == ignore["executor"] and \
+                "branch" not in ignore or results["branch"] == ignore["branch"] and \
+                "group" not in ignore or entry["group"] == ignore["group"] and \
+                "test" not in ignore or entry["test"] == ignore["test"]:
+           return True
+
     return False
 
-def results_summarize(filters: dict, result_list: list) -> dict:
-    if not result_list:
+
+def results_summarize(filters: dict, results: dict) -> dict:
+    if not results or not results["results"]:
         return {'result': 'pending', 'code': Codes.PENDING, 'cnt': 0}
 
     cnt = 0
     code = 0
-    for entry in result_list:
+    for entry in results["results"]:
         test_code = str_to_code[entry["result"]]
         if test_code:
-            if result_can_skip(entry, filters):
+            if result_can_skip(results, entry, filters):
                 continue
 
         code = max(code, test_code)
@@ -104,10 +110,10 @@ def results_pivot(filters: dict, results: dict) -> dict:
             flipped[entry['branch']] = {}
         if entry['remote'] not in flipped[entry['branch']]:
             flipped[entry['branch']][entry['remote']] = \
-                results_summarize({}, [])
+                results_summarize({}, {})
 
         old = flipped[entry['branch']][entry['remote']]
-        new = results_summarize(filters, entry["results"])
+        new = results_summarize(filters, entry)
         flipped[entry['branch']][entry['remote']] = \
             results_summary_combine(old, new)
     return flipped
