@@ -1,0 +1,47 @@
+#!/bin/bash
+
+# Use, either:
+#   cidiff branch1 branch2
+# or
+#   cidiff
+# to diff two "newest" branches (last two in git branch -a output).
+
+BRANCH1=$1
+BRANCH2=$2
+
+if [ x$BRANCH1$BRANCH2 == x ]; then
+    echo "No branches specified, using two most recent:"
+    branches=( $(git branch -a | tail -2) )
+    BRANCH1=${branches[0]}
+    BRANCH2=${branches[1]}
+
+    echo "  " $BRANCH1
+    echo "  " $BRANCH2
+    echo
+fi
+
+get_base() {
+    git log -1 --oneline \
+	--grep="Merge git://git.kernel.org/pub/scm/linux/kernel/git/netdev/net"  $1 | cut -d' ' -f1
+}
+
+base1=$(get_base $BRANCH1)
+base2=$(get_base $BRANCH2)
+
+if git diff --exit-code --stat $base1 $base2 >/dev/null; then
+    echo "==== BASE IDENTICAL ===="
+else
+    echo "==== BASE DIFF ===="
+    git --no-pager diff --stat $base1 $base2
+    echo
+    echo
+fi
+
+tmp1=$(mktemp)
+tmp2=$(mktemp)
+
+git log --format="%s" $base1..$BRANCH1 > $tmp1
+git log --format="%s" $base2..$BRANCH2 > $tmp2
+
+echo "==== COMMIT DIFF ===="
+git --no-pager diff --no-index $tmp1 $tmp2
