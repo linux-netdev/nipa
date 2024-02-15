@@ -65,11 +65,11 @@ code_to_pw = {
 
 def result_can_skip(results, entry, filters):
     for ignore in filters["ignore-results"]:
-        if "remote" not in ignore or results["remote"] == ignore["remote"] and \
-                "executor" not in ignore or results["executor"] == ignore["executor"] and \
-                "branch" not in ignore or results["branch"] == ignore["branch"] and \
-                "group" not in ignore or entry["group"] == ignore["group"] and \
-                "test" not in ignore or entry["test"] == ignore["test"]:
+        if ("remote" not in ignore or results["remote"] == ignore["remote"]) and \
+            ("executor" not in ignore or results["executor"] == ignore["executor"]) and \
+            ("branch" not in ignore or results["branch"] == ignore["branch"]) and \
+            ("group" not in ignore or entry["group"] == ignore["group"]) and \
+            ("test" not in ignore or entry["test"] == ignore["test"]):
            return True
 
     return False
@@ -77,7 +77,7 @@ def result_can_skip(results, entry, filters):
 
 def results_summarize(filters: dict, results: dict) -> dict:
     if not results or not results["results"]:
-        return {'result': 'pending', 'code': Codes.PENDING, 'cnt': 0}
+        return {'result': 'pending', 'code': Codes.UNKNOWN, 'cnt': 0}
 
     cnt = 0
     code = 0
