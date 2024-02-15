@@ -560,7 +560,6 @@ function load_result_table(data_raw)
 let xfr_todo = 3;
 let all_results = null;
 let branches = new Set();
-let filtered_tests = new Array();
 let branch_results = {};
 
 function loaded_one()
@@ -584,6 +583,27 @@ function branch_res_doit(data_raw)
     loaded_one();
 }
 
+function add_one_test_filter_hdr(keys_present, key, hdr, row)
+{
+    if (!keys_present.has(key))
+	return ;
+
+    let th = document.createElement("th");
+    th.innerHTML = hdr;
+    row.appendChild(th);
+}
+
+function add_one_test_filter(keys_present, key, v, i, row)
+{
+    if (!keys_present.has(key))
+	return 0;
+
+    let cell = row.insertCell(i);
+    if (key in v)
+	cell.innerHTML = v[key];
+    return 1;
+}
+
 function filters_doit(data_raw)
 {
     let cf_crashes = document.getElementById("cf-crashes");
@@ -599,12 +619,29 @@ function filters_doit(data_raw)
     });
     cf_execs.innerHTML = output;
 
-    output = "<b>Test ignored:</b><br />";
-    $.each(data_raw["ignore-tests"], function(i, v) {
-	output += v.group + '/' + v.test + "<br />";
-	filtered_tests.push(v);
+    let keys_present = new Set();
+    $.each(data_raw["ignore-results"], function(i, v) {
+	for (const k of Object.keys(v))
+	    keys_present.add(k);
     });
-    cf_tests.innerHTML = output;
+
+    let cf_tests_hdr = document.getElementById("cf-tests-hdr");
+    add_one_test_filter_hdr(keys_present, "remote", "Remote", cf_tests_hdr);
+    add_one_test_filter_hdr(keys_present, "executor", "Executor", cf_tests_hdr);
+    add_one_test_filter_hdr(keys_present, "branch", "Branch", cf_tests_hdr);
+    add_one_test_filter_hdr(keys_present, "group", "Group", cf_tests_hdr);
+    add_one_test_filter_hdr(keys_present, "test", "Test", cf_tests_hdr);
+
+    $.each(data_raw["ignore-results"], function(_i, v) {
+	let row = cf_tests.insertRow();
+	let i = 0;
+
+	i += add_one_test_filter(keys_present, "remote", v, i, row);
+	i += add_one_test_filter(keys_present, "executor", v, i, row);
+	i += add_one_test_filter(keys_present, "branch", v, i, row);
+	i += add_one_test_filter(keys_present, "group", v, i, row);
+	i += add_one_test_filter(keys_present, "test", v, i, row);
+    });
 
     output = "<b>Crashes ignored:</b><br />";
     $.each(data_raw["ignore-crashes"], function(i, v) {
