@@ -86,17 +86,30 @@ def results_summarize(filters: dict, result_list: list) -> dict:
     return {'result': code_to_str[code], 'code': code, 'cnt': cnt}
 
 
+def results_summary_combine(a, b):
+    code = max(a["code"], b["code"])
+    return {'result': code_to_str[code],
+            'code': code,
+            'cnt': a['cnt'] + b['cnt']}
+
+
 def results_pivot(filters: dict, results: dict) -> dict:
     """
     results come in as a list, we want to flip them into:
-    { "branch-name": {"code": ...}, }
+    { "branch-name": {"remote-name": {"code": ...}, }, }
     """
     flipped = {}
     for entry in results:
         if entry['branch'] not in flipped:
             flipped[entry['branch']] = {}
-        flipped[entry['branch']][entry['executor']] = \
-            results_summarize(filters, entry["results"])
+        if entry['remote'] not in flipped[entry['branch']]:
+            flipped[entry['branch']][entry['remote']] = \
+                results_summarize({}, [])
+
+        old = flipped[entry['branch']][entry['remote']]
+        new = results_summarize(filters, entry["results"])
+        flipped[entry['branch']][entry['remote']] = \
+            results_summary_combine(old, new)
     return flipped
 
 
@@ -105,10 +118,10 @@ def branch_summarize(filters: dict, results_by_branch: dict) -> dict:
     for name, branch in results_by_branch.items():
         code = 0
         test_cnt = 0
-        for executor in filters["executors"]:
-            if executor in branch:
-                code = max(code, branch[executor]['code'])
-                test_cnt += branch[executor]["cnt"]
+        for remote in filters["remotes"]:
+            if remote in branch:
+                code = max(code, branch[remote]['code'])
+                test_cnt += branch[remote]["cnt"]
             else:
                 code = Codes.PENDING
         summary[name] = {'result': code_to_str[code], 'code': code, 'cnt': test_cnt}
