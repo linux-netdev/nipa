@@ -143,7 +143,7 @@ class Fetcher:
                        cwd=self._tree_path, shell=True, check=True)
 
         if self._patches_path is not None:
-            for patch in os.listdir(self._patches_path):
+            for patch in sorted(os.listdir(self._patches_path)):
                 realpath = '{}/{}'.format(self._patches_path, patch)
                 subprocess.run('git apply -v {}'.format(realpath),
                                cwd=self._tree_path, shell=True)
