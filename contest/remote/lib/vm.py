@@ -260,12 +260,14 @@ class VM:
             pass
         return read_some, output
 
-    def drain_to_prompt(self, prompt="xx__-> ", dump_after=None):
+    def drain_to_prompt(self, prompt="xx__-> ", dump_after=None, deadline=None):
         _dump_after = dump_after
         if dump_after is None:
             dump_after = self.config.getint('vm', 'default_timeout')
-        hard_stop = int(self.config.get('vm', 'hard_timeout',
-                                        fallback=(1 << 63)))
+        hard_stop = self.config.getint('vm', 'hard_timeout', fallback=(1 << 63))
+        if deadline is not None:
+            hard_stop = max(0, min(deadline, hard_stop))
+
         waited = 0
         total_wait = 0
         stdout = ""
@@ -299,6 +301,7 @@ class VM:
                 sleep(0.03)
 
             if total_wait > hard_stop:
+                self.log_err += f'\nHARD STOP ({hard_stop})\n'
                 waited = 1 << 63
             if waited > dump_after:
                 print(f"WARN{self.print_pfx} TIMEOUT retcode:", self.p.returncode,

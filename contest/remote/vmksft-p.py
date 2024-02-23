@@ -111,7 +111,7 @@ def _parse_nested_tests(full_run):
 
     return tests
 
-def _vm_thread(config, results_path, thr_id, in_queue, out_queue):
+def _vm_thread(config, results_path, thr_id, hard_stop, in_queue, out_queue):
     target = config.get('ksft', 'target')
     vm = None
     vm_id = 1
@@ -133,10 +133,10 @@ def _vm_thread(config, results_path, thr_id, in_queue, out_queue):
 
         print(f"INFO: thr-{thr_id} testing == " + prog)
         t1 = datetime.datetime.now()
+        deadline = (hard_stop - datetime.datetime.now(datetime.UTC)).total_seconds()
         vm.cmd(f'make -C tools/testing/selftests TARGETS={target} TEST_PROGS={prog} TEST_GEN_PROGS="" run_tests')
-
         try:
-            vm.drain_to_prompt()
+            vm.drain_to_prompt(deadline=deadline)
             retcode = vm.bash_prev_retcode()
         except TimeoutError:
             print(f"INFO: thr-{thr_id} test timed out:", prog)
@@ -201,9 +201,9 @@ def _vm_thread(config, results_path, thr_id, in_queue, out_queue):
     return
 
 
-def vm_thread(config, results_path, thr_id, in_queue, out_queue):
+def vm_thread(config, results_path, thr_id, hard_stop, in_queue, out_queue):
     try:
-        _vm_thread(config, results_path, thr_id, in_queue, out_queue)
+        _vm_thread(config, results_path, thr_id, hard_stop, in_queue, out_queue)
     except Exception:
         print(f"ERROR: thr-{thr_id} has crashed")
         raise
@@ -238,6 +238,10 @@ def test(binfo, rinfo, cbarg):
     progs = get_prog_list(vm, target)
     progs.sort(reverse=True, key=lambda prog : cbarg.prev_runtime.get(prog, 0))
 
+    dl_min = config.getint('executor', 'deadline_minutes', fallback=999999)
+    hard_stop = datetime.datetime.fromisoformat(binfo["date"])
+    hard_stop += datetime.timedelta(minutes=dl_min)
+
     in_queue = queue.Queue()
     out_queue = queue.Queue()
     threads = []
@@ -256,7 +260,8 @@ def test(binfo, rinfo, cbarg):
         wait_loadavg(load_tgt)
         print("INFO: starting VM", i)
         threads.append(threading.Thread(target=vm_thread,
-                                        args=[config, results_path, i, in_queue, out_queue]))
+                                        args=[config, results_path, i, hard_stop,
+                                              in_queue, out_queue]))
         threads[i].start()
         time.sleep(delay)
 
