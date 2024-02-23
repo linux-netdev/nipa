@@ -354,7 +354,8 @@ class VM:
         crash_lines = []
         finger_prints = []
         last5 = [""] * 5
-        for line in self.log_out.split('\n'):
+        combined = self.log_out.split('\n') + self.log_err.split('\n')
+        for line in combined:
             if in_crash:
                 in_crash &= '] ---[ end trace ' not in line
                 in_crash &= ']  </TASK>' not in line
