@@ -170,7 +170,7 @@ def main() -> None:
                 branches_url=config.get('remote', 'branches'),
                 results_path=os.path.join(base_dir, config.get('local', 'json_path')),
                 url_path=config.get('www', 'url') + '/' + config.get('local', 'json_path'),
-                patches_path=config.get('local', 'patches_path'),
+                patches_path=config.get('local', 'patches_path', fallback=None),
                 life=life,
                 tree_path=config.get('local', 'tree_path'))
     f.run()

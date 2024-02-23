@@ -293,7 +293,7 @@ def main() -> None:
                 results_path=os.path.join(base_dir, config.get('local', 'json_path')),
                 url_path=config.get('www', 'url') + '/' + config.get('local', 'json_path'),
                 tree_path=config.get('local', 'tree_path'),
-                patches_path=config.get('local', 'patches_path'),
+                patches_path=config.get('local', 'patches_path', fallback=None),
                 life=life,
                 first_run=config.get('executor', 'init', fallback="continue"))
     f.run()
