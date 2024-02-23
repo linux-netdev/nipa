@@ -370,7 +370,7 @@ class VM:
                 crash_lines.append(line)
         if not crash_lines:
             print(f"WARN{self.print_pfx} extract_crash found no crashes")
-            return
+            return ["crash-extract-fail"]
 
         proc = self.tree_popen("./scripts/decode_stacktrace.sh vmlinux auto ./".split())
         stdout, stderr = proc.communicate("\n".join(crash_lines).encode("utf-8"))
@@ -391,6 +391,7 @@ class VM:
             if not seen - ignore:
                 print(f"INFO{self.print_pfx} all crashes were ignored")
                 self.fail_state = ""
+        return finger_prints
 
     def bash_prev_retcode(self):
         self.cmd("echo $?")

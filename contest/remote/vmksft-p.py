@@ -158,9 +158,10 @@ def _vm_thread(config, results_path, thr_id, in_queue, out_queue):
         if indicators["fail"]:
             result = 'fail'
 
+        crashes = None
         if vm.fail_state == 'oops':
             print(f"INFO: thr-{thr_id} test crashed kernel:", prog)
-            vm.extract_crash(results_path + f'/vm-crash-thr{thr_id}-{vm_id}')
+            crashes = vm.extract_crash(results_path + f'/vm-crash-thr{thr_id}-{vm_id}')
             # Extraction will clear/discard false-positives (ignored traces)
             # check VM is still in failed state
             if vm.fail_state:
@@ -168,8 +169,11 @@ def _vm_thread(config, results_path, thr_id, in_queue, out_queue):
 
         print(f"INFO: thr-{thr_id} {prog} >> retcode:", retcode, "result:", result, "found", indicators)
 
-        out_queue.put({'prog': prog, 'test': test_name, 'file_name': file_name,
-                       'result': result, 'time': (t2 - t1).seconds})
+        outcome = {'prog': prog, 'test': test_name, 'file_name': file_name,
+                   'result': result, 'time': (t2 - t1).seconds}
+        if crashes:
+            outcome['crashes'] = crashes
+        out_queue.put(outcome)
 
         if config.getboolean('ksft', 'nested_tests', fallback=False):
             # this will only parse nested tests inside the TAP comments
