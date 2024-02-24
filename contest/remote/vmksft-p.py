@@ -114,7 +114,7 @@ def _parse_nested_tests(full_run):
 def _vm_thread(config, results_path, thr_id, hard_stop, in_queue, out_queue):
     target = config.get('ksft', 'target')
     vm = None
-    vm_id = 1
+    vm_id = -1
 
     while True:
         try:
