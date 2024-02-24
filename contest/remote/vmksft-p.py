@@ -123,17 +123,27 @@ def _vm_thread(config, results_path, thr_id, hard_stop, in_queue, out_queue):
             print(f"INFO: thr-{thr_id} has no more work, exiting")
             break
 
+        test_id = work_item['tid']
+        prog = work_item['prog']
+        test_name = namify(prog)
+        file_name = f"{test_id}-{test_name}"
+        is_retry = 'result' in work_item
+
+        deadline = (hard_stop - datetime.datetime.now(datetime.UTC)).total_seconds()
+
+        if is_retry:
+            file_name += '-retry'
+        # Don't run retries if we can't finish with 10min to spare
+        if is_retry and deadline - work_item['time'] < 10 * 60:
+            print(f"INFO: thr-{thr_id} retry skipped == " + prog)
+            out_queue.put(work_item)
+            continue
+
         if vm is None:
             vm_id, vm = new_vm(results_path, vm_id, config=config, thr=thr_id)
 
-        test_id = work_item[0]
-        prog = work_item[1]
-        test_name = namify(prog)
-        file_name = f"{test_id}-{test_name}"
-
         print(f"INFO: thr-{thr_id} testing == " + prog)
         t1 = datetime.datetime.now()
-        deadline = (hard_stop - datetime.datetime.now(datetime.UTC)).total_seconds()
         vm.cmd(f'make -C tools/testing/selftests TARGETS={target} TEST_PROGS={prog} TEST_GEN_PROGS="" run_tests')
         try:
             vm.drain_to_prompt(deadline=deadline)
@@ -169,13 +179,21 @@ def _vm_thread(config, results_path, thr_id, hard_stop, in_queue, out_queue):
 
         print(f"INFO: thr-{thr_id} {prog} >> retcode:", retcode, "result:", result, "found", indicators)
 
-        outcome = {'prog': prog, 'test': test_name, 'file_name': file_name,
-                   'result': result, 'time': (t2 - t1).seconds}
-        if crashes:
-            outcome['crashes'] = crashes
-        out_queue.put(outcome)
+        if is_retry:
+            outcome = work_item
+            outcome['retry'] = result
+        else:
+            outcome = {'tid': test_id, 'prog': prog, 'test': test_name, 'file_name': file_name,
+                       'result': result, 'time': (t2 - t1).total_seconds()}
+            if crashes:
+                outcome['crashes'] = crashes
 
-        if config.getboolean('ksft', 'nested_tests', fallback=False):
+        if not is_retry and result == 'fail':
+            in_queue.put(outcome)
+        else:
+            out_queue.put(outcome)
+
+        if config.getboolean('ksft', 'nested_tests', fallback=False) and not is_retry:
             # this will only parse nested tests inside the TAP comments
             tests = _parse_nested_tests(vm.log_out)
 
@@ -249,7 +267,7 @@ def test(binfo, rinfo, cbarg):
     i = 0
     for prog in progs:
         i += 1
-        in_queue.put((i, prog, ))
+        in_queue.put({'tid': i, 'prog': prog})
 
     # In case we have multiple tests kicking off on the same machine,
     # add optional wait to make sure others have finished building
@@ -274,8 +292,15 @@ def test(binfo, rinfo, cbarg):
         r = out_queue.get()
         if 'time' in r:
             cbarg.prev_runtime[r["prog"]] = r["time"]
-        cases.append({'test': r['test'], 'group': grp_name, 'result': r["result"],
-                      'link': link + '/' + r['file_name']})
+        outcome = {
+            'test': r['test'],
+            'group': grp_name,
+            'result': r["result"],
+            'link': link + '/' + r['file_name']
+        }
+        if 'retry' in r:
+            outcome['retry'] = r['retry']
+        cases.append(outcome)
     if not in_queue.empty():
         print("ERROR: in queue is not empty")
 
