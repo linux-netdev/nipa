@@ -69,6 +69,7 @@ function load_result_table(data_raw)
 	    var test = row.insertCell(5);
 	    var res = row.insertCell(6);
 	    let row_id = 7;
+	    var retry = row.insertCell(row_id++);
 	    var outputs = row.insertCell(row_id++);
 	    var flake = row.insertCell(row_id++);
 	    var hist = row.insertCell(row_id++);
@@ -79,6 +80,8 @@ function load_result_table(data_raw)
 	    exe.innerHTML = v.executor;
 	    group.innerHTML = r.group;
 	    test.innerHTML = "<b>" + r.test + "</b>";
+	    if ("retry" in r)
+		retry.innerHTML = colorify_str(r.retry);
 	    res.innerHTML = colorify_str(r.result);
 	    outputs.innerHTML = "<a href=\"" + r.link + "\">outputs</a>";
 	    hist.innerHTML = "<a href=\"contest.html?test=" + r.test + "\">history</a>";
