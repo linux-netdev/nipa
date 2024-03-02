@@ -61,7 +61,7 @@ class PwPoller:
         for k, tree in self._trees.items():
             self._work_queues[k] = queue.Queue()
 
-            worker = Tester(self.result_dir, tree, self._work_queues[k],
+            worker = Tester(self.result_dir, tree.work_tree(0), self._work_queues[k],
                             self._done_queue, self._barrier)
             worker.start()
             log(f"Started worker {worker.name} for {k}")

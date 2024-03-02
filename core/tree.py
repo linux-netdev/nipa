@@ -26,12 +26,17 @@ class TreeNotClean(Exception):
     pass
 
 
+class WorktreeNesting(Exception):
+    pass
+
+
 class Tree:
     """The git tree class
 
     Git tree class which controls a git tree
     """
-    def __init__(self, name, pfx, fspath, remote=None, branch=None):
+    def __init__(self, name, pfx, fspath, remote=None, branch=None,
+                 wt_id=None):
         self.name = name
         self.pfx = pfx
         self.path = os.path.abspath(fspath)
@@ -41,9 +46,24 @@ class Tree:
         if remote and not branch:
             self.branch = remote + "/main"
 
+        self._wt_id = wt_id
         self._saved_path = None
 
         self._check_tree()
+
+    def work_tree(self, worker_id):
+        # Create a worktree for the repo, returns new Tree object
+        if self._wt_id:
+            raise WorktreeNesting()
+
+        name = f'wt-{worker_id}'
+        new_path = os.path.join(self.path, name)
+        if not os.path.exists(new_path):
+            self.git(["worktree", "add", name])
+
+        new_name = self.name + f'-{worker_id}'
+        return Tree(new_name, self.pfx, new_path, self.remote, self.branch,
+                    wt_id=worker_id)
 
     def git(self, args: List[str]):
         return CMD.cmd_run(["git"] + args, cwd=self.path)

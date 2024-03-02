@@ -130,6 +130,7 @@ class Tester(threading.Thread):
             return
 
         try:
+            tree.reset()
             if series.is_pure_pull():
                 self._test_series_pull(tree, series, series_dir)
             else:
