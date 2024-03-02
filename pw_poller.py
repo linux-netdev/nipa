@@ -59,11 +59,13 @@ class PwPoller:
         for k, tree in self._trees.items():
             self._work_queues[k] = queue.Queue()
 
-            worker = Tester(self.result_dir, tree.work_tree(0),
-                            self._work_queues[k], self._done_queue)
-            worker.start()
-            log(f"Started worker {worker.name} for {k}")
-            self._workers.append(worker)
+            worker_cnt = config.getint('workers', tree.name, fallback=1)
+            for worker_id in range(worker_cnt):
+                worker = Tester(self.result_dir, tree.work_tree(worker_id),
+                                self._work_queues[k], self._done_queue)
+                worker.start()
+                log(f"Started worker {worker.name} for {k}")
+                self._workers.append(worker)
 
         self._pw = Patchwork(config)
 
