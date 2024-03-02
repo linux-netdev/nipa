@@ -56,12 +56,16 @@ class PwPoller:
 
         self._barrier = threading.Barrier(len(self._trees) + 1)
         self._done_queue = queue.Queue()
-        self._workers = {}
+        self._workers = []
+        self._work_queues = {}
         for k, tree in self._trees.items():
-            self._workers[k] = Tester(self.result_dir, tree, queue.Queue(), self._done_queue,
-                                      self._barrier)
-            self._workers[k].start()
-            log(f"Started worker {self._workers[k].name} for {k}")
+            self._work_queues[k] = queue.Queue()
+
+            worker = Tester(self.result_dir, tree, self._work_queues[k],
+                            self._done_queue, self._barrier)
+            worker.start()
+            log(f"Started worker {worker.name} for {k}")
+            self._workers.append(worker)
 
         self._pw = Patchwork(config)
 
@@ -168,7 +172,7 @@ class PwPoller:
 
         if hasattr(s, 'tree_name') and s.tree_name:
             s.tree_selection_comment = comment
-            self._workers[s.tree_name].queue.put(s)
+            self._work_queues[s.tree_name].put(s)
         else:
             core.write_tree_selection_result(self.result_dir, s, comment)
             core.mark_done(self.result_dir, s)
@@ -252,10 +256,10 @@ class PwPoller:
         finally:
             log_open_sec(f"Stopping threads")
             self._barrier.abort()
-            for _, worker in self._workers.items():
+            for worker in self._workers:
                 worker.should_die = True
                 worker.queue.put(None)
-            for _, worker in self._workers.items():
+            for worker in self._workers:
                 log(f"Waiting for worker {worker.tree.name} / {worker.name}")
                 worker.join()
             log_end_sec()
