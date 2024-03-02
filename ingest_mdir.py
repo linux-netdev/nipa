@@ -13,7 +13,6 @@ import argparse
 import configparser
 import os
 import re
-import threading
 import queue
 
 from core import NIPA_DIR
@@ -70,27 +69,16 @@ if not tree.check_applies(series):
 try:
     done = queue.Queue()
     pending = queue.Queue()
-    barrier = threading.Barrier(2)
-    tester = Tester(args.result_dir, tree, pending, done, barrier)
+    tester = Tester(args.result_dir, tree, pending, done)
     tester.start()
 
     pending.put(series)
 
-    # Unleash all workers
-    log("Activate workers", "")
-    barrier.wait()
-
-    # Wait for workers to come back
-    log("Wait for workers", "")
-    barrier.wait()
-
     # Shut workers down
     tester.should_die = True
     pending.put(None)
-    barrier.wait()
 
 finally:
-    barrier.abort()
     tester.should_die = True
     pending.put(None)
     tester.join()

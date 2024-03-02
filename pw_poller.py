@@ -8,7 +8,6 @@ import configparser
 import datetime
 import json
 import os
-import threading
 import shutil
 import time
 import queue
@@ -54,15 +53,14 @@ class PwPoller:
             shutil.rmtree(self.worker_dir)
         os.makedirs(self.worker_dir)
 
-        self._barrier = threading.Barrier(len(self._trees) + 1)
         self._done_queue = queue.Queue()
         self._workers = []
         self._work_queues = {}
         for k, tree in self._trees.items():
             self._work_queues[k] = queue.Queue()
 
-            worker = Tester(self.result_dir, tree.work_tree(0), self._work_queues[k],
-                            self._done_queue, self._barrier)
+            worker = Tester(self.result_dir, tree.work_tree(0),
+                            self._work_queues[k], self._done_queue)
             worker.start()
             log(f"Started worker {worker.name} for {k}")
             self._workers.append(worker)
@@ -237,13 +235,6 @@ class PwPoller:
                 else:
                     prev_req_time = req_time
 
-                # Unleash all workers
-                log("Activate workers", "")
-                self._barrier.wait()
-                # Wait for workers to come back
-                log("Wait for workers", "")
-                self._barrier.wait()
-
                 while not self._done_queue.empty():
                     s = self._done_queue.get()
                     self.done_series.add(s['id'])
@@ -255,7 +246,6 @@ class PwPoller:
                 log_end_sec()
         finally:
             log_open_sec(f"Stopping threads")
-            self._barrier.abort()
             for worker in self._workers:
                 worker.should_die = True
                 worker.queue.put(None)
