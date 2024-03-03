@@ -83,6 +83,7 @@ class Tester(threading.Thread):
             core.log(f"Tester commencing with backlog of {self.queue.qsize()}")
             self.test_series(self.tree, s)
             self.done_queue.put(s)
+            core.log("Tester done processing")
 
     def load_tests(self, name):
         core.log_open_sec(name.capitalize() + " tests")

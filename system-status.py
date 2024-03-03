@@ -75,7 +75,7 @@ def add_one_tree(result, pfx, name):
             test = pre_strip(line, 'Running test')
         elif 'Tester commencing ' in line:
             blog = line[35:].strip()
-        if 'Checking barrier' in line:
+        if 'Tester done processing' in line:
             last = None
             progress = ''
             test = ''
