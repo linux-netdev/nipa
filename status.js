@@ -197,7 +197,7 @@ function load_runners(data_raw)
 	var pid = row.insertCell(cell_id++);
 	var patch = row.insertCell(cell_id++);
 
-	name.innerHTML = i;
+	name.innerHTML = i.slice(0, -6);
 	pid.innerHTML = v.progress;
 	patch.innerHTML = v.patch;
 	tid.innerHTML = v["test-progress"];
