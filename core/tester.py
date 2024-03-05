@@ -10,7 +10,7 @@ import threading
 import re
 
 import core
-from core import Test, PullError
+from core import Test, PullError, PatchApplyError
 
 
 def write_tree_selection_result(result_dir, s, comment):
@@ -29,6 +29,17 @@ def write_tree_selection_result(result_dir, s, comment):
         patch_dir = os.path.join(series_dir, str(patch.id))
         if not os.path.exists(patch_dir):
             os.makedirs(patch_dir)
+
+
+def write_apply_result(series_dir, tree, what, retcode):
+    series_apply = os.path.join(series_dir, "apply")
+    os.makedirs(series_apply)
+
+    core.log("Series " + what, "")
+    with open(os.path.join(series_apply, "retcode"), "w+") as fp:
+        fp.write(str(retcode))
+    with open(os.path.join(series_apply, "desc"), "w+") as fp:
+        fp.write(f"Patch {what} to {tree.name}")
 
 
 def mark_done(result_dir, series):
@@ -126,28 +137,17 @@ class Tester(threading.Thread):
             core.log_end_sec()
 
     def _test_series_patches(self, tree, series, series_dir):
-        if not tree.check_applies(series):
-            series_apply = os.path.join(series_dir, "apply")
-            os.makedirs(series_apply)
-
+        tree.reset(fetch=False)
+        try:
+            tree.apply(series)
+        except PatchApplyError:
             already_applied = tree.check_already_applied(series)
             if already_applied:
-                core.log("Series already applied", "")
-                with open(os.path.join(series_apply, "retcode"), "w+") as fp:
-                    fp.write("0")
-                with open(os.path.join(series_apply, "desc"), "w+") as fp:
-                    fp.write(f"Patch already applied to {tree.name}")
+                write_apply_result(series_dir, tree, "already applied", 0)
             else:
-                core.log("Series does not apply", "")
-                with open(os.path.join(series_apply, "retcode"), "w+") as fp:
-                    fp.write("1")
-                with open(os.path.join(series_apply, "desc"), "w+") as fp:
-                    fp.write(f"Patch does not apply to {tree.name}")
+                write_apply_result(series_dir, tree, "does not apply", 1)
             return
 
-        tree.reset(fetch=False)
-
-        tree.apply(series)
         for test in self.series_tests:
             test.exec(tree, series, series_dir)
 
@@ -169,6 +169,9 @@ class Tester(threading.Thread):
                 try:
                     tree.apply(patch)
                     test.exec(tree, patch, patch_dir)
+                except PatchApplyError:
+                    write_apply_result(series_dir, tree, f"patch {pcnt} does not apply", 1)
+                    return
                 finally:
                     core.log_end_sec()
 
