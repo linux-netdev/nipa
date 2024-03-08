@@ -125,11 +125,13 @@ def branch_summarize(filters: dict, results_by_branch: dict) -> dict:
         code = 0
         test_cnt = 0
         for remote in filters["remotes"]:
+            new_code = Codes.PENDING
             if remote in branch:
-                code = max(code, branch[remote]['code'])
+                # Stick to Pending for all unreal results
+                if branch[remote]['code'] not in unreal_results:
+                    new_code = branch[remote]['code']
                 test_cnt += branch[remote]["cnt"]
-            else:
-                code = Codes.PENDING
+            code = max(code, new_code)
         summary[name] = {'result': code_to_str[code], 'code': code, 'cnt': test_cnt}
     return summary
 
