@@ -108,9 +108,9 @@ if [ $rc -ne 0 ]; then
   tmpfile_fo=$(mktemp)
   tmpfile_fn=$(mktemp)
 
-  grep -i "^$PWD" $tmpfile_o | sed -n 's@\(^\.\./[/a-zA-Z0-9_.-]*.[ch]\):.*@\1@p' | sort | uniq -c \
+  grep -i "^$PWD" $out_of | sed -n 's@\(^\.\./[/a-zA-Z0-9_.-]*.[ch]\):.*@\1@p' | sort | uniq -c \
     > $tmpfile_fo
-  grep -i "^$PWD" $tmpfile_n | sed -n 's@\(^\.\./[/a-zA-Z0-9_.-]*.[ch]\):.*@\1@p' | sort | uniq -c \
+  grep -i "^$PWD" $out_nf | sed -n 's@\(^\.\./[/a-zA-Z0-9_.-]*.[ch]\):.*@\1@p' | sort | uniq -c \
     > $tmpfile_fn
 
   diff -U 0 $tmpfile_fo $tmpfile_fn 1>&2
