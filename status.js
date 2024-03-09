@@ -338,6 +338,7 @@ function avg_time_e(avgs, v)
 function load_fails(data_raw)
 {
     var fail_table = document.getElementById("recent-fails");
+    var crash_table = document.getElementById("recent-crashes");
 
     $.each(data_raw, function(i, v) {
 	$.each(v.results, function(i, r) {
@@ -349,6 +350,14 @@ function load_fails(data_raw)
 		row.insertCell(i++).innerHTML = colorify_basic(r.result);
 		if ("retry" in r)
 		    row.insertCell(i++).innerHTML = colorify_basic(r.retry);
+	    }
+
+	    if ("crashes" in r) {
+		for (v of r.crashes) {
+		    let i = 0, row = crash_table.insertRow();
+		    row.insertCell(i++).innerHTML = r.test;
+		    row.insertCell(i++).innerHTML = v;
+		}
 	    }
 	});
     });
