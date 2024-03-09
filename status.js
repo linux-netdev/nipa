@@ -111,6 +111,13 @@ function colorify_str_any(value, color_map)
     return '<span style="color:' + color_map[value] + '">' + value + '</span>';
 }
 
+function colorify_basic(value)
+{
+    return colorify_str_any(value, {"fail": "red",
+				    "pass": "green",
+				    "pending": "blue"});
+}
+
 function colorify_str(value, good)
 {
     if (value == good) {
@@ -328,6 +335,24 @@ function avg_time_e(avgs, v)
 	avgs[ent_name]["sum"] / avgs[ent_name]["cnt"];
 }
 
+function load_fails(data_raw)
+{
+    var fail_table = document.getElementById("recent-fails");
+
+    $.each(data_raw, function(i, v) {
+	$.each(v.results, function(i, r) {
+	    if (nipa_pw_reported(v, r) && r.result != "pass") {
+		let i = 0, row = fail_table.insertRow();
+		row.insertCell(i++).innerHTML = v.branch;
+		row.insertCell(i++).innerHTML = v.remote;
+		row.insertCell(i++).innerHTML = r.test;
+		row.insertCell(i++).innerHTML = colorify_basic(r.result);
+		if ("retry" in r)
+		    row.insertCell(i++).innerHTML = colorify_basic(r.retry);
+	    }
+	});
+    });
+}
 
 function load_result_table_one(data_raw, table, reported, avgs)
 {
@@ -439,10 +464,7 @@ function load_result_table_one(data_raw, table, reported, avgs)
 	    branch.innerHTML = a + v.branch + "</a>";
 	    branch.setAttribute("colspan", "2");
 	    br_res  = '<b>';
-	    br_res += colorify_str_any(branch_results[v.branch],
-				       {"fail": "red",
-					"pass": "green",
-					"pending": "blue"});
+	    br_res += colorify_basic(branch_results[v.branch]);
 	    br_res += '</b>';
 	    res.innerHTML = br_res;
 	}
@@ -555,6 +577,7 @@ function load_result_table(data_raw)
 
     load_result_table_one(data_raw, table, true, avgs);
     load_result_table_one(data_raw, table_nr, false, avgs);
+    load_fails(data_raw);
 }
 
 let xfr_todo = 3;
