@@ -86,8 +86,6 @@ if [ $current -gt $incumbent ]; then
   rc=1
 fi
 
-echo "Output lengths:" $(wc -l $tmpfile_n) $(wc -l $tmpfile_o)
-
 rm $tmpfile_o $tmpfile_n
 
 exit $rc

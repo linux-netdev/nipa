@@ -25,10 +25,23 @@ HEAD=$(git rev-parse HEAD)
 echo "Tree base:"
 git log -1 --pretty='%h ("%s")' HEAD~
 
-echo "Baseline building the tree"
+if [ x$FIRST_IN_SERIES == x0 ]; then
+    echo "Skip baseline build, not the first patch"
+else
+    echo "Baseline building the tree"
 
-prep_config
-make CC="$cc" O=$output_dir $build_flags
+    prep_config
+    make CC="$cc" O=$output_dir $build_flags
+fi
+
+# Check if new files were added, new files will cause mod re-linking
+# so all module and linker related warnings will pop up in the "after"
+# but not "before". To avoid this we need to force re-linking on
+# the "before", too.
+if ! git log --diff-filter=A HEAD~.. --exit-code >>/dev/null; then
+    echo "Trying to force re-linking, new files were added"
+    touch ${output_dir}/include/generated/utsrelease.h
+fi
 
 git checkout -q HEAD~
 
@@ -41,6 +54,11 @@ incumbent=$(grep -i -c "\(warn\|error\)" $tmpfile_o)
 echo "Building the tree with the patch"
 
 git checkout -q $HEAD
+
+# Also force rebuild "after" in case the file added isn't important.
+if ! git log --diff-filter=A HEAD~.. --exit-code >>/dev/null; then
+    touch ${output_dir}/include/generated/utsrelease.h
+fi
 
 prep_config
 make CC="$cc" O=$output_dir $build_flags 2> >(tee $tmpfile_n >&2) || rc=1
