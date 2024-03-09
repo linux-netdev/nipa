@@ -298,8 +298,9 @@ def test(binfo, rinfo, cbarg):
             'result': r["result"],
             'link': link + '/' + r['file_name']
         }
-        if 'retry' in r:
-            outcome['retry'] = r['retry']
+        for key in ['retry', 'crashes']:
+            if key in r:
+                outcome[key] = r[key]
         cases.append(outcome)
     if not in_queue.empty():
         print("ERROR: in queue is not empty")
