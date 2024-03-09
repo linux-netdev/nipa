@@ -44,6 +44,7 @@ def _tree_name_should_be_local_files(raw_email):
         'Documentation/',
         'include/',
         'rust/',
+        'drivers/vhost/',
     }
     required_files = {
         'Documentation/networking/',
@@ -54,6 +55,7 @@ def _tree_name_should_be_local_files(raw_email):
         'net/',
         'drivers/atm/',
         'drivers/dpll/',
+        'drivers/isdn/',
         'drivers/net/',
         'drivers/dsa/',
         'drivers/nfc/',
@@ -61,6 +63,7 @@ def _tree_name_should_be_local_files(raw_email):
         'drivers/ptp/',
         'drivers/net/ethernet/',
         'kernel/bpf/',
+        'tools/net/',
         'tools/testing/selftests/net/',
     }
     excluded_files = {
