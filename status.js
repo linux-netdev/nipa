@@ -340,9 +340,9 @@ function load_fails(data_raw)
     var fail_table = document.getElementById("recent-fails");
     var crash_table = document.getElementById("recent-crashes");
 
-    $.each(data_raw, function(i, v) {
-	$.each(v.results, function(i, r) {
-	    if (nipa_pw_reported(v, r) && r.result != "pass") {
+    $.each(data_raw, function(idx0, v) {
+	$.each(v.results, function(idx1, r) {
+	    if (r.result != "pass" && nipa_pw_reported(v, r)) {
 		let i = 0, row = fail_table.insertRow();
 		row.insertCell(i++).innerHTML = v.branch;
 		row.insertCell(i++).innerHTML = v.remote;
@@ -353,10 +353,10 @@ function load_fails(data_raw)
 	    }
 
 	    if ("crashes" in r) {
-		for (v of r.crashes) {
+		for (crash of r.crashes) {
 		    let i = 0, row = crash_table.insertRow();
 		    row.insertCell(i++).innerHTML = r.test;
-		    row.insertCell(i++).innerHTML = v;
+		    row.insertCell(i++).innerHTML = crash;
 		}
 	    }
 	});
