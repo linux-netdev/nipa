@@ -66,11 +66,11 @@ done
 
 echo " === Checking the base tree ==="
 git checkout -q $BASE
-make coccicheck MODE=report J=$JOBS SPFLAGS="$SPFLAGS" > $out_o
+make coccicheck MODE=report J=$JOBS SPFLAGS="$SPFLAGS" > $out_o || exit 1
 
 echo " === Building the new tree ==="
 git checkout -q $BRANCH
-make coccicheck MODE=report J=$JOBS SPFLAGS="$SPFLAGS" > $out_n
+make coccicheck MODE=report J=$JOBS SPFLAGS="$SPFLAGS" > $out_n || exit 1
 
 dirty=( $(grep -c . $out_o) $(grep -i -c "warn" $out_o) $(grep -i -c "error" $out_o)
 	$(grep -c . $out_n) $(grep -i -c "warn" $out_n) $(grep -i -c "error" $out_n)

@@ -19,6 +19,8 @@ group=test-group
 test=test-name
 [bin]
 exec=./script.sh
+[env]
+paths=/extra/exec/PATH:/another/bin
 [remote]
 branches=https://url-to-branches-manifest
 [local]
@@ -44,6 +46,8 @@ def test(binfo, rinfo, config):
     env['BRANCH'] = binfo['branch']
     env['BASE'] = binfo['base']
     env['RESULTS_DIR'] = results_path
+    if config.get('env', 'paths', fallback=None):
+        env['PATH'] = config.get('env', 'paths') + ':' + env['PATH']
 
     bin = config.get('bin', 'exec').split()
     process = subprocess.Popen(bin, stdout=subprocess.PIPE, stderr=subprocess.PIPE,

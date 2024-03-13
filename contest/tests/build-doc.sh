@@ -16,12 +16,12 @@ echo
 echo " === Building the base tree ==="
 git checkout -q $BASE
 make cleandocs
-make -Oline htmldocs 2> >(tee $tmpfile_o >&2)
+make -Oline htmldocs 2> >(tee $tmpfile_o >&2) || exit 1
 
 echo " === Building the new tree ==="
 git checkout -q $BRANCH
 make cleandocs
-make -Oline htmldocs 2> >(tee $tmpfile_n >&2)
+make -Oline htmldocs 2> >(tee $tmpfile_n >&2) || exit 1
 
 incumbent=$(grep -i -c "\(warn\|error\)" $tmpfile_o)
 current=$(grep -i -c "\(warn\|error\)" $tmpfile_n)
