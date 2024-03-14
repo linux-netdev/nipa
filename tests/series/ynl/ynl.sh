@@ -22,7 +22,7 @@ fi
 
 ##################################################################
 echo " ====== 2/ Test build ======"
-make -C tools/net/ynl/ hardclean
+make -C tools/net/ynl/ distclean
 if ! make -C tools/net/ynl/ -j $ncpu 2> >(tee $tmpfile >&2); then
   echo "build failed;" >&$DESC_FD
   rc=1
@@ -42,13 +42,13 @@ echo " ====== 3/ Generate diffs for user codegen ======"
 
 mkdir $RESULTS_DIR/old-code
 git checkout -q $BRANCH_BASE
-make -C tools/net/ynl/generated/ hardclean
+make -C tools/net/ynl/generated/ distclean
 make -C tools/net/ynl/generated/ -j $ncpu
 cp tools/net/ynl/generated/*.[ch] $RESULTS_DIR/old-code/
 
 mkdir $RESULTS_DIR/new-code
 git checkout -q $HEAD
-make -C tools/net/ynl/generated/ hardclean
+make -C tools/net/ynl/generated/ distclean
 make -C tools/net/ynl/generated/ -j $ncpu
 cp tools/net/ynl/generated/*.[ch] $RESULTS_DIR/new-code/
 
