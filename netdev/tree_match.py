@@ -44,6 +44,7 @@ def _tree_name_should_be_local_files(raw_email):
         'Documentation/',
         'include/',
         'rust/',
+        'tools/',
         'drivers/vhost/',
     }
     required_files = {
