@@ -115,7 +115,7 @@ function colorify_basic(value)
 {
     return colorify_str_any(value, {"fail": "red",
 				    "pass": "green",
-				    "pending": "blue"});
+				    "pending": "#809fff"});
 }
 
 function colorify_str(value, good)
@@ -393,7 +393,7 @@ function load_result_table_one(data_raw, table, reported, avgs)
 	var str_psf = {"str": "", "overall": ""};
 
 	colorify_str_psf(str_psf, "fail", fail, "red");
-	colorify_str_psf(str_psf, "skip", skip, "blue");
+	colorify_str_psf(str_psf, "skip", skip, "#809fff");
 	colorify_str_psf(str_psf, "pass", pass, "green");
 
 	const span_small = " <span style=\"font-size: small;\">(";
@@ -449,10 +449,10 @@ function load_result_table_one(data_raw, table, reported, avgs)
 		    if (passed > 1000 * 60 * 15 /* 15 min */)
 			color = "red";
 		    else
-			color = "blue";
+			color = "#809fff";
 		} else if (remain > 0) {
 		    pend = "pending (expected in " + (msec_to_str(remain)).toString() + ")";
-		    color = "blue";
+		    color = "#809fff";
 		} else if (remain < -1000 * 60 * 60 * 2) { /* 2 h */
 		    pend = "timeout";
 		} else {

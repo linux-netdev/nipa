@@ -3,7 +3,7 @@ function colorify_str(value)
     if (value == "pass") {
 	ret = '<span style="color:green">';
     } else if (value == "skip") {
-	ret = '<span style="color:blue">';
+	ret = '<span style="color:#809fff">';
     } else {
 	ret = '<span style="color:red">';
     }
