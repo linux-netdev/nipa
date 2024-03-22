@@ -112,7 +112,7 @@ def summary_result(expected, got, link, sub_path=""):
 def test(binfo, rinfo, config):
     print("Run at", datetime.datetime.now())
 
-    process = subprocess.Popen(['./tools/testing/kunit/kunit.py', 'run', '--alltests', '--json'],
+    process = subprocess.Popen(['./tools/testing/kunit/kunit.py', 'run', '--alltests', '--json', '--arch=x86_64'],
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                cwd=config.get('local', 'tree_path'))
     stdout, stderr = process.communicate()
