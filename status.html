@@ -12,62 +12,18 @@
     <script>
         do_it();
     </script>
+    <link rel="stylesheet" href="nipa.css">
     <style>
-      table {
-	  font-family: arial, sans-serif;
-	  border-collapse: collapse;
-	  width: 100%;
+      th {
+	  padding: 0.5em;
       }
 
-      td, th {
-	  border: 1px solid #eeeeee;
-	  text-align: left;
+      td {
+	  padding: 0px;
+	  padding-left: 0.5em;
+	  padding-right: 0.5em;
       }
-
-    th {
-      padding: 0.5em;
-    }
-
-
-    td {
-      padding: 0px;
-      padding-left: 0.5em;
-      padding-right: 0.5em;
-    }
-
-      tr:nth-child(even) {
-	  background-color: #eeeeee;
-      }
-      .row {
-        display: flex;
-      }
-
-      .column {
-        flex: 50%;
-        padding: 1em;
-      }
-      #contest-filters {
-        margin: 1em;
-        padding: 1em;
-        border: solid grey 1px;
-      }
-      #flake-link {
-        margin: 1em;
-      }
-
-      @media (prefers-color-scheme: dark) {
-        body {
-          color: #eee;
-          background: #121212;
-        }
-        a {
-          color: #809fff;
-        }
-        tr:nth-child(even) {
-          background-color: #000000;
-        }
-      }
-      </style>
+    </style>
 </head>
 <body>
 <div class="row">
