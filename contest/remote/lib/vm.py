@@ -95,6 +95,7 @@ class VM:
         self.log_err += stderr.decode("utf-8", "ignore")
         proc.stdout.close()
         proc.stderr.close()
+        return proc.returncode
 
     def build(self, extra_configs, override_configs=None):
         if self.log_out or self.log_err:
@@ -111,7 +112,13 @@ class VM:
         print(f"INFO{self.print_pfx} building kernel")
         # Make sure we rebuild, config and module deps can be stale otherwise
         self.tree_cmd("make mrproper")
-        self.tree_cmd("vng -v -b" + " -f ".join([""] + configs))
+
+        rc = self.tree_cmd("vng -v -b" + " -f ".join([""] + configs))
+        if rc != 0:
+            print(f"INFO{self.print_pfx} kernel build failed")
+            return False
+
+        return True
 
     def _get_ksft_timeout(self):
         default_timeout = 45 # from tools/testing/selftests/kselftest/runner.sh

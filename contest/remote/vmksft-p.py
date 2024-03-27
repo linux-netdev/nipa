@@ -244,9 +244,18 @@ def test(binfo, rinfo, cbarg):
            rinfo['run-cookie']
     rinfo['link'] = link
     target = config.get('ksft', 'target')
+    grp_name = "selftests-" + namify(target)
 
     vm = VM(config)
-    vm.build([f"tools/testing/selftests/{target}/config"])
+
+    if vm.build([f"tools/testing/selftests/{target}/config"]) == False:
+        return [{
+            'test': 'build',
+            'group': grp_name,
+            'result': 'fail',
+            'link': '',
+        }]
+
     shutil.copy(os.path.join(config.get('local', 'tree_path'), '.config'),
                 results_path + '/config')
     vm.tree_cmd("make headers")
@@ -286,7 +295,6 @@ def test(binfo, rinfo, cbarg):
     for i in range(thr_cnt):
         threads[i].join()
 
-    grp_name = "selftests-" + namify(target)
     cases = []
     while not out_queue.empty():
         r = out_queue.get()
