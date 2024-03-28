@@ -49,6 +49,9 @@ tr:nth-child(even) {
         color: #b8b8b8;
         background: #202020;
     }
+    canvas {
+        background-color: #303030;
+    }
     a {
         color: #809fff;
     }
