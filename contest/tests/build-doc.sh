@@ -32,6 +32,15 @@ if [ $current -gt $incumbent ]; then
   rc=1
 fi
 
+# Copy the latest outputs
+if [ "x${RESULTS_DIR}" != x ]; then
+    OUTPUT_TMP=$(dirname ${RESULTS_DIR})/output
+
+    rm -rf "${OUTPUT_TMP}"
+    mkdir -p "${OUTPUT_TMP}"
+    cp -r Documentation/output/* "${OUTPUT_TMP}"/
+fi
+
 echo
 echo " === Summary === "
 echo "Incumbent: $incumbent"
