@@ -1,4 +1,4 @@
-function load_times(data, canva_id, patch_time)
+function load_times_series(data, patch_time)
 {
     const minute = 1000 * 60;
     const hour = minute * 60;
@@ -41,16 +41,32 @@ function load_times(data, canva_id, patch_time)
     // Sort by labels
     entries.sort(function(a, b){return a.l - b.l;});
 
+    return entries;
+}
+
+function load_times(data, canva_id)
+{
+    let e1, e2;
+
+    e1 = load_times_series(data, true);
+    e2 = load_times_series(data, false);
+
     const ctx = document.getElementById(canva_id);
 
     new Chart(ctx, {
-	type: 'line',
+	type: 'scatter',
 	data: {
-	    labels: entries.map(function(e){return e.l;}),
+	    labels: e1.map(function(e){return e.l;}),
 	    datasets: [{
-		tension: 0.1,
-		label: 'Patch age at check delivery',
-		data: entries.map(function(e){return e.v;})
+		backgroundColor: "rgba(0, 0, 0, 0)",
+		pointBorderColor: "rgba(0, 64, 255, 0.7)",
+		label: 'Processing time by patch post time',
+		data: e1.map(function(e){return e.v;})
+	    }, {
+		backgroundColor: "rgba(0, 0, 0, 0)",
+		pointBorderColor: "rgba(255, 64, 0, 0.7)",
+		label: 'Processing time by check delivery time',
+		data: e2.map(function(e){return e.v;})
 	    }]
 	},
 	options: {
@@ -100,8 +116,7 @@ function run_it(data_raw)
 	data.push(v);
     });
 
-    load_times(data, 'process-time', false);
-    load_times(data, 'process-time-p', true);
+    load_times(data, 'process-time');
 }
 
 function colorify_str_any(value, color_map)
