@@ -51,7 +51,7 @@ def decode_and_filter(buf):
     return "".join([x for x in buf if (x in ['\n'] or unicodedata.category(x)[0]!="C")])
 
 
-def crash_finger_print(lines):
+def crash_finger_print(filters, lines):
     needles = []
     need_re = re.compile(r'.*(  |0:)([a-z0-9_]+)\+0x[0-9a-f]+/0x[0-9a-f]+.*')
     for line in lines:
@@ -61,6 +61,15 @@ def crash_finger_print(lines):
         needles.append(m.groups()[1])
         if len(needles) == 4:
             break
+
+    # Filter may contain a list of needles we want to skip
+    # Assume it's well sorted, so we don't need LPM...
+    if filters and 'crash-prefix-skip' in filters:
+        for skip_pfx in filters['crash-prefix-skip']:
+            if needles[:len(skip_pfx)] == skip_pfx:
+                needles = needles[len(skip_pfx):]
+                break
+
     return ":".join(needles)
 
 
@@ -367,7 +376,8 @@ class VM:
                 in_crash &= '] ---[ end trace ' not in line
                 in_crash &= ']  </TASK>' not in line
                 if not in_crash:
-                    finger_prints.append(crash_finger_print(crash_lines[start:]))
+                    finger_prints.append(crash_finger_print(self.filter_data,
+                                                            crash_lines[start:]))
             else:
                 in_crash |= '] Hardware name: ' in line
                 if in_crash:
