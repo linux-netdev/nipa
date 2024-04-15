@@ -42,7 +42,11 @@ def fetch_remote_run(run_info, remote_state):
 def fetch_remote(remote, seen):
     print("Fetching remote", remote['url'])
     r = requests.get(remote['url'])
-    manifest = json.loads(r.content.decode('utf-8'))
+    try:
+        manifest = json.loads(r.content.decode('utf-8'))
+    except json.decoder.JSONDecodeError:
+        print('Failed to decode manifest from remote:', remote['name'])
+        return False
     remote_state = seen[remote['name']]
 
     fetched = False
