@@ -4,6 +4,7 @@
 
 """ The git tree module """
 
+import multiprocessing
 import os
 import tempfile
 from typing import List
@@ -36,12 +37,17 @@ class Tree:
     Git tree class which controls a git tree
     """
     def __init__(self, name, pfx, fspath, remote=None, branch=None,
-                 wt_id=None):
+                 wt_id=None, parent=None):
         self.name = name
         self.pfx = pfx
         self.path = os.path.abspath(fspath)
         self.remote = remote
         self.branch = branch
+
+        if parent:
+            self.lock = parent.lock
+        else:
+            self.lock = multiprocessing.RLock()
 
         if remote and not branch:
             self.branch = remote + "/main"
@@ -63,10 +69,14 @@ class Tree:
 
         new_name = self.name + f'-{worker_id}'
         return Tree(new_name, self.pfx, new_path, self.remote, self.branch,
-                    wt_id=worker_id)
+                    wt_id=worker_id, parent=self)
 
     def git(self, args: List[str]):
-        return CMD.cmd_run(["git"] + args, cwd=self.path)
+        self.lock.acquire(timeout=300)
+        try:
+            return CMD.cmd_run(["git"] + args, cwd=self.path)
+        finally:
+            self.lock.release()
 
     def git_am(self, patch):
         return self.git(["am", "-s", "--", patch])
