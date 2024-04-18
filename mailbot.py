@@ -563,7 +563,7 @@ def do_mail(msg, pw, dr):
     series_id = msg.get_thread_series(pw)
     if not series_id:
         print('', 'INFO: could not find patchwork series, retry in an hour')
-        raise MlDelayActions("not in PW", datetime.now() + datetime.timedelta(hours=1))
+        raise MlDelayActions("not in PW", datetime.datetime.now() + datetime.timedelta(hours=1))
 
     series = PwSeries(pw, series_id)
     patches = [p['id'] for p in series.patches]
