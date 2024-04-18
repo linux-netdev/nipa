@@ -422,6 +422,11 @@ class MlEmail:
                 self.dr_act = []
                 self.pw_act = []
 
+    def flush_actions(self):
+        self.actions = []
+        self.dr_act = []
+        self.pw_act = []
+
 
 #
 # PW stuff
@@ -605,6 +610,7 @@ def do_mail_file(msg_path, pw, dr):
         do_mail(msg, pw, dr)
     except MlDelayActions as e:
         global delay_actions
+        msg.flush_actions()  # avoid duplicates, actions will get re-parsed
         delay_actions.append((e.when, msg, ))
 
 
