@@ -614,13 +614,13 @@ def do_mail(msg, pw, dr):
 def do_mail_file(msg_path, pw, dr):
     msg = MlEmail(msg_path)
 
+    if not msg.has_actions():
+        print('INFO: no actions, skip:', msg.get('Message-ID'))
+        return
+
     print('Message-ID:', msg.get('Message-ID'))
     print('', 'Subject:', msg.get('Subject'))
     print('', 'From:', msg.get('From'))
-
-    if not msg.has_actions():
-        print('', '', 'INFO: no actions, skip')
-        return
 
     if not msg.user_authorized(pw) and not msg.auto_actions() and not msg.self_reply(pw):
         print('', '', 'INFO: not an authorized user, skip')
