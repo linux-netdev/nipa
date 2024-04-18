@@ -423,10 +423,10 @@ class MlEmail:
                 elif line.startswith('doc-bot:'):
                     self.actions.append(line)
                     self.dr_act.append(line[8:].strip())
-        elif self.user_bot():
+        elif self.auto_awaiting_upstream():
             self.actions.append('pw-bot: awaiting-upstream')
             self.pw_act.append('awaiting-upstream')
-        elif self.auto_awaiting_upstream():
+        elif self.user_bot():
             self.actions.append('pw-bot: changes-requested')
             self.pw_act.append('changes-requested')
 
