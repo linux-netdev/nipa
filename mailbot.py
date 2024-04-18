@@ -29,6 +29,7 @@ config = None
 maintainers = None
 authorized_users = set()
 auto_changes_requested = set()
+auto_awaiting_upstream = set()
 delay_actions = []  # contains tuples of (datetime, email)
 
 
@@ -314,6 +315,28 @@ class MlEmail:
     def user_bot(self):
         return self.msg.get('From') in auto_changes_requested
 
+    def auto_awaiting_upstream(self):
+        # Try to operate only on the first message in the thread
+        if self.get('References', ""):
+            return False
+        subject = self.get('Subject')
+        if subject[0] != '[':
+            return False
+
+        tags_end = subject.rfind(']')
+        if tags_end == -1:
+            return False
+        tags = subject[1:tags_end]
+
+        global auto_awaiting_upstream
+        for designation in auto_awaiting_upstream:
+            if designation in tags:
+                return True
+        return False
+
+    def auto_actions(self):
+        return self.user_bot() or self.auto_awaiting_upstream()
+
     def self_reply(self, pw):
         return self.get_thread_author(pw) == self.msg.get("From")
 
@@ -370,7 +393,7 @@ class MlEmail:
         return self._series_author
 
     def has_actions(self):
-        if self.user_bot():
+        if self.auto_actions():
             return True
 
         body_str = self._body()
@@ -401,6 +424,9 @@ class MlEmail:
                     self.actions.append(line)
                     self.dr_act.append(line[8:].strip())
         elif self.user_bot():
+            self.actions.append('pw-bot: awaiting-upstream')
+            self.pw_act.append('awaiting-upstream')
+        elif self.auto_awaiting_upstream():
             self.actions.append('pw-bot: changes-requested')
             self.pw_act.append('changes-requested')
 
@@ -536,8 +562,8 @@ def do_mail(msg, pw, dr):
 
     series_id = msg.get_thread_series(pw)
     if not series_id:
-        print('', 'ERROR: could not find patchwork series')
-        return
+        print('', 'INFO: could not find patchwork series, retry in an hour')
+        raise MlDelayActions("not in PW", datetime.now() + datetime.timedelta(hours=1))
 
     series = PwSeries(pw, series_id)
     patches = [p['id'] for p in series.patches]
@@ -596,7 +622,7 @@ def do_mail_file(msg_path, pw, dr):
         print('', '', 'INFO: no actions, skip')
         return
 
-    if not msg.user_authorized(pw) and not msg.user_bot() and not msg.self_reply(pw):
+    if not msg.user_authorized(pw) and not msg.auto_actions() and not msg.self_reply(pw):
         print('', '', 'INFO: not an authorized user, skip')
         return
     print('', 'Authorized:', msg.user_authorized())
@@ -619,7 +645,7 @@ def do_mail_delayed(msg, pw, dr):
     print('', 'Subject:', msg.get('Subject'))
     print('', 'From:', msg.get('From'))
 
-    if not msg.user_authorized(pw) and not msg.user_bot():
+    if not msg.user_authorized(pw) and not msg.auto_actions():
         print('', '', 'INFO: not an authorized user, skip')
         return
     print('', 'Authorized:', msg.user_authorized())
@@ -632,8 +658,7 @@ def do_mail_delayed(msg, pw, dr):
     try:
         do_mail(msg, pw, dr)
     except MlDelayActions as e:
-        global delay_actions
-        delay_actions.append((e.when, msg, ))
+        print("ERROR: message delayed for the second time", str(e))
 
 
 def check_new(tree, pw, dr):
@@ -667,6 +692,10 @@ def main():
     global auto_changes_requested
     users = config.get('mailbot', 'error-bots')
     auto_changes_requested.update(set(users.split(',')))
+
+    global auto_awaiting_upstream
+    users = config.get('mailbot', 'awaiting-upstream')
+    auto_awaiting_upstream.update(set(users.split(',')))
 
     tree_dir = config.get('dirs', 'trees', fallback=os.path.join(NIPA_DIR, "../"))
     mail_repos = {}
