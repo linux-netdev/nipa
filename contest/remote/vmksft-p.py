@@ -249,11 +249,12 @@ def test(binfo, rinfo, cbarg):
     vm = VM(config)
 
     if vm.build([f"tools/testing/selftests/{target}/config"]) == False:
+        vm.dump_log(results_path + '/build')
         return [{
             'test': 'build',
             'group': grp_name,
             'result': 'fail',
-            'link': '',
+            'link': link + '/build',
         }]
 
     shutil.copy(os.path.join(config.get('local', 'tree_path'), '.config'),
