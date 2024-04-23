@@ -736,6 +736,7 @@ def main():
             check_new(t, pw, dr)
 
         global delay_actions
+        delay_actions.sort()
         while len(delay_actions) and (delay_actions[0][0] - req_time).total_seconds() < 0:
             msg = delay_actions[0][1]
             delay_actions = delay_actions[1:]
