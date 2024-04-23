@@ -592,7 +592,10 @@ def do_mail(msg, pw, dr):
             name = series["name"]
             if not name:
                 name = '? ' + msg.get('Subject')
-            log = [name, msg.get('From'), series.state(), pw_act_map[act], series["id"], mid]
+            actor = msg.get('From')
+            if msg.auto_awaiting_upstream():
+                actor = "auto"
+            log = [name, actor, series.state(), pw_act_map[act], series["id"], mid]
             pw_state_log(log)
         else:
             print('', '', "ERROR: action not in the map:", f"'{act}'")
