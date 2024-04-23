@@ -320,7 +320,7 @@ class MlEmail:
         if self.get('References', ""):
             return False
         subject = self.get('Subject')
-        if subject[0] != '[':
+        if not subject or subject[0] != '[':
             return False
 
         tags_end = subject.rfind(']')
