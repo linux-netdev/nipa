@@ -376,6 +376,7 @@ class VM:
                 in_crash &= '] ---[ end trace ' not in line
                 in_crash &= ']  </TASK>' not in line
                 if not in_crash:
+                    self._load_filters()
                     finger_prints.append(crash_finger_print(self.filter_data,
                                                             crash_lines[start:]))
             else:
