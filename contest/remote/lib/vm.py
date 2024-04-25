@@ -51,25 +51,32 @@ def decode_and_filter(buf):
     return "".join([x for x in buf if (x in ['\n'] or unicodedata.category(x)[0]!="C")])
 
 
+def finger_print_skip_pfx_len(filters, needles):
+    # Filter may contain a list of needles we want to skip
+    # Assume it's well sorted, so we don't need LPM...
+    if filters and 'crash-prefix-skip' in filters:
+        for skip_pfx in filters['crash-prefix-skip']:
+            if len(needles) < len(skip_pfx):
+                continue
+            if needles[:len(skip_pfx)] == skip_pfx:
+                return len(skip_pfx)
+    return 0
+
+
 def crash_finger_print(filters, lines):
     needles = []
     need_re = re.compile(r'.*(  |0:)([a-z0-9_]+)\+0x[0-9a-f]+/0x[0-9a-f]+.*')
+    skip = 0
     for line in lines:
         m = need_re.match(line)
         if not m:
             continue
         needles.append(m.groups()[1])
-        if len(needles) == 4:
+        skip = finger_print_skip_pfx_len(filters, needles)
+        if len(needles) - skip == 5:
             break
 
-    # Filter may contain a list of needles we want to skip
-    # Assume it's well sorted, so we don't need LPM...
-    if filters and 'crash-prefix-skip' in filters:
-        for skip_pfx in filters['crash-prefix-skip']:
-            if needles[:len(skip_pfx)] == skip_pfx:
-                needles = needles[len(skip_pfx):]
-                break
-
+    needles = needles[skip:]
     return ":".join(needles)
 
 
