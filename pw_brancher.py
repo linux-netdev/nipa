@@ -189,9 +189,12 @@ def create_new(pw, config, state, tree, tgt_remote) -> None:
                 tree.pull(url, reset=False)
                 state["info"][branch_name]["base-pulls"][url] = "okay"
             except PullError:
-                log("PULL FAILED")
-                state["info"][branch_name]["base-pulls"][url] = "fail"
-                pass
+                try:
+                    tree.pull(url, reset=False, trust_rerere=True)
+                    state["info"][branch_name]["base-pulls"][url] = "resolved"
+                except PullError:
+                    log("PULL FAILED")
+                    state["info"][branch_name]["base-pulls"][url] = "fail"
 
         log_end_sec()
 
