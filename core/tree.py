@@ -233,21 +233,30 @@ class Tree:
 
         return ret
 
-    def _pull_safe(self, pull_url):
+    def _pull_safe(self, pull_url, trust_rerere):
         try:
             self.git_pull(pull_url)
         except CMD.CmdError as e:
+            try:
+                # If rerere fixed it, just commit
+                if trust_rerere:
+                    self.git(['diff', '-s', '--exit-code'])  # will raise if rerere didn't fix it
+                    self.git(['commit', '--no-edit'])
+                    return
+            except CMD.CmdError:
+                pass
+
             try:
                 self.git(["merge", "--abort"])
             except CMD.CmdError:
                 pass
             raise PullError(e) from e
 
-    def pull(self, pull_url, reset=True):
+    def pull(self, pull_url, reset=True, trust_rerere=None):
         core.log_open_sec("Pulling " + pull_url)
         try:
             if reset:
                 self.reset()
-            self._pull_safe(pull_url)
+            self._pull_safe(pull_url, trust_rerere)
         finally:
             core.log_end_sec()
