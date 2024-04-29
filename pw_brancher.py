@@ -179,14 +179,18 @@ def create_new(pw, config, state, tree, tgt_remote) -> None:
     tree.git_reset(tree.branch, hard=True)
     log_end_sec()
 
+    state["info"][branch_name] = {"base-pulls":{}}
+
     pull_list = config.get("target", "pull", fallback=None)
     if pull_list:
         log_open_sec("Pulling in other trees")
         for url in pull_list.split(','):
             try:
                 tree.pull(url, reset=False)
+                state["info"][branch_name]["base-pulls"][url] = "okay"
             except PullError:
                 log("PULL FAILED")
+                state["info"][branch_name]["base-pulls"][url] = "fail"
                 pass
 
         log_end_sec()
@@ -194,7 +198,7 @@ def create_new(pw, config, state, tree, tgt_remote) -> None:
     state["hashes"][branch_name] = tree.head_hash()
 
     series, prs = apply_pending_patches(pw, config, tree)
-    state["info"][branch_name] = {"series": series, "prs": prs}
+    state["info"][branch_name] |= {"series": series, "prs": prs}
 
     extras = apply_local_patches(config, tree)
     state["info"][branch_name]["extras"] = extras
