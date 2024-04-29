@@ -478,14 +478,16 @@ function load_result_table_one(data_raw, table, reported, avgs)
 	    }
 	} else {
 	    let res = row.insertCell(2);
-	    let br_res;
+	    let br_res, br_pull = "";
 
 	    if (v.start)
 		remote.innerHTML = v.start.toLocaleString();
 	    else
 		remote.innerHTML = "unknown";
 	    remote.setAttribute("colspan", "2");
-	    branch.innerHTML = a + v.branch + "</a>";
+	    if (v.pull_status != "okay")
+		br_pull = " (pull: " + v.pull_status + ")";
+	    branch.innerHTML = a + v.branch + "</a>" + br_pull;
 	    branch.setAttribute("colspan", "2");
 	    br_res  = '<b>';
 	    br_res += colorify_basic(branch_results[v.branch]);
@@ -504,16 +506,35 @@ function load_result_table(data_raw)
 {
     var table = document.getElementById("contest");
     var table_nr = document.getElementById("contest-purgatory");
+    var branch_pull_status = {};
     var branch_start = {};
 
+    // Parse branch info to extract pull status
+    $.each(branches_info, function(i, v) {
+	let summary = null;
+	$.each(v['base-pulls'], function(url, res) {
+	    if (res == "okay" && !summary) {
+		summary = res;
+	    } else if (res == "resolved" && (!summary || summary == "okay")) {
+		summary = res;
+	    } else {
+		summary = res;
+	    }
+	});
+	branch_pull_status[i] = summary;
+    });
+
+    // Decorate branchers and collect branch_start
     $.each(data_raw, function(i, v) {
 	v.start = new Date(v.start);
 	v.end = new Date(v.end);
 
 	branches.add(v.branch);
 
-	if (v.remote == "brancher")
+	if (v.remote == "brancher") {
             branch_start[v.branch] = v.start;
+	    v.pull_status = branch_pull_status[v.branch];
+	}
     });
 
     // Continue with only 6 most recent branches
@@ -604,8 +625,9 @@ function load_result_table(data_raw)
     load_fails(data_raw);
 }
 
-let xfr_todo = 3;
+let xfr_todo = 4;
 let all_results = null;
+let branches_info = null;
 let branches = new Set();
 let branch_results = {};
 
@@ -700,6 +722,12 @@ function filters_doit(data_raw)
     loaded_one();
 }
 
+function branches_loaded(data_raw)
+{
+    branches_info = data_raw;
+    loaded_one();
+}
+
 function do_it()
 {
     $(document).ready(function() {
@@ -716,5 +744,8 @@ function do_it()
     });
     $(document).ready(function() {
         $.get("contest/all-results.json", results_loaded)
+    });
+    $(document).ready(function() {
+        $.get("static/nipa/branches-info.json", branches_loaded)
     });
 }
