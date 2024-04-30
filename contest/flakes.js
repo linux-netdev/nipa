@@ -35,6 +35,7 @@ function load_result_table(data_raw)
     let needle = document.getElementById("tn-needle").value;
 
     var test_row = {};
+    let tn_urls = {};
 
     $.each(data_raw, function(i, v) {
 	$.each(v.results, function(j, r) {
@@ -46,6 +47,8 @@ function load_result_table(data_raw)
 	    const tn = v.remote + '/' + r.group + '/' + r.test;
 	    if (needle && !tn.includes(needle))
 		return 1;
+
+	    tn_urls[tn] = "executor=" + v.executor + "&test=" + r.test;
 
 	    if (!(tn in test_row)) {
 		test_row[tn] = {};
@@ -111,7 +114,7 @@ function load_result_table(data_raw)
 
 	let row = table.insertRow();
 	let name = row.insertCell(0);
-	name.innerHTML = tn;
+	name.innerHTML = "<a style=\"text-decoration: none\" href=\"contest.html?" + tn_urls[tn] + "\">" + tn + "</a>";
 	name.setAttribute("style", "padding: 0px");
 
 	for (let i = 0; i < branches.length; i++) {
