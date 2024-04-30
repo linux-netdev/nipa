@@ -49,12 +49,12 @@ def get(url, token):
     return requests.get(url, headers=headers)
 
 
-def get_results(config, cbarg, prev_run):
+def get_results(config, cbarg, prev_run, page=1):
     token = config.get('gh', 'token')
     repo_url = f"https://api.github.com/repos/{config.get('ci', 'owner')}/{config.get('ci', 'repo')}"
     ref = config.get('ci', 'runs_ref')
 
-    resp = get(repo_url + '/actions/runs', token)
+    resp = get(repo_url + f'/actions/runs?page={page}', token)
     runs = resp.json()
     found = None
     for run in runs.get('workflow_runs'):
@@ -62,7 +62,9 @@ def get_results(config, cbarg, prev_run):
             if found is None or found["id"] < run["id"]:
                 found = run
     if found is None:
-        print("Run not found!")
+        if page < 10:
+            return get_results(config, cbarg, prev_run, page=(page + 1))
+        print(f"Run not found, tried all {page} pages!")
         return None
     if prev_run == found["id"]:
         print("Found old run:", prev_run)
