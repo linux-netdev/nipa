@@ -13,6 +13,9 @@ Currently this project only includes simple checks and build testing,
 all Linux kernel-centric. Patches are not tested against existing
 kernel selftests.
 
+Please see `the wiki <https://github.com/linux-netdev/nipa/wiki>`_
+for how to interact with NIPA.
+
 Goals
 =====
 
