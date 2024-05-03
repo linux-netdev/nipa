@@ -2,6 +2,8 @@ system-status.cfg
 poller.state*
 *.config
 *.org
+*.xz
+ui/contest/
+ui/static/
 __pycache__/
 results/
-*.xz
