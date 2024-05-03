@@ -158,6 +158,9 @@ function results_loaded(data_raw)
 
 function do_it()
 {
+    /*
+     * Please remember to keep these assets in sync with `scripts/ui_assets.sh`
+     */
     $(document).ready(function() {
         $.get("contest/filters.json", filters_loaded)
     });
