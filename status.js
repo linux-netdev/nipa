@@ -60,19 +60,34 @@ function load_times(data, canva_id)
 	    datasets: [{
 		backgroundColor: "rgba(0, 0, 0, 0)",
 		pointBorderColor: "rgba(0, 64, 255, 0.7)",
-		label: 'Processing time by patch post time',
+		label: 'By patch post time',
 		data: e1.map(function(e){return e.v;})
 	    }, {
 		backgroundColor: "rgba(0, 0, 0, 0)",
 		pointBorderColor: "rgba(255, 64, 0, 0.7)",
-		label: 'Processing time by check delivery time',
+		label: 'By check delivery time',
 		data: e2.map(function(e){return e.v;})
 	    }]
 	},
 	options: {
+	    plugins: {
+                title: {
+                    display: true,
+                    text: 'Patch processing times over last 7 days',
+                    padding: 0
+                },
+		legend: {
+		    position: 'chartArea',
+		},
+	    },
 	    scales: {
 		y: {
 		    type: 'linear',
+		    title: {
+		        display: true,
+		        text: 'Hours',
+		        padding: 0
+                    },
 		    ticks: {
 		        stepSize: 3
 		    },
@@ -80,6 +95,11 @@ function load_times(data, canva_id)
 		},
 		x: {
 		    type: 'linear',
+		    title: {
+		        display: true,
+		        text: 'Hours ago',
+		        padding: 0
+                    },
 		    ticks: {
 		        stepSize: 24
 		    },
