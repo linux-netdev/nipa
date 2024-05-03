@@ -1,15 +1,8 @@
 function colorify(cell, value)
 {
-    if (value == "") {
-	ret = "";
-    } else if (value == "pass") {
-	ret = "background-color:green";
-    } else if (value == "skip") {
-	ret = "background-color:blue";
-    } else {
-	ret = "background-color:red";
-    }
-    cell.setAttribute("style", ret);
+    if (value == "pass" || value == "skip" ||
+	value == "fail" || value == "flake")
+	cell.setAttribute("class", "box-" + value);
 }
 
 function get_sort_key()
@@ -56,6 +49,8 @@ function load_result_table(data_raw)
 		    test_row[tn][branches[i - 1]] = "";
 	    }
 	    test_row[tn][v.branch] = r.result;
+	    if (r.result == "fail" && r.retry == "pass")
+		test_row[tn][v.branch] = "flake";
 	});
     });
 
