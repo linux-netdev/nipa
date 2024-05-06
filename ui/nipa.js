@@ -60,3 +60,10 @@ function nipa_pw_reported(v, r)
 
     return true;
 }
+
+function nipa_load_sitemap()
+{
+    $(document).ready(function() {
+	$("#sitemap").load("sitemap.html")
+    });
+}
