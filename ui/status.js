@@ -699,7 +699,6 @@ function filters_doit(data_raw)
     let cf_execs = document.getElementById("cf-execs");
     let cf_tests = document.getElementById("cf-tests");
     var output, sep = "";
-    var execs = "Executors reported ";
 
     output = "<b>Executors reported:</b> ";
     $.each(data_raw.executors, function(i, v) {
