@@ -700,8 +700,8 @@ function filters_doit(data_raw)
     let cf_tests = document.getElementById("cf-tests");
     var output, sep = "";
 
-    output = "<b>Executors reported:</b> ";
-    $.each(data_raw.executors, function(i, v) {
+    output = "<b>Remotes reported:</b> ";
+    $.each(data_raw.remotes, function(i, v) {
 	output += sep + v;
 	sep = ", ";
     });
