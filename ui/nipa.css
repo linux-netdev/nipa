@@ -45,10 +45,6 @@ tr:nth-child(even) {
     border: solid grey 1px;
 }
 
-#flake-link {
-    margin: 1em;
-}
-
 @media (prefers-color-scheme: dark) {
     body {
         color: #b8b8b8;
