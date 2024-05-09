@@ -277,7 +277,7 @@ class VM:
                 return read_some, output
             read_some = True
             output = decode_and_filter(buf)
-            if output.find("] RIP: ") != -1 or output.find("] Call Trace:") != -1:
+            if output.find("] RIP: ") != -1 or output.find("] Call Trace:") != -1 or output.find('] ref_tracker: ') != -1:
                 self.fail_state = "oops"
         except BlockingIOError:
             pass
@@ -382,12 +382,14 @@ class VM:
             if in_crash:
                 in_crash &= '] ---[ end trace ' not in line
                 in_crash &= ']  </TASK>' not in line
+                in_crash &= line[-2:] != '] '
                 if not in_crash:
                     self._load_filters()
                     finger_prints.append(crash_finger_print(self.filter_data,
                                                             crash_lines[start:]))
             else:
                 in_crash |= '] Hardware name: ' in line
+                in_crash |= '] ref_tracker: ' in line
                 if in_crash:
                     start = len(crash_lines)
                     crash_lines += last5
