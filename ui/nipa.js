@@ -21,7 +21,7 @@ function nipa_filters_set_from_url()
 	if (!url_val)
 	    continue;
 
-	if (elem.hasAttribute("checked")) {
+	if (elem.hasAttribute("checked") || elem.type == "radio") {
 	    if (url_val == "0")
 		elem.checked = false;
 	    else if (url_val == "1")
