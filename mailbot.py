@@ -6,6 +6,7 @@ import configparser
 import csv
 import datetime
 import os
+import re
 import requests
 import signal
 import time
@@ -350,7 +351,7 @@ class MlEmail:
 
     def _resolve_thread(self, pw):
         subject = self.get('Subject')
-        if subject.find(' 0/') != -1 or subject.find(' 00/') != -1:
+        if re.match(r"\W0+/", subject):
             obj_type = 'covers'
         else:
             obj_type = 'patches'
