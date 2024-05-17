@@ -765,7 +765,7 @@ function do_it()
         $.get("static/nipa/branch-results.json", branch_res_doit)
     });
     $(document).ready(function() {
-        $.get("contest/all-results.json", results_loaded)
+        $.get("query/results?branches=6", results_loaded)
     });
     $(document).ready(function() {
         $.get("static/nipa/branches-info.json", branches_loaded)

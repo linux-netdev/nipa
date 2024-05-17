@@ -168,6 +168,6 @@ function do_it()
         $.get("contest/filters.json", filters_loaded)
     });
     $(document).ready(function() {
-        $.get("contest/all-results.json", results_loaded)
+        $.get("query/results?branches=100", results_loaded)
     });
 }
