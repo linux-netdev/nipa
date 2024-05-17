@@ -351,7 +351,7 @@ class MlEmail:
 
     def _resolve_thread(self, pw):
         subject = self.get('Subject')
-        if re.match(r"\W0+/", subject):
+        if re.search(r"\W0+/", subject):
             obj_type = 'covers'
         else:
             obj_type = 'patches'
