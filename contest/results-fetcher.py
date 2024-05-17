@@ -23,6 +23,15 @@ combined=name-of-manifest.json
 """
 
 
+class FetcherState:
+    def __init__(self):
+        self.config = configparser.ConfigParser()
+        self.config.read(['fetcher.config'])
+
+        # "fetched" is more of a "need state rebuild"
+        self.fetched = True
+
+
 def write_json_atomic(path, data):
     tmp = path + '.new'
     with open(tmp, 'w') as fp:
@@ -39,36 +48,34 @@ def fetch_remote_run(run_info, remote_state):
         json.dump(data, fp)
 
 
-def fetch_remote(remote, seen):
+def fetch_remote(fetcher, remote, seen):
     print("Fetching remote", remote['url'])
     r = requests.get(remote['url'])
     try:
         manifest = json.loads(r.content.decode('utf-8'))
     except json.decoder.JSONDecodeError:
         print('Failed to decode manifest from remote:', remote['name'])
-        return False
+        return
     remote_state = seen[remote['name']]
 
-    fetched = False
     for run in manifest:
         if run['branch'] in remote_state['seen']:
             continue
         if not run['url']:    # Executor has not finished, yet
-            fetched |= run['branch'] not in remote_state['wip']
+            fetcher.fetched |= run['branch'] not in remote_state['wip']
             continue
 
         print('Fetching run', run['branch'])
         fetch_remote_run(run, remote_state)
-        fetched = True
+        fetcher.fetched = True
 
     with open(os.path.join(remote_state['dir'], 'results.json'), "w") as fp:
         json.dump(manifest, fp)
 
-    return fetched
 
 
-def build_combined(config, remote_db):
-    r = requests.get(config.get('input', 'branch_url'))
+def build_combined(fetcher, remote_db):
+    r = requests.get(fetcher.config.get('input', 'branch_url'))
     branches = json.loads(r.content.decode('utf-8'))
     branch_info = {}
     for br in branches:
@@ -77,7 +84,7 @@ def build_combined(config, remote_db):
     combined = []
     for remote in remote_db:
         name = remote['name']
-        dir = os.path.join(config.get('output', 'dir'), name)
+        dir = os.path.join(fetcher.config.get('output', 'dir'), name)
         print('Combining from remote', name)
 
         manifest = os.path.join(dir, 'results.json')
@@ -110,18 +117,18 @@ def build_combined(config, remote_db):
     return combined
 
 
-def build_seen(config, remote_db):
+def build_seen(fetcher, remote_db):
     seen = {}
     for remote in remote_db:
         seen[remote['name']] = {'seen': set(), 'wip': set()}
 
         # Prepare local state
         name = remote['name']
-        dir = os.path.join(config.get('output', 'dir'), name)
+        dir = os.path.join(fetcher.config.get('output', 'dir'), name)
         seen[name]['dir'] = dir
         os.makedirs(dir, exist_ok=True)
 
-        url = config.get('output', 'url_pfx') + '/' + name
+        url = fetcher.config.get('output', 'url_pfx') + '/' + name
         seen[name]['url'] = url
 
         # Read the files
@@ -143,36 +150,29 @@ def build_seen(config, remote_db):
     return seen
 
 
-def one_check(config, remote_db, seen):
-    fetched = False
-    for remote in remote_db:
-        fetched |= fetch_remote(remote, seen)
-    return fetched
-
-
 def main() -> None:
-    config = configparser.ConfigParser()
-    config.read(['fetcher.config'])
+    fetcher = FetcherState()
 
-    with open(config.get('input', 'remote_db'), "r") as fp:
+    with open(fetcher.config.get('input', 'remote_db'), "r") as fp:
         remote_db = json.load(fp)
 
-    fetched = True
     while True:
-        if fetched:
-            seen = build_seen(config, remote_db)
+        if fetcher.fetched:
+            seen = build_seen(fetcher, remote_db)
+            fetcher.fetched = False
 
-        fetched = one_check(config, remote_db, seen)
+        for remote in remote_db:
+            fetch_remote(fetcher, remote, seen)
 
-        if fetched:
+        if fetcher.fetched:
             print('Generating combined')
-            results = build_combined(config, remote_db)
+            results = build_combined(fetcher, remote_db)
 
-            combined = os.path.join(config.get('output', 'dir'),
-                                    config.get('output', 'combined'))
+            combined = os.path.join(fetcher.config.get('output', 'dir'),
+                                    fetcher.config.get('output', 'combined'))
             write_json_atomic(combined, results)
 
-        time.sleep(int(config.get('cfg', 'refresh')))
+        time.sleep(int(fetcher.config.get('cfg', 'refresh')))
 
 
 if __name__ == "__main__":
