@@ -204,7 +204,7 @@ def _vm_thread(config, results_path, thr_id, hard_stop, in_queue, out_queue):
             print(f"INFO: thr-{thr_id} {prog} >> nested tests: {len(tests)} subtests")
 
         vm.dump_log(results_path + '/' + file_name, result=retcode,
-                    info={"thr-id": thr_id, "vm-id": vm_id, "time": (t2 - t1).seconds,
+                    info={"thr-id": thr_id, "vm-id": vm_id, "time": (t2 - t1).total_seconds(),
                           "found": indicators, "vm_state": vm.fail_state})
 
         if vm.fail_state:
