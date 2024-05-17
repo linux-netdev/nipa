@@ -2,11 +2,13 @@
 # SPDX-License-Identifier: GPL-2.0
 
 import configparser
+import couchdb
 import datetime
 import json
 import os
 import time
 from typing import List, Tuple
+import uuid
 
 from core import NIPA_DIR
 from core import log, log_open_sec, log_end_sec, log_init
@@ -30,9 +32,14 @@ pull=git://git.kernel.org/pub/scm/linux/kernel/git/netdev/net.git
 [output]
 branches=branches.json
 info=branches-info.json
+[db]
+name=db-name
+user=name
+pwd=pass
 """
 
 
+db = None
 ignore_delegate = {}
 gate_checks = {}
 
@@ -169,6 +176,20 @@ def apply_local_patches(config, tree) -> List:
     return extras
 
 
+def db_insert(config, state, name):
+    global db
+
+    pub_url = config.get('target', 'public_url')
+    row = {'_id': uuid.uuid4().hex,
+           "branch": name,
+           "date": state["branches"][name],
+           "base": state["hashes"].get(name, None),
+           "url": pub_url + " " + name}
+    row |= state["info"][name]
+
+    db.save(row)
+
+
 def create_new(pw, config, state, tree, tgt_remote) -> None:
     now = datetime.datetime.now(datetime.UTC)
     pfx = config.get("target", "branch_pfx")
@@ -207,6 +228,8 @@ def create_new(pw, config, state, tree, tgt_remote) -> None:
     state["info"][branch_name]["extras"] = extras
 
     state["branches"][branch_name] = now.isoformat()
+
+    db_insert(config, state, branch_name)
 
     log_open_sec("Pushing out")
     tree.git_push(tgt_remote, "HEAD:" + branch_name)
@@ -311,6 +334,14 @@ def prep_remote(config, tree) -> str:
     return "brancher"
 
 
+def open_db(config):
+    user = config.get("db", "user")
+    pwd = config.get("db", "pwd")
+    name = config.get("db", "name")
+    server = couchdb.Server(f'http://{user}:{pwd}@127.0.0.1:5984')
+    return server[name]
+
+
 def main() -> None:
     config = configparser.ConfigParser()
     config.read(['nipa.config', 'pw.config', 'brancher.config'])
@@ -339,6 +370,8 @@ def main() -> None:
     ignore_delegate = set(config.get('filters', 'ignore_delegate', fallback="").split(','))
     global gate_checks
     gate_checks = set(config.get('filters', 'gate_checks', fallback="").split(','))
+    global db
+    db = open_db(config)
 
     tree_obj = None
     tree_dir = config.get('dirs', 'trees', fallback=os.path.join(NIPA_DIR, "../"))
