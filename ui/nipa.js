@@ -10,10 +10,10 @@ function nipa_filters_enable(update_cb)
     }
 }
 
-function nipa_filters_set_from_url()
+function nipa_input_set_from_url(name)
 {
     const urlParams = new URLSearchParams(window.location.search);
-    const filters = document.querySelectorAll("[name=fl-pw]");
+    const filters = document.querySelectorAll("[name="+ name + "]");
 
     for (const elem of filters) {
 	let url_val = urlParams.get(elem.id);
@@ -30,6 +30,11 @@ function nipa_filters_set_from_url()
 	    elem.value = url_val;
 	}
     }
+}
+
+function nipa_filters_set_from_url()
+{
+    nipa_input_set_from_url("fl-pw");
 }
 
 // ------------------

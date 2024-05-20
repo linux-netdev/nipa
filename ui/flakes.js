@@ -152,19 +152,34 @@ function results_loaded(data_raw)
     });
     data_raw.sort(function(a, b){return b.end - a.end;});
 
+    const had_data = loaded_data;
     loaded_data = data_raw;
-    loaded_one();
+    if (!had_data) {
+	loaded_one();
+    } else if (!xfr_todo) {
+	results_update();
+    }
+}
+
+function reload_data()
+{
+    let br_cnt = document.getElementById("br-cnt");
+    $(document).ready(function() {
+        $.get("query/results?branches=" + br_cnt.value, results_loaded)
+    });
 }
 
 function do_it()
 {
+    let br_cnt = document.getElementById("br-cnt");
+
+    br_cnt.addEventListener("change", reload_data);
+
     /*
      * Please remember to keep these assets in sync with `scripts/ui_assets.sh`
      */
     $(document).ready(function() {
         $.get("contest/filters.json", filters_loaded)
     });
-    $(document).ready(function() {
-        $.get("contest/all-results.json", results_loaded)
-    });
+    reload_data();
 }

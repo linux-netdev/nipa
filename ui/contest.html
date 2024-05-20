@@ -11,7 +11,6 @@
     <script src="contest.js"></script>
     <script>
         nipa_load_sitemap();
-        do_it();
     </script>
     <link rel="stylesheet" href="nipa.css">
     <style>
@@ -20,9 +19,19 @@
       }
     </style>
 </head>
-<body>
+<body onload="do_it();">
 <div id="sitemap"></div>
 <div class="row">
+    <fieldset>
+        <legend>Loading:</legend>
+        <label for="ld_branch">Single branch:</label>
+        <br />
+        <input id="ld_branch" name="ld-pw" />
+        <div style="height=1em">&nbsp;</div>
+        <label for="ld_cnt">Branch count:</label>
+        <br />
+        <input type="number" step="25" id="ld_cnt" name="ld-pw" value="125" style="width:8em" />
+    </fieldset>
     <fieldset>
       <legend>Filtering:</legend>
 

@@ -30,14 +30,16 @@ function load_result_table(data_raw)
     $("#results tr").slice(1).remove();
 
     let warn_box = document.getElementById("fl-warn-box");
-    if (!exec_filter && !test_filter && !branch_filter) {
-	warn_box.innerHTML = "Set an executor, branch or test filter. Otherwise this page will set your browser on fire...";
-	return;
-    } else {
-	warn_box.innerHTML = "";
-    }
+    warn_box.innerHTML = "";
+
+    let row_count = 0;
 
     $.each(data_raw, function(i, v) {
+	if (row_count >= 5000) {
+	    warn_box.innerHTML = "Reached 5000 rows. Set an executor, branch or test filter. Otherwise this page will set your browser on fire...";
+	    return 0;
+	}
+
 	if (branch_filter &&
 	    branch_filter != v.branch)
 	    return 1;
@@ -86,6 +88,8 @@ function load_result_table(data_raw)
 	    outputs.innerHTML = "<a href=\"" + r.link + "\">outputs</a>";
 	    hist.innerHTML = "<a href=\"contest.html?test=" + r.test + "\">history</a>";
 	    flake.innerHTML = "<a href=\"flakes.html?tn-needle=" + r.test + "\">matrix</a>";
+
+	    row_count++;
 	});
     });
 }
@@ -103,6 +107,13 @@ function add_option_filter(data_raw, elem_id, field)
     var elem = document.getElementById(elem_id);
     var values = new Set();
 
+    // Re-create "all"
+    const opt = document.createElement('option');
+    opt.value = "";
+    opt.innerHTML = "-- all --";
+    elem.appendChild(opt);
+
+    // Create the dynamic entries
     $.each(data_raw, function(i, v) {
 	values.add(v[field]);
     });
@@ -123,17 +134,44 @@ let xfr_todo = 2;
 let branch_urls = {};
 let loaded_data = null;
 
-function loaded_one()
+function reload_select_filters(first_load)
 {
-    if (--xfr_todo)
-	return;
+    let old_values = new Object();
+
+    // Save old values before we wipe things out
+    for (const elem_id of ["branch", "executor", "remote"]) {
+	var elem = document.getElementById(elem_id);
+	old_values[elem_id] = elem.value;
+    }
+
+    // Keep the "all" option, remove the rest
+    $("select option").remove();
 
     // We have all JSONs now, do processing.
     add_option_filter(loaded_data, "branch", "branch");
     add_option_filter(loaded_data, "executor", "executor");
     add_option_filter(loaded_data, "remote", "remote");
 
-    nipa_filters_set_from_url();
+    // On first load we use URL, later we try to keep settings user tweaked
+    if (first_load)
+	nipa_filters_set_from_url();
+
+    for (const elem_id of ["branch", "executor", "remote"]) {
+	var elem = document.getElementById(elem_id);
+
+	if (!first_load)
+	    elem.value = old_values[elem_id];
+	if (elem.selectedIndex == -1)
+	    elem.selectedIndex = 0;
+    }
+}
+
+function loaded_one()
+{
+    if (--xfr_todo)
+	return;
+
+    reload_select_filters(true);
     nipa_filters_enable(results_update);
 
     results_update();
@@ -155,19 +193,67 @@ function results_loaded(data_raw)
 
     find_branch_urls(data_raw);
 
+    const had_data = loaded_data;
     loaded_data = data_raw;
-    loaded_one();
+    if (!had_data) {
+	loaded_one();
+    } else if (!xfr_todo) {
+	reload_select_filters(false);
+	results_update();
+    }
+}
+
+function reload_data(event)
+{
+    const br_cnt = document.getElementById("ld_cnt");
+    const br_name = document.getElementById("ld_branch");
+
+    if (event) {
+	if (event.target == br_name)
+	    br_cnt.value = 1;
+	else if (event.target == br_cnt)
+	    br_name.value = "";
+    }
+
+    let req_url = "query/results?";
+    if (br_name.value) {
+	req_url += "branch-name=" + br_name.value;
+    } else {
+	req_url += "branches=" + br_cnt.value;
+    }
+
+    $(document).ready(function() {
+        $.get(req_url, results_loaded)
+    });
+
+    let warn_box = document.getElementById("fl-warn-box");
+    warn_box.innerHTML = "Loading...";
 }
 
 function do_it()
 {
+    const urlParams = new URLSearchParams(window.location.search);
+
+    nipa_input_set_from_url("ld-pw");
+    /* The filter is called "branch" the load selector is called "ld_branch"
+     * auto-copy will not work, but we want them to match, initially.
+     */
+    if (urlParams.get("branch")) {
+	document.getElementById("ld_branch").value = urlParams.get("branch");
+	document.getElementById("ld_cnt").value = 1;
+    }
+
+    const ld_pw = document.querySelectorAll("[name=ld-pw]");
+    for (const one of ld_pw) {
+	one.addEventListener("change", reload_data);
+	one.disabled = false;
+    }
+
     /*
      * Please remember to keep these assets in sync with `scripts/ui_assets.sh`
      */
     $(document).ready(function() {
         $.get("contest/filters.json", filters_loaded)
     });
-    $(document).ready(function() {
-        $.get("query/results?branches=100", results_loaded)
-    });
+    reload_data(null);
 }
