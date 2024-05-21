@@ -370,6 +370,20 @@ function avg_time_e(avgs, v)
 	avgs[ent_name]["sum"] / avgs[ent_name]["cnt"];
 }
 
+function wrap_link(objA, objB, text)
+{
+    let url = null;
+
+    if ("link" in objA)
+	url = objA.link;
+    else if ("link" in objB)
+	url = objB.link;
+    else
+	return text;
+
+    return "<a href=\"" + url + "\">" + text + "</a>";
+}
+
 function load_fails(data_raw)
 {
     var fail_table = document.getElementById("recent-fails");
@@ -390,7 +404,7 @@ function load_fails(data_raw)
 	    if ("crashes" in r) {
 		for (crash of r.crashes) {
 		    let i = 0, row = crash_table.insertRow();
-		    row.insertCell(i++).innerHTML = r.test;
+		    row.insertCell(i++).innerHTML = wrap_link(r, v, r.test);
 		    row.insertCell(i++).innerHTML = crash;
 		}
 	    }
