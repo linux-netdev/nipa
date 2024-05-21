@@ -398,8 +398,70 @@ function load_fails(data_raw)
     });
 }
 
+function add_summaries(table, summary, reported)
+{
+    let row = table.insertRow();
+    let i = 0;
+
+    let cell = row.insertCell(i++); // branch
+    cell.innerHTML = "summary";
+
+    cell = row.insertCell(i++);     // remote
+    let count_line = summary["remote-cnt"] + " remotes";
+    if (summary["hidden"]) {
+	if (summary["hidden"] == summary["remote-cnt"])
+	    count_line += " (all hidden)";
+	else
+	    count_line += " (" + summary["hidden"] + " hidden)";
+    }
+
+    cell.innerHTML = count_line;
+
+    cell = row.insertCell(i++);     // time
+    cell.innerHTML = msec_to_str(summary["time-pass"]);
+
+    let str_psf = {"str": "", "overall": ""};
+
+    colorify_str_psf(str_psf, "fail", summary["fail"], "red");
+    colorify_str_psf(str_psf, "skip", summary["skip"], "#809fff");
+    colorify_str_psf(str_psf, "pass", summary["total"], "green");
+
+    var link_to_contest = "<a href=\"contest.html?pw-n=0&";
+    link_to_contest += "branch=" + summary["branch"];
+    if (reported)
+	link_to_contest += "&pw-n=0";
+    else
+	link_to_contest += "&pw-y=0";
+    link_to_contest += "\">" + str_psf.str + "</a>";
+
+    cell = row.insertCell(i++);     // tests
+    cell.innerHTML = link_to_contest;
+
+    cell = row.insertCell(i++);     // result
+    cell.setAttribute("style", "text-align: left; font-weight: bold; font-style: normal;");
+    cell.innerHTML = colorify_basic(branch_results[summary.branch]);
+
+    row.setAttribute("class", "summary-row");
+}
+
+function reset_summary(summary)
+{
+    summary["branch"] = null;
+    summary["remote-cnt"] = 0;
+    summary["time-pass"] = 0;
+    summary["total"] = 0;
+    summary["skip"] = 0;
+    summary["fail"] = 0;
+    summary["hidden"] = 0;
+}
+
 function load_result_table_one(data_raw, table, reported, avgs)
 {
+    const summarize = document.getElementById("contest-summary").checked;
+    let summary = {};
+
+    reset_summary(summary);
+
     $.each(data_raw, function(i, v) {
 	var pass = 0, skip = 0, fail = 0, total = 0, ignored = 0;
 	var link = v.link;
@@ -425,6 +487,29 @@ function load_result_table_one(data_raw, table, reported, avgs)
 	if (!total && ignored && v.executor != "brancher")
 	    return 1;
 
+	var t_start = new Date(v.start);
+	var t_end = new Date(v.end);
+
+	if (v.remote == "brancher") {
+	    summary["branch"] = v.branch;
+	    add_summaries(table, summary, reported);
+	    reset_summary(summary);
+	} else {
+	    summary["total"] += total;
+	    if (total) {
+		summary["remote-cnt"] += 1;
+		if (summary["time-pass"] < t_end - t_start)
+		    summary["time-pass"] = t_end - t_start;
+	    }
+
+	    summary["skip"] += skip;
+	    summary["fail"] += fail;
+	    if (summarize && total && total == pass) {
+		summary["hidden"] += 1;
+		return 1;
+	    }
+	}
+
 	var str_psf = {"str": "", "overall": ""};
 
 	colorify_str_psf(str_psf, "fail", fail, "red");
@@ -444,8 +529,6 @@ function load_result_table_one(data_raw, table, reported, avgs)
 	var branch = row.insertCell(0);
 	var remote = row.insertCell(1);
 
-	    var t_start = new Date(v.start);
-	    var t_end = new Date(v.end);
 	    var a = "<a href=\"" + link + "\">";
 
 	if (v.remote != "brancher") {
@@ -498,7 +581,7 @@ function load_result_table_one(data_raw, table, reported, avgs)
 	    }
 	} else {
 	    let res = row.insertCell(2);
-	    let br_res, br_pull = "";
+	    let br_pull = "";
 
 	    if (v.start)
 		remote.innerHTML = v.start.toLocaleString();
@@ -509,10 +592,8 @@ function load_result_table_one(data_raw, table, reported, avgs)
 		br_pull = " (pull: " + v.pull_status + ")";
 	    branch.innerHTML = a + v.branch + "</a>" + br_pull;
 	    branch.setAttribute("colspan", "2");
-	    br_res  = '<b>';
-	    br_res += colorify_basic(branch_results[v.branch]);
-	    br_res += '</b>';
-	    res.innerHTML = br_res;
+	    res.innerHTML = "";
+	    row.setAttribute("class", "end-row");
 	}
     });
 }
@@ -522,7 +603,7 @@ function rem_exe(v)
     return v.remote + "/" + v.executor;
 }
 
-function load_result_table(data_raw)
+function load_result_table(data_raw, reload)
 {
     var table = document.getElementById("contest");
     var table_nr = document.getElementById("contest-purgatory");
@@ -558,7 +639,7 @@ function load_result_table(data_raw)
     });
 
     // Continue with only 6 most recent branches
-    let recent_branches = new Set(Array.from(branches).sort().slice(-6));
+    let recent_branches = new Set(Array.from(branches).sort().slice(-10));
     data_raw = $.grep(data_raw,
 		      function(v, i) { return recent_branches.has(v.branch); });
 
@@ -640,9 +721,12 @@ function load_result_table(data_raw)
 	return b.end - a.end;
     });
 
+    $("#contest tr").slice(1).remove();
+    $("#contest-purgatory tr").slice(1).remove();
     load_result_table_one(data_raw, table, true, avgs);
     load_result_table_one(data_raw, table_nr, false, avgs);
-    load_fails(data_raw);
+    if (!reload)
+	load_fails(data_raw);
 }
 
 let xfr_todo = 4;
@@ -651,10 +735,19 @@ let branches_info = null;
 let branches = new Set();
 let branch_results = {};
 
+function reload_results()
+{
+    load_result_table(all_results, true);
+}
+
 function loaded_one()
 {
-    if (!--xfr_todo)
-	load_result_table(all_results);
+    if (!--xfr_todo) {
+	load_result_table(all_results, false);
+
+	let summary_checkbox = document.getElementById("contest-summary");
+	summary_checkbox.addEventListener("change", reload_results);
+    }
 }
 
 function results_loaded(data_raw)
@@ -765,7 +858,7 @@ function do_it()
         $.get("static/nipa/branch-results.json", branch_res_doit)
     });
     $(document).ready(function() {
-        $.get("query/results?branches=6", results_loaded)
+        $.get("query/results?branches=10", results_loaded)
     });
     $(document).ready(function() {
         $.get("static/nipa/branches-info.json", branches_loaded)

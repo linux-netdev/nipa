@@ -14,6 +14,16 @@ tr:nth-child(even) {
     background-color: #eeeeee;
 }
 
+.end-row td {
+    border-width: 1px 1px 6px 1px;
+    border-color: white;
+}
+
+.summary-row td {
+    text-align: right;
+    font-style: italic;
+}
+
 .box-pass  { background-color: green; }
 .box-skip  { background-color: royalblue; }
 .box-flake { background-color: red; }
@@ -64,5 +74,8 @@ tr:nth-child(even) {
     }
     tr:nth-child(odd) {
         background-color: #303030;
+    }
+    .end-row td {
+	border-color: #202020;
     }
 }
