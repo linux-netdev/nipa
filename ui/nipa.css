@@ -29,11 +29,22 @@ tr:nth-child(even) {
 .box-flake { background-color: red; }
 .box-fail  { background-color: #d06060; }
 
-.row {
-    display: flex;
+@media screen and (max-resolution: 116dpi) {
+    .row {
+	display: flex;
+    }
+
+    .column {
+	flex: 50%;
+	padding: 1em;
+    }
 }
 
-.column {
+/* layout inside fieldsets even on small screens */
+.row-small {
+    display: flex;
+}
+.column-small {
     flex: 50%;
     padding: 1em;
 }

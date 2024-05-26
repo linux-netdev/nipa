@@ -21,7 +21,7 @@
 </head>
 <body onload="do_it();">
 <div id="sitemap"></div>
-<div class="row">
+<div class="row-small">
     <fieldset>
         <legend>Loading:</legend>
         <label for="ld_branch">Single branch:</label>
@@ -35,8 +35,8 @@
     <fieldset>
       <legend>Filtering:</legend>
 
-      <div class="row">
-          <div class="column">
+      <div class="row-small">
+          <div class="column-small">
               <div>
                   <input type="checkbox" id="pass" name="fl-pw" disabled checked />
                   <label for="pass">Pass</label>
@@ -54,7 +54,7 @@
                   <label for="fail">Fail</label>
               </div>
           </div>
-          <div class="column">
+          <div class="column-small">
               <div>
                   <label for="remote">Remote</label>
                   <select id="remote" name="fl-pw" disabled>
@@ -74,7 +74,7 @@
                   </select>
               </div>
           </div>
-          <div class="column">
+          <div class="column-small">
               <div>
                   <input type="checkbox" id="pw-y" name="fl-pw" disabled checked />
                   <label for="pw-y">Reported to patchwork</label>
@@ -89,7 +89,7 @@
               </div>
           </div>
       </div>
-      <div class="row">
+      <div class="row-small">
           <span id="fl-warn-box" style="color: red">Loading...</span>
       </div>
     </fieldset>
