@@ -414,6 +414,62 @@ function load_fails(data_raw)
     });
 }
 
+function load_partial_tests(data)
+{
+    let table = document.getElementById("test-presence");
+    let pending_executors = {};
+    let count_map = {};
+    let total = 0;
+
+    $.each(data, function(i, v) {
+	// Ignore tests from AWOL executors, that should be rare
+	if (v.executor in awol_executors)
+	    return 1;
+
+	if (v.executor == "brancher") {
+	    total++;
+	    return 1;
+	}
+
+	// Track pending executors
+	if (v.results == null) {
+	    let name = rem_exe(v);
+
+	    if (name in pending_executors)
+		pending_executors[name]++;
+	    else
+		pending_executors[name] = 1;
+	}
+
+	$.each(v.results, function(i, r) {
+	    let name = nipa_test_fullname(v, r);
+
+	    if (name in count_map)
+		count_map[name]++;
+	    else
+		count_map[name] = 1;
+	});
+    });
+
+    for (const name of Object.keys(count_map)) {
+	let missing = total - count_map[name];
+
+	if (!missing)
+	    continue;
+	for (const pending in Object.keys(pending_executors)) {
+	    if (name.startsWith(pending)) {
+		if (missing == pending_executors[pending])
+		    continue;
+		break;
+	    }
+	}
+
+	let row = table.insertRow();
+	row.insertCell(0).innerHTML = name;
+	row.insertCell(1).innerHTML = missing;
+    }
+}
+
 function add_summaries(table, summary, reported)
 {
     let row = table.insertRow();
@@ -619,6 +675,8 @@ function rem_exe(v)
     return v.remote + "/" + v.executor;
 }
 
+var awol_executors;
+
 function load_result_table(data_raw, reload)
 {
     var table = document.getElementById("contest");
@@ -696,6 +754,7 @@ function load_result_table(data_raw, reload)
     }
 
     let known_exec_set = new Set(Object.keys(known_execs));
+    awol_executors = new Set();
     for (br of branches) {
 	for (re of known_exec_set) {
 	    if (branch_execs[br].has(re))
@@ -708,6 +767,7 @@ function load_result_table(data_raw, reload)
 		"start" : branch_start[br],
 		"end" : 0,
 	    });
+	    awol_executors.add(known_execs[re].executor);
 	}
     }
 
@@ -736,8 +796,10 @@ function load_result_table(data_raw, reload)
     $("#contest-purgatory tr").slice(1).remove();
     load_result_table_one(data_raw, table, true, avgs);
     load_result_table_one(data_raw, table_nr, false, avgs);
-    if (!reload)
+    if (!reload) {
 	load_fails(data_raw);
+	load_partial_tests(data_raw);
+    }
 }
 
 let xfr_todo = 4;

@@ -1,3 +1,8 @@
+function nipa_test_fullname(v, r)
+{
+    return v.remote + "/" + v.executor + "/" + r.group + "/" + r.test;
+}
+
 function nipa_filters_enable(update_cb)
 {
     let warn_box = document.getElementById("fl-warn-box");
