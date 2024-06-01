@@ -91,6 +91,7 @@ function load_times(data, canva_id)
 		    ticks: {
 		        stepSize: 3
 		    },
+		    suggestedMax: 12,
 		    beginAtZero: true
 		},
 		x: {
@@ -103,6 +104,7 @@ function load_times(data, canva_id)
 		    ticks: {
 		        stepSize: 24
 		    },
+		    suggestedMax: 12,
 		    reverse: true
 		}
 	    }
