@@ -654,11 +654,6 @@ function load_result_table(data_raw, reload)
 	}
     });
 
-    // Continue with only 6 most recent branches
-    let recent_branches = new Set(Array.from(branches).sort().slice(-10));
-    data_raw = $.grep(data_raw,
-		      function(v, i) { return recent_branches.has(v.branch); });
-
     // Calculate expected runtimes
     var avgs = {};
     $.each(data_raw, function(i, v) {
@@ -701,7 +696,7 @@ function load_result_table(data_raw, reload)
     }
 
     let known_exec_set = new Set(Object.keys(known_execs));
-    for (br of recent_branches) {
+    for (br of branches) {
 	for (re of known_exec_set) {
 	    if (branch_execs[br].has(re))
 		continue;
