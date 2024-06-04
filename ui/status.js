@@ -456,13 +456,15 @@ function load_partial_tests(data)
 
 	if (!missing)
 	    continue;
-	for (const pending in Object.keys(pending_executors)) {
+	for (const pending of Object.keys(pending_executors)) {
 	    if (name.startsWith(pending)) {
 		if (missing == pending_executors[pending])
-		    continue;
+		    missing = 0;
 		break;
 	    }
 	}
+	if (!missing)
+	    continue;
 
 	let row = table.insertRow();
 	row.insertCell(0).innerHTML = name;
