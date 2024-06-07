@@ -2,12 +2,15 @@
 # SPDX-License-Identifier: GPL-2.0
 
 import configparser
+import copy
 import couchdb
 import datetime
 import json
 import os
+import psycopg2
 import requests
 import time
+import traceback
 import uuid
 
 
@@ -23,8 +26,9 @@ dir=/path/to/output
 url_pfx=relative/within/server
 combined=name-of-manifest.json
 [db]
-results-name=db-name
-branches-name=db-name
+db=db-name
+results-name=table-name
+branches-name=table-name
 user=name
 pwd=pass
 """
@@ -38,25 +42,89 @@ class FetcherState:
         # "fetched" is more of a "need state rebuild"
         self.fetched = True
 
+        self.tbl_res = self.config.get("db", "results-name", fallback="results")
+        self.tbl_brn = self.config.get("db", "branches-name", fallback="branches")
+
         user = self.config.get("db", "user")
         pwd = self.config.get("db", "pwd")
         server = couchdb.Server(f'http://{user}:{pwd}@127.0.0.1:5984')
-        self.res_db = server[self.config.get("db", "results-name", fallback="results")]
-        self.brn_db = server[self.config.get("db", "branches-name", fallback="branches")]
+        self.res_db = server[self.tbl_res]
+        self.brn_db = server[self.tbl_brn]
 
-    def _one(self, rows):
-        rows = list(rows)
-        if len(rows) != 1:
-            raise Exception("Expected 1 row, found", rows)
-        return rows[0]
+        db_name = self.config.get("db", "db")
+        self.psql_conn = psycopg2.connect(database=db_name)
+        self.psql_conn.autocommit = True
 
     def get_branch(self, name):
-        branch_info = self.brn_db.find({
-            'selector': {
-                'branch': name
-            }
-        })
-        return self._one(branch_info)
+        with self.psql_conn.cursor() as cur:
+            cur.execute(f"SELECT info FROM {self.tbl_brn} WHERE branch = '{name}'")
+            rows = cur.fetchall()
+        return json.loads(rows[0][0])
+
+    def psql_run_selector(self, cur, remote, run):
+        return cur.mogrify("WHERE branch = %s AND remote = %s AND executor = %s",
+                           (run['branch'], remote["name"], run["executor"],)).decode('utf-8')
+
+    def psql_has_wip(self, remote, run):
+        with self.psql_conn.cursor() as cur:
+            cur.execute(f"SELECT branch FROM {self.tbl_res} " + self.psql_run_selector(cur, remote, run))
+            rows = cur.fetchall()
+        return rows and len(rows) > 0
+
+    def insert_result_psql(self, cur, data):
+        normal, full = self.psql_json_split(data)
+        arg = cur.mogrify("(%s,%s,%s,%s,%s,%s,%s)", (data["branch"], data["remote"], data["executor"],
+                                                     data["start"], data["end"], normal, full))
+        cur.execute(f"INSERT INTO {self.tbl_res} VALUES " + arg.decode('utf-8'))
+
+    def insert_wip_psql(self, remote, run, branch_info):
+        if self.psql_has_wip(remote, run):
+            # no point, we have no interesting info to add
+            return
+
+        data = run.copy()
+        data["remote"] = remote["name"]
+        when = datetime.datetime.fromisoformat(branch_info['date'])
+        data["start"] = str(when)
+        when += datetime.timedelta(hours=2, minutes=58)
+        data["end"] = str(when)
+        data["results"] = None
+
+        with self.psql_conn.cursor() as cur:
+            self.insert_result_psql(cur, data)
+
+    def psql_json_split(self, data):
+        # return "normal" and "full" as json string or None
+        # "full" will be None if they are the same to save storage
+        if data.get("results") is None:
+            return json.dumps(data), None
+
+        normal = copy.deepcopy(data)
+        full = None
+
+        for row in normal["results"]:
+            if "results" in row:
+                full = True
+                del row["results"]
+
+        if full:
+            full = json.dumps(data)
+        return json.dumps(normal), full
+
+    def insert_real_psql(self, remote, run):
+        data = run.copy()
+        data["remote"] = remote["name"]
+
+        with self.psql_conn.cursor() as cur:
+            if not self.psql_has_wip(remote, run):
+                self.insert_result_psql(cur, data)
+            else:
+                normal, full = self.psql_json_split(data)
+                vals = cur.mogrify("SET t_start = %s, t_end = %s, json_normal = %s, json_full = %s",
+                                   (data["start"], data["end"], normal, full)).decode('utf-8')
+                selector = self.psql_run_selector(cur, remote, run)
+                q = f"UPDATE {self.tbl_res} " + vals + ' ' + selector
+                cur.execute(q)
 
     def get_wip_row(self, remote, run):
         rows = self.res_db.find({
@@ -71,9 +139,11 @@ class FetcherState:
             return row
 
     def insert_wip(self, remote, run):
-        existing = self.get_wip_row(remote, run)
-
         branch_info = self.get_branch(run["branch"])
+
+        self.insert_wip_psql(remote, run, branch_info)
+
+        existing = self.get_wip_row(remote, run)
 
         data = run.copy()
         if existing:
@@ -91,6 +161,7 @@ class FetcherState:
         self.res_db.save(data)
 
     def insert_real(self, remote, run):
+        self.insert_real_psql(remote, run)
         existing = self.get_wip_row(remote, run)
 
         data = run.copy()
