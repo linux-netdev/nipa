@@ -81,32 +81,54 @@ def load_expected(config):
             if words[1] not in grp:
                 grp[words[1]] = {}
             grp[words[1]] = str_to_code[words[2]]
-    return  expected
+    return expected
 
 
-def summary_result(expected, got, link, sub_path=""):
+def summary_flat(expected, got, sub_path=""):
     if sub_path:
         sub_path += '.'
 
+    overall_code = 0
+    results = []
+    bad_tests = []
+    for case in got["test_cases"]:
+        code = str_to_code[case["status"]]
+
+        exp = expected.get(got["name"], {}).get(case["name"])
+        if exp and exp == code:
+            continue
+
+        overall_code = max(code, overall_code)
+        results.append({'test': sub_path + case["name"],
+                        'result': code_to_str[code]})
+        if code:
+            bad_tests.append(f"{got['name']} {case['name']} {case['status']}")
+
+    for sub_group in got["sub_groups"]:
+        ov, bt, res = summary_flat(expected, sub_group, sub_path + sub_group["name"])
+        overall_code = max(ov, overall_code)
+        results += res
+        bad_tests += bt
+
+    return overall_code, bad_tests, results
+
+
+def summary_result(expected, got, link, sub_path=""):
     results = []
     bad_tests = []
     for sub_group in got["sub_groups"]:
-        for case in sub_group["test_cases"]:
-            code = str_to_code[case["status"]]
+        code, bt, res = summary_flat(expected, sub_group)
 
-            exp = expected.get(sub_group["name"], {}).get(case["name"])
-            if exp and exp == code:
-                continue
+        data = {
+            'test': sub_group["name"],
+            'group': 'kunit',
+            'result': code_to_str[code],
+            'results': res,
+            'link': link
+        }
+        results.append(data)
 
-            results.append({'test': case["name"],
-                            'group': sub_path + sub_group["name"],
-                            'result': code_to_str[code], 'link': link})
-            if code:
-                bad_tests.append(f"{sub_group['name']} {case['name']} {case['status']}")
-        for grp in sub_group["sub_groups"]:
-            bt, res = summary_result(expected, grp, link, sub_path + grp["name"])
-            results += res
-            bad_tests += bt
+        bad_tests += bt
 
     return bad_tests, results
 
