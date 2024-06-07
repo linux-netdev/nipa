@@ -72,7 +72,9 @@ def load_expected(config):
         for l in lines:
             if not l:
                 continue
-            words = l.split()
+            words = l.strip().split('|')
+            if len(words) != 3:
+                words = l.split()
             if words[0] not in expected:
                 expected[words[0]] = {}
             grp = expected[words[0]]
