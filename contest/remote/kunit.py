@@ -18,6 +18,7 @@ Config:
 name=executor
 group=test-group
 test=test-name
+init=force / continue / next
 [remote]
 branches=https://url-to-branches-manifest
 [local]
@@ -196,7 +197,8 @@ def main() -> None:
                 url_path=config.get('www', 'url') + '/' + config.get('local', 'json_path'),
                 patches_path=config.get('local', 'patches_path', fallback=None),
                 life=life,
-                tree_path=config.get('local', 'tree_path'))
+                tree_path=config.get('local', 'tree_path'),
+                first_run=config.get('executor', 'init', fallback="continue"))
     f.run()
     life.exit()
 
