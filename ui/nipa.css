@@ -1,5 +1,8 @@
+body {
+    font-family: "roboto mono", helvetica, nunito;
+}
+
 table {
-    font-family: arial, sans-serif;
     border-collapse: collapse;
     width: 100%;
 }
@@ -69,7 +72,7 @@ tr:nth-child(even) {
 @media (prefers-color-scheme: dark) {
     body {
         color: #b8b8b8;
-        background: #202020;
+        background: #1c1c1c;
     }
     canvas {
         background-color: #303030;
