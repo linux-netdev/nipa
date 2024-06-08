@@ -901,7 +901,8 @@ function filters_doit(data_raw)
 
     output = "<b>Crashes ignored:</b><br />";
     $.each(data_raw["ignore-crashes"], function(i, v) {
-	output += v + "<br />";
+	let breakable =	v.replace(/:/g, ":<wbr>");
+	output += "<span>" + breakable + "</span><br />";
     });
     cf_crashes.innerHTML = output;
 
