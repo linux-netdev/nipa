@@ -101,6 +101,9 @@ function load_result_table(data_raw)
 	cell.setAttribute("style", "writing-mode: tb-rl; font-size: 0.8em; padding: 0px;");
     }
 
+    let form = "";
+    if (document.getElementById("ld-cases").checked)
+	form = "&ld-cases=1";
     for (const tn of test_names) {
 	let entries = test_row[tn];
 
@@ -109,7 +112,7 @@ function load_result_table(data_raw)
 
 	let row = table.insertRow();
 	let name = row.insertCell(0);
-	name.innerHTML = "<a style=\"text-decoration: none\" href=\"contest.html?" + tn_urls[tn] + "\">" + tn + "</a>";
+	name.innerHTML = "<a style=\"text-decoration: none\" href=\"contest.html?" + tn_urls[tn] + form + "\">" + tn + "</a>";
 	name.setAttribute("style", "padding: 0px");
 
 	for (let i = 0; i < branches.length; i++) {
@@ -170,12 +173,15 @@ function remotes_loaded(data_raw)
 
 function reload_data()
 {
+    const format_l2 = document.getElementById("ld-cases");
     const br_cnt = document.getElementById("br-cnt");
     const remote = document.getElementById("ld-remote");
 
     let req_url = "query/results";
     req_url += "?branches=" + br_cnt.value;
 
+    if (format_l2.checked)
+	req_url += "&format=l2";
     if (remote.value)
 	req_url += "&remote=" + remote.value;
 

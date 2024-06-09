@@ -34,6 +34,10 @@ function load_result_table(data_raw)
 
     let row_count = 0;
 
+    let form = "";
+    if (document.getElementById("ld-cases").checked)
+	form = "&ld-cases=1";
+
     $.each(data_raw, function(i, v) {
 	if (row_count >= 5000) {
 	    warn_box.innerHTML = "Reached 5000 rows. Set an executor, branch or test filter. Otherwise this page will set your browser on fire...";
@@ -86,8 +90,8 @@ function load_result_table(data_raw)
 		retry.innerHTML = colorify_str(r.retry);
 	    res.innerHTML = colorify_str(r.result);
 	    outputs.innerHTML = "<a href=\"" + r.link + "\">outputs</a>";
-	    hist.innerHTML = "<a href=\"contest.html?test=" + r.test + "\">history</a>";
-	    flake.innerHTML = "<a href=\"flakes.html?tn-needle=" + r.test + "\">matrix</a>";
+	    hist.innerHTML = "<a href=\"contest.html?test=" + r.test + form + "\">history</a>";
+	    flake.innerHTML = "<a href=\"flakes.html?min-flip=0&tn-needle=" + r.test + form + "\">matrix</a>";
 
 	    row_count++;
 	});
@@ -185,6 +189,7 @@ function results_loaded(data_raw)
 
 function reload_data(event)
 {
+    const format_l2 = document.getElementById("ld-cases");
     const br_cnt = document.getElementById("ld_cnt");
     const br_name = document.getElementById("ld_branch");
 
@@ -201,6 +206,8 @@ function reload_data(event)
     } else {
 	req_url += "branches=" + br_cnt.value;
     }
+    if (format_l2.checked)
+	req_url += '&format=l2';
 
     nipa_filters_disable(["ld-pw", "fl-pw"]);
     $(document).ready(function() {
