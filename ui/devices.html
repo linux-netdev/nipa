@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>NIPA device tests</title>
+    <link rel="shortcut icon" href="/favicon-nic.png" type="image/png" />
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="nipa.js"></script>
+    <script src="devices.js"></script>
+    <script>
+        nipa_load_sitemap();
+    </script>
+    <link rel="stylesheet" href="nipa.css">
+</head>
+<body onload="do_it();">
+<div id="sitemap"></div>
+<div>
+    <h2>Device test results</h2>
+    <div>
+        <p>Starting with Linux v6.12 (October 2024) all officially <i>supported</i> NIC drivers in Linux will be required to be continuously tested.</p>
+        <p>See the <a href="https://lore.kernel.org/all/20240425114200.3effe773@kernel.org/">announcement</a> on the mailing list.</p>
+        <p style="font-weight: bold;">No results have been reported so far.</p>
+    </div>
+</div>
+</body>
+</html>
