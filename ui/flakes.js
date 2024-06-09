@@ -124,7 +124,7 @@ function results_update()
     load_result_table(loaded_data);
 }
 
-let xfr_todo = 2;
+let xfr_todo = 3;
 let loaded_data = null;
 
 function loaded_one()
@@ -162,13 +162,26 @@ function results_loaded(data_raw)
     nipa_filters_enable(null, ["ld-pw", "fl-pw"]);
 }
 
+function remotes_loaded(data_raw)
+{
+    nipa_filter_add_options(data_raw, "ld-remote", null);
+    loaded_one();
+}
+
 function reload_data()
 {
-    let br_cnt = document.getElementById("br-cnt");
+    const br_cnt = document.getElementById("br-cnt");
+    const remote = document.getElementById("ld-remote");
+
+    let req_url = "query/results";
+    req_url += "?branches=" + br_cnt.value;
+
+    if (remote.value)
+	req_url += "&remote=" + remote.value;
 
     nipa_filters_disable(["ld-pw", "fl-pw"]);
     $(document).ready(function() {
-        $.get("query/results?branches=" + br_cnt.value, results_loaded)
+        $.get(req_url, results_loaded)
     });
 }
 
@@ -183,6 +196,9 @@ function do_it()
      */
     $(document).ready(function() {
         $.get("contest/filters.json", filters_loaded)
+    });
+    $(document).ready(function() {
+        $.get("query/remotes", remotes_loaded)
     });
     reload_data();
 }
