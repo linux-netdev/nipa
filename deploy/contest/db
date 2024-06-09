@@ -1,0 +1,57 @@
+# Results DB deployment notes
+
+sudo dnf -y install postgresql postgresql-server python-psycopg2
+
+/usr/bin/postgresql-setup --initdb
+
+sudo systemctl start postgresql
+sudo systemctl enable postgresql
+
+sudo su - postgres
+
+# Do the same for fedora, nipa-upload and nipa-brancher
+# Actually 'nipa' itself may actually not need these, TBH
+createuser nipa
+createdb nipa
+
+psql
+ GRANT ALL PRIVILEGES ON DATABASE "nipa" to nipa;
+ ALTER USER nipa WITH PASSWORD 'new_password';
+ \c nipa postgres
+ GRANT ALL ON SCHEMA public TO "nipa";
+ GRANT ALL ON ALL TABLES IN SCHEMA public TO "nipa";
+ \q
+
+# Read-only users
+createuser flask
+psql
+ \c nipa postgres
+ GRANT SELECT ON ALL TABLES IN SCHEMA public TO "flask";
+ \q
+
+exit
+
+# back as fedora
+psql --dbname=nipa
+
+CREATE TABLE results (
+    branch              varchar(80),
+    remote              varchar(80),
+    executor            varchar(80),
+    t_start             timestamp,
+    t_end               timestamp,
+    json_normal         text,
+    json_full           text
+);
+
+CREATE INDEX ON branches (branch DESC);
+
+CREATE TABLE branches (
+    branch              varchar(80),
+    t_date              timestamp,
+    base                varchar(80),
+    url                 varchar(200),
+    info                text
+);
+
+CREATE INDEX by_branch ON results (branch DESC);
