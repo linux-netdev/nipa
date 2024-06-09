@@ -149,7 +149,8 @@ function loaded_one()
 	return;
 
     reload_select_filters(true);
-    nipa_filters_enable(results_update);
+    nipa_filters_enable(reload_data, "ld-pw");
+    nipa_filters_enable(results_update, "fl-pw");
 
     results_update();
 }
@@ -178,6 +179,8 @@ function results_loaded(data_raw)
 	reload_select_filters(false);
 	results_update();
     }
+
+    nipa_filters_enable(null, ["ld-pw", "fl-pw"]);
 }
 
 function reload_data(event)
@@ -199,12 +202,10 @@ function reload_data(event)
 	req_url += "branches=" + br_cnt.value;
     }
 
+    nipa_filters_disable(["ld-pw", "fl-pw"]);
     $(document).ready(function() {
         $.get(req_url, results_loaded)
     });
-
-    let warn_box = document.getElementById("fl-warn-box");
-    warn_box.innerHTML = "Loading...";
 }
 
 function do_it()
@@ -218,12 +219,6 @@ function do_it()
     if (urlParams.get("branch")) {
 	document.getElementById("ld_branch").value = urlParams.get("branch");
 	document.getElementById("ld_cnt").value = 1;
-    }
-
-    const ld_pw = document.querySelectorAll("[name=ld-pw]");
-    for (const one of ld_pw) {
-	one.addEventListener("change", reload_data);
-	one.disabled = false;
     }
 
     /*

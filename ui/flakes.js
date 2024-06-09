@@ -133,8 +133,7 @@ function loaded_one()
 	return;
 
     // We have all JSONs now, do processing.
-    nipa_filters_set_from_url();
-    nipa_filters_enable(results_update);
+    nipa_input_set_from_url("fl-pw");
     results_update();
 }
 
@@ -159,11 +158,15 @@ function results_loaded(data_raw)
     } else if (!xfr_todo) {
 	results_update();
     }
+
+    nipa_filters_enable(null, ["ld-pw", "fl-pw"]);
 }
 
 function reload_data()
 {
     let br_cnt = document.getElementById("br-cnt");
+
+    nipa_filters_disable(["ld-pw", "fl-pw"]);
     $(document).ready(function() {
         $.get("query/results?branches=" + br_cnt.value, results_loaded)
     });
@@ -171,9 +174,9 @@ function reload_data()
 
 function do_it()
 {
-    let br_cnt = document.getElementById("br-cnt");
-
-    br_cnt.addEventListener("change", reload_data);
+    nipa_filters_enable(reload_data, "ld-pw");
+    nipa_filters_enable(results_update, "fl-pw");
+    nipa_input_set_from_url("ld-pw");
 
     /*
      * Please remember to keep these assets in sync with `scripts/ui_assets.sh`

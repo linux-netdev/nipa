@@ -3,16 +3,36 @@ function nipa_test_fullname(v, r)
     return v.remote + "/" + v.executor + "/" + r.group + "/" + r.test;
 }
 
-function nipa_filters_enable(update_cb)
+function __nipa_filters_set(update_cb, set_name, enabled)
+{
+    if (set_name.constructor === Array) {
+	for (name of set_name)
+	    __nipa_filters_set(update_cb, name, enabled);
+	return;
+    }
+
+    const fl_pw = document.querySelectorAll("[name=" + set_name + "]");
+    for (const one of fl_pw) {
+	if (update_cb)
+	    one.addEventListener("change", update_cb);
+	one.disabled = enabled;
+    }
+}
+
+function nipa_filters_enable(update_cb, set_name)
 {
     let warn_box = document.getElementById("fl-warn-box");
     warn_box.innerHTML = "";
 
-    const fl_pw = document.querySelectorAll("[name=fl-pw]");
-    for (const one of fl_pw) {
-	one.addEventListener("change", update_cb);
-	one.disabled = false;
-    }
+    __nipa_filters_set(update_cb, set_name, false);
+}
+
+function nipa_filters_disable(set_name)
+{
+    let warn_box = document.getElementById("fl-warn-box");
+    warn_box.innerHTML = "Loading...";
+
+    __nipa_filters_set(null, set_name, true);
 }
 
 function nipa_input_set_from_url(name)
