@@ -26,11 +26,23 @@ function nipa_input_set_from_url(name)
 	if (!url_val)
 	    continue;
 
-	if (elem.hasAttribute("checked") || elem.type == "radio") {
+	if (elem.hasAttribute("checked") ||
+	    elem.type == "radio" || elem.type == "checkbox") {
 	    if (url_val == "0")
 		elem.checked = false;
 	    else if (url_val == "1")
 		elem.checked = true;
+	} else if (elem.type == "select-one") {
+	    let option = elem.querySelector('[value="' + url_val + '"]');
+
+	    if (!option) {
+		const opt = document.createElement('option');
+		opt.value = url_val;
+		opt.innerHTML = url_val;
+		opt.setAttribute("style", "display: none;");
+		elem.appendChild(opt);
+	    }
+	    elem.value = url_val;
 	} else {
 	    elem.value = url_val;
 	}
