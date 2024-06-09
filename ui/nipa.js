@@ -54,6 +54,32 @@ function nipa_filters_set_from_url()
     nipa_input_set_from_url("fl-pw");
 }
 
+function nipa_filter_add_options(data_raw, elem_id, field)
+{
+    var elem = document.getElementById(elem_id);
+    var values = new Set();
+
+    // Re-create "all"
+    const opt = document.createElement('option');
+    opt.value = "";
+    opt.innerHTML = "-- all --";
+    elem.appendChild(opt);
+
+    // Create the dynamic entries
+    $.each(data_raw, function(i, v) {
+	if (field)
+	    values.add(v[field]);
+	else
+	    values.add(v);
+    });
+    for (const value of values) {
+	const opt = document.createElement('option');
+	opt.value = value;
+	opt.innerHTML = value;
+	elem.appendChild(opt);
+    }
+}
+
 // ------------------
 
 let nipa_filters_json = null;

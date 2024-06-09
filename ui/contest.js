@@ -102,29 +102,6 @@ function find_branch_urls(loaded_data)
     });
 }
 
-function add_option_filter(data_raw, elem_id, field)
-{
-    var elem = document.getElementById(elem_id);
-    var values = new Set();
-
-    // Re-create "all"
-    const opt = document.createElement('option');
-    opt.value = "";
-    opt.innerHTML = "-- all --";
-    elem.appendChild(opt);
-
-    // Create the dynamic entries
-    $.each(data_raw, function(i, v) {
-	values.add(v[field]);
-    });
-    for (const value of values) {
-	const opt = document.createElement('option');
-	opt.value = value;
-	opt.innerHTML = value;
-	elem.appendChild(opt);
-    }
-}
-
 function results_update()
 {
     load_result_table(loaded_data);
@@ -148,9 +125,9 @@ function reload_select_filters(first_load)
     $("select option").remove();
 
     // We have all JSONs now, do processing.
-    add_option_filter(loaded_data, "branch", "branch");
-    add_option_filter(loaded_data, "executor", "executor");
-    add_option_filter(loaded_data, "remote", "remote");
+    nipa_filter_add_options(loaded_data, "branch", "branch");
+    nipa_filter_add_options(loaded_data, "executor", "executor");
+    nipa_filter_add_options(loaded_data, "remote", "remote");
 
     // On first load we use URL, later we try to keep settings user tweaked
     if (first_load)
