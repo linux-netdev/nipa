@@ -305,11 +305,40 @@ function load_runtime(data_raw)
     });
 }
 
+function load_db_size(data)
+{
+    const ctx = document.getElementById("db-size");
+
+    new Chart(ctx, {
+	type: 'line',
+	data: {
+	    labels: data.map(function(e){return new Date(e.ts).toDateString();}),
+	    datasets: [{
+		label: 'size in kB',
+		data: data.map(function(e){return Math.floor(e.size / 1024);}),
+	    }]
+	},
+	options: {
+	    responsive: true,
+	    plugins: {
+		legend: {
+		    position: 'bottom',
+		},
+		title: {
+		    display: true,
+		    text: 'DB size'
+		}
+	    }
+	}
+    });
+}
+
 function status_system(data_raw)
 {
     systemd(data_raw, data_raw["services"], data_raw["remote"]);
     load_runners(data_raw["runners"]);
     load_runtime(data_raw["log-files"]);
+    load_db_size(data_raw["db"]["data"]);
 }
 
 function msec_to_str(msec) {
