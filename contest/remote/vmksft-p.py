@@ -15,7 +15,7 @@ import time
 from core import NipaLifetime
 from lib import wait_loadavg
 from lib import CbArg
-from lib import Fetcher
+from lib import Fetcher, namify
 from lib import VM, new_vm, guess_indicators
 
 
@@ -56,13 +56,6 @@ group1 test1 skip
 group1 test3 fail
 group3 testV skip
 """
-
-
-def namify(what):
-    name = re.sub(r'[^0-9a-zA-Z]+', '-', what)
-    if name[-1] == '-':
-        name = name[:-1]
-    return name
 
 
 def get_prog_list(vm, target):
