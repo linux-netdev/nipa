@@ -20,6 +20,7 @@ psql
  \c nipa postgres
  GRANT ALL ON SCHEMA public TO "nipa";
  GRANT ALL ON ALL TABLES IN SCHEMA public TO "nipa";
+ GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO "nipa";
  \q
 
 # Read-only users
@@ -55,3 +56,9 @@ CREATE TABLE branches (
 );
 
 CREATE INDEX by_branch ON results (branch DESC);
+
+CREATE TABLE db_monitor (
+    id                  serial primary key,
+    ts                  timestamp not null,
+    size                int not null check (size > 0)
+);

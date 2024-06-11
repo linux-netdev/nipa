@@ -4,6 +4,7 @@
 import datetime
 import lzma
 import os
+import psycopg2
 import re
 import requests
 import sys
@@ -162,28 +163,66 @@ def add_remote_services(result, remote):
     result["remote"][remote["name"]] = data
 
 
+def add_db(result, cfg):
+    db_name = cfg["db"]["name"]
+    tbl = cfg["db"]["table"]
+
+    psql = psycopg2.connect(database=db_name)
+    psql.autocommit = True
+
+    with psql.cursor() as cur:
+        cur.execute(f"SELECT pg_database_size('{db_name}')")
+        size = cur.fetchall()[0][0]
+        print("DB size", size)
+
+        arg = cur.mogrify("(NOW(),%s)", (size, ))
+        cur.execute(f"INSERT INTO {tbl}(ts, size) VALUES" + arg.decode('utf-8'))
+
+    with psql.cursor() as cur:
+        cur.execute(f"SELECT ts,size FROM {tbl} ORDER BY id DESC LIMIT 40")
+        result["db"]["data"] = [ {'ts': t.isoformat(), 'size': s} for t, s in cur.fetchall() ]
+
+
 def main():
     with open(sys.argv[1], 'r') as fp:
         cfg = json.load(fp)
 
     log_files = {}
     run_logs = 'log-files' in cfg
+
+    db = {}
+    run_db = 'db' in cfg
+
     if os.path.isfile(sys.argv[2]):
         with open(sys.argv[2], 'r') as fp:
             prev = json.load(fp)
+
         if "log-files" in prev and "prev-date" in prev["log-files"]:
             prev_date = datetime.datetime.fromisoformat(prev["log-files"]["prev-date"])
             run_logs = datetime.datetime.now() - prev_date > datetime.timedelta(hours=3)
             print("Since log scan", datetime.datetime.now() - prev_date, "Will rescan:", run_logs)
             prev_date = prev["log-files"]["prev-date"]
             log_files = {"prev-date": prev_date, "data": prev["log-files"]["data"]}
+
+        if "db" in prev and "prev-date" in prev["db"]:
+            prev_date = datetime.datetime.fromisoformat(prev["db"]["prev-date"])
+            run_db = datetime.datetime.now() - prev_date > datetime.timedelta(hours=24)
+            print("Since db monitor", datetime.datetime.now() - prev_date, "Will rescan:", run_db)
+            prev_date = prev["db"]["prev-date"]
+            db = {"prev-date": prev_date, "data": prev["db"]["data"]}
+
     if run_logs:
         prev_date = datetime.datetime.now().isoformat()
         log_files = {"prev-date": prev_date, }
 
+    if run_db:
+        prev_date = datetime.datetime.now().isoformat()
+        db = {"prev-date": prev_date, }
+
     result = {'services': {}, 'runners': {}, 'remote': {},
               'date': datetime.datetime.now().isoformat(),
-              "log-files": log_files}
+              "log-files": log_files,
+              "db": db}
     if "trees" in cfg:
         for name in cfg["trees"]:
             add_one_tree(result, cfg["tree-path"], name)
@@ -196,6 +235,9 @@ def main():
     if "remote" in cfg:
         for remote in cfg["remote"]:
             add_remote_services(result, remote)
+
+    if "db" in cfg and run_db:
+        add_db(result, cfg)
 
     with open(sys.argv[2], 'w') as fp:
         json.dump(result, fp)
