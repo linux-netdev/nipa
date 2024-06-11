@@ -14,9 +14,6 @@ import datetime
 
 app = Flask("NIPA contest query")
 
-user = os.getenv('DB_USER')
-pwd = os.getenv('DB_PWD')
-
 db_name = os.getenv('DB_NAME')
 psql = psycopg2.connect(database=db_name)
 psql.autocommit = True
