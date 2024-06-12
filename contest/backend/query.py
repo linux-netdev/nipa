@@ -72,45 +72,50 @@ def result_as_l2(raw):
 def results():
     global psql
 
+    limit = 0
+    where = []
+
+    form = request.args.get('format')
+    remote = request.args.get('remote')
+    if remote and re.match(r'^[\w_ -]+$', remote) is None:
+        remote = None
+
     br_name = request.args.get('branch-name')
     if br_name:
         if re.match(r'^[\w_ -]+$', br_name) is None:
             return {}
 
+        br_cnt = br_name
+        limit = 100
+        where.append(f"branch = '{br_name}'")
+        t1 = t2 = datetime.datetime.now()
+    else:
         t1 = datetime.datetime.now()
-        with psql.cursor() as cur:
-            cur.execute(f"SELECT json_normal FROM results WHERE branch = '{br_name}' LIMIT 100")
-            rows = [json.loads(r[0]) for r in cur.fetchall()]
+
+        br_cnt = request.args.get('branches')
+        try:
+            br_cnt = int(br_cnt)
+        except:
+            br_cnt = None
+        if not br_cnt:
+            br_cnt = 10
+
+        limit = branches_to_rows(br_cnt, remote)
+
         t2 = datetime.datetime.now()
-        print("Query for exact branch took: ", str(t2-t1))
-        return rows
 
-    t1 = datetime.datetime.now()
+    if remote:
+        where.append(f"remote = '{remote}'")
 
-    remote = request.args.get('remote')
-    if remote and re.match(r'^[\w_ -]+$', remote) is None:
-        remote = None
-    form = request.args.get('format')
-    br_cnt = request.args.get('branches')
-    try:
-        br_cnt = int(br_cnt)
-    except:
-        br_cnt = None
-    if not br_cnt:
-        br_cnt = 10
+    where = "WHERE " + " AND ".join(where) if where else ""
 
-    need_rows = branches_to_rows(br_cnt, remote)
-
-    t2 = datetime.datetime.now()
-
-    where = f"WHERE remote = '{remote}'" if remote else ''
     if not form or form == "normal":
         with psql.cursor() as cur:
-            cur.execute(f"SELECT json_normal FROM results {where} ORDER BY branch DESC LIMIT {need_rows}")
+            cur.execute(f"SELECT json_normal FROM results {where} ORDER BY branch DESC LIMIT {limit}")
             rows = "[" + ",".join([r[0] for r in cur.fetchall()]) + "]"
     elif form == "l2":
         with psql.cursor() as cur:
-            cur.execute(f"SELECT json_normal, json_full FROM results {where} ORDER BY branch DESC LIMIT {need_rows}")
+            cur.execute(f"SELECT json_normal, json_full FROM results {where} ORDER BY branch DESC LIMIT {limit}")
             rows = "["
             for r in cur.fetchall():
                 if rows[-1] != '[':
@@ -124,7 +129,7 @@ def results():
         rows = "[]"
 
     t3 = datetime.datetime.now()
-    print(f"Query for {br_cnt} branches, {need_rows} records took: {str(t3-t1)} ({str(t2-t1)}+{str(t3-t2)})")
+    print(f"Query for {br_cnt} branches, {limit} records took: {str(t3-t1)} ({str(t2-t1)}+{str(t3-t2)})")
 
     return Response(rows, mimetype='application/json')
 
