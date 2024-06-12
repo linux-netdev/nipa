@@ -100,7 +100,8 @@ def _parse_nested_tests(full_run):
         if len(v) > 5 and v[5]:
             if v[5].lower().startswith('skip') and result == "pass":
                 result = "skip"
-        tests.append((name, result))
+
+        tests.append({'test': namify(name), 'result': result})
 
     return tests
 
@@ -181,20 +182,18 @@ def _vm_thread(config, results_path, thr_id, hard_stop, in_queue, out_queue):
             if crashes:
                 outcome['crashes'] = crashes
 
+        if config.getboolean('ksft', 'nested_tests', fallback=False):
+            # this will only parse nested tests inside the TAP comments
+            nested_tests = _parse_nested_tests(vm.log_out)
+            if nested_tests:
+                outcome['results'] = nested_tests
+
+            print(f"INFO: thr-{thr_id} {prog} >> nested tests: {len(nested_tests)}")
+
         if not is_retry and result == 'fail':
             in_queue.put(outcome)
         else:
             out_queue.put(outcome)
-
-        if config.getboolean('ksft', 'nested_tests', fallback=False) and not is_retry:
-            # this will only parse nested tests inside the TAP comments
-            tests = _parse_nested_tests(vm.log_out)
-
-            for r_name, r_result in tests:
-                out_queue.put({'prog': prog, 'test': namify(r_name),
-                               'file_name': file_name, 'result': r_result})
-
-            print(f"INFO: thr-{thr_id} {prog} >> nested tests: {len(tests)} subtests")
 
         vm.dump_log(results_path + '/' + file_name, result=retcode,
                     info={"thr-id": thr_id, "vm-id": vm_id, "time": (t2 - t1).total_seconds(),
@@ -300,7 +299,7 @@ def test(binfo, rinfo, cbarg):
             'result': r["result"],
             'link': link + '/' + r['file_name']
         }
-        for key in ['retry', 'crashes']:
+        for key in ['retry', 'crashes', 'results']:
             if key in r:
                 outcome[key] = r[key]
         cases.append(outcome)
