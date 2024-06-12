@@ -180,7 +180,7 @@ def add_db(result, cfg):
 
     with psql.cursor() as cur:
         cur.execute(f"SELECT ts,size FROM {tbl} ORDER BY id DESC LIMIT 40")
-        result["db"]["data"] = [ {'ts': t.isoformat(), 'size': s} for t, s in cur.fetchall() ]
+        result["db"]["data"] = [ {'ts': t.isoformat(), 'size': s} for t, s in reversed(cur.fetchall()) ]
 
 
 def main():
