@@ -262,6 +262,15 @@ class MlEmail:
         self._series_author = None
         self._authorized = None
 
+    def __eq__(self, other):
+        return True
+
+    def __lt__(self, other):
+        return False
+
+    def __gt__(self, other):
+        return False
+
     def get(self, item, failobj=None):
         return self.msg.get(item, failobj)
 
