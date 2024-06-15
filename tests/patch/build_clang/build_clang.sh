@@ -14,6 +14,8 @@ rc=0
 prep_config() {
   make LLVM=1 O=$output_dir allmodconfig
   ./scripts/config --file $output_dir/.config -d werror
+  ./scripts/config --file $output_dir/.config -d drm_werror
+  ./scripts/config --file $output_dir/.config -d kvm_werror
 }
 
 echo "Using $build_flags redirect to $tmpfile_o and $tmpfile_n"

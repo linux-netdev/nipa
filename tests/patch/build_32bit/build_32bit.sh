@@ -14,6 +14,8 @@ rc=0
 prep_config() {
   make CC="$cc" O=$output_dir ARCH=i386 allmodconfig
   ./scripts/config --file $output_dir/.config -d werror
+  ./scripts/config --file $output_dir/.config -d drm_werror
+  ./scripts/config --file $output_dir/.config -d kvm_werror
 }
 
 clean_up_output() {
