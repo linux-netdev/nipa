@@ -96,6 +96,8 @@ class Tester(threading.Thread):
             self.done_queue.put(s)
             core.log("Tester done processing")
 
+        core.log("Tester exiting")
+
     def load_tests(self, name):
         core.log_open_sec(name.capitalize() + " tests")
         tests_subdir = os.path.join(self.config.get('dirs', 'tests'), name)

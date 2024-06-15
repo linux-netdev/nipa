@@ -246,6 +246,8 @@ class PwPoller:
                 if secs > 0:
                     log("Sleep", secs)
                 log_end_sec()
+        except KeyboardInterrupt:
+            pass  # finally will still run, but don't splat
         finally:
             log_open_sec(f"Stopping threads")
             for worker in self._workers:
