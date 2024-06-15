@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
 import configparser
-import couchdb
 import datetime
 import json
 import os
@@ -35,14 +34,10 @@ branches=branches.json
 info=branches-info.json
 [db]
 db=db-name
-name=table-name
-user=name
-pwd=pass
 """
 
 
 psql_conn = None
-db = None
 ignore_delegate = {}
 gate_checks = {}
 
@@ -180,35 +175,19 @@ def apply_local_patches(config, tree) -> List:
 
 
 def db_insert(config, state, name):
-    global db, psql_conn
+    global psql_conn
 
     pub_url = config.get('target', 'public_url')
-    row = {'_id': uuid.uuid4().hex,
-           "branch": name,
+    row = {"branch": name,
            "date": state["branches"][name],
            "base": state["hashes"].get(name, None),
            "url": pub_url + " " + name}
     row |= state["info"][name]
 
-    db.save(row)
-
-    cur = None
-    try:
-        row = {"branch": name,
-               "date": state["branches"][name],
-               "base": state["hashes"].get(name, None),
-               "url": pub_url + " " + name}
-
-        cur = psql_conn.cursor()
+    with psql_conn.cursor() as cur:
         arg = cur.mogrify("(%s,%s,%s,%s,%s)", (row["branch"], row["date"], row["base"], row["url"],
-                                               json.dumps(row | state["info"][name])))
+                                               json.dumps(row)))
         cur.execute("INSERT INTO branches VALUES " + arg.decode('utf-8'))
-        print("PSQL save success!")
-    except Exception as e:
-        if cur:
-            cur.close()
-        print("PSQL save FAIL!")
-        print(e)
 
 
 def create_new(pw, config, state, tree, tgt_remote) -> None:
@@ -356,16 +335,10 @@ def prep_remote(config, tree) -> str:
 
 
 def open_db(config):
-    user = config.get("db", "user")
-    pwd = config.get("db", "pwd")
     db_name = config.get("db", "db")
-    name = config.get("db", "name")
-
     conn = psycopg2.connect(database=db_name)
     conn.autocommit = True
-
-    server = couchdb.Server(f'http://{user}:{pwd}@127.0.0.1:5984')
-    return conn, server[name]
+    return conn
 
 
 def main() -> None:
@@ -396,8 +369,8 @@ def main() -> None:
     ignore_delegate = set(config.get('filters', 'ignore_delegate', fallback="").split(','))
     global gate_checks
     gate_checks = set(config.get('filters', 'gate_checks', fallback="").split(','))
-    global psql_conn, db
-    psql_conn, db = open_db(config)
+    global psql_conn
+    psql_conn = open_db(config)
 
     tree_obj = None
     tree_dir = config.get('dirs', 'trees', fallback=os.path.join(NIPA_DIR, "../"))
