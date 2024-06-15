@@ -16,6 +16,13 @@ prep_config() {
   ./scripts/config --file $output_dir/.config -d werror
 }
 
+clean_up_output() {
+    local file=$1
+
+    # modpost triggers this randomly on use of existing symbols
+    sed -i '/arch\/x86\/boot.* warning: symbol .* was not declared. Should it be static?/d' $file
+}
+
 echo "Using $build_flags redirect to $tmpfile_o and $tmpfile_n"
 echo "CC=$cc"
 $cc --version | head -n1
@@ -54,6 +61,7 @@ echo "Building the tree before the patch"
 
 prep_config
 make CC="$cc" O=$output_dir ARCH=i386 $build_flags 2> >(tee $tmpfile_o >&2)
+clean_up_output $tmpfile_o
 incumbent=$(grep -i -c "\(warn\|error\)" $tmpfile_o)
 
 echo "Building the tree with the patch"
@@ -65,7 +73,7 @@ touch $touch_relink
 
 prep_config
 make CC="$cc" O=$output_dir ARCH=i386 $build_flags 2> >(tee $tmpfile_n >&2) || rc=1
-
+clean_up_output $tmpfile_n
 current=$(grep -i -c "\(warn\|error\)" $tmpfile_n)
 
 echo "Errors and warnings before: $incumbent this patch: $current" >&$DESC_FD
