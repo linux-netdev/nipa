@@ -161,6 +161,7 @@ class Tree:
     def contains(self, commit):
         core.log_open_sec("Checking for commit " + commit)
         try:
+            self.reset()
             self.git_merge_base(commit, 'HEAD', is_ancestor=True)
             ret = True
         except CMD.CmdError:
