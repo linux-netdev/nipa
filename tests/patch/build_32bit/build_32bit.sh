@@ -38,10 +38,15 @@ fi
 # so all module and linker related warnings will pop up in the "after"
 # but not "before". To avoid this we need to force re-linking on
 # the "before", too.
-if ! git log --diff-filter=A HEAD~.. --exit-code >>/dev/null; then
+touch_relink=/dev/null
+if ! git log --diff-filter=A HEAD~.. --exit-code >>/dev/null || \
+   ! git log HEAD~.. --exit-code -- */Makefile >>/dev/null
+then
     echo "Trying to force re-linking, new files were added"
-    touch ${output_dir}/include/generated/utsrelease.h
+    touch_relink=${output_dir}/include/generated/utsrelease.h
 fi
+
+touch $touch_relink
 
 git checkout -q HEAD~
 
@@ -56,9 +61,7 @@ echo "Building the tree with the patch"
 git checkout -q $HEAD
 
 # Also force rebuild "after" in case the file added isn't important.
-if ! git log --diff-filter=A HEAD~.. --exit-code >>/dev/null; then
-    touch ${output_dir}/include/generated/utsrelease.h
-fi
+touch $touch_relink
 
 prep_config
 make CC="$cc" O=$output_dir ARCH=i386 $build_flags 2> >(tee $tmpfile_n >&2) || rc=1
