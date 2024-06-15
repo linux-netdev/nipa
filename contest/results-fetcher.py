@@ -3,7 +3,6 @@
 
 import configparser
 import copy
-import couchdb
 import datetime
 import json
 import os
@@ -29,8 +28,6 @@ combined=name-of-manifest.json
 db=db-name
 results-name=table-name
 branches-name=table-name
-user=name
-pwd=pass
 """
 
 
@@ -44,12 +41,6 @@ class FetcherState:
 
         self.tbl_res = self.config.get("db", "results-name", fallback="results")
         self.tbl_brn = self.config.get("db", "branches-name", fallback="branches")
-
-        user = self.config.get("db", "user")
-        pwd = self.config.get("db", "pwd")
-        server = couchdb.Server(f'http://{user}:{pwd}@127.0.0.1:5984')
-        self.res_db = server[self.tbl_res]
-        self.brn_db = server[self.tbl_brn]
 
         db_name = self.config.get("db", "db")
         self.psql_conn = psycopg2.connect(database=db_name)
@@ -77,10 +68,12 @@ class FetcherState:
                                                      data["start"], data["end"], normal, full))
         cur.execute(f"INSERT INTO {self.tbl_res} VALUES " + arg.decode('utf-8'))
 
-    def insert_wip_psql(self, remote, run, branch_info):
+    def insert_wip(self, remote, run):
         if self.psql_has_wip(remote, run):
             # no point, we have no interesting info to add
             return
+
+        branch_info = self.get_branch(run["branch"])
 
         data = run.copy()
         data["remote"] = remote["name"]
@@ -111,7 +104,7 @@ class FetcherState:
             full = json.dumps(data)
         return json.dumps(normal), full
 
-    def insert_real_psql(self, remote, run):
+    def insert_real(self, remote, run):
         data = run.copy()
         data["remote"] = remote["name"]
 
@@ -125,54 +118,6 @@ class FetcherState:
                 selector = self.psql_run_selector(cur, remote, run)
                 q = f"UPDATE {self.tbl_res} " + vals + ' ' + selector
                 cur.execute(q)
-
-    def get_wip_row(self, remote, run):
-        rows = self.res_db.find({
-            'selector': {
-                'branch': run["branch"],
-                'remote': remote["name"],
-                'executor': run["executor"],
-                'url': None
-            }
-        })
-        for row in rows:
-            return row
-
-    def insert_wip(self, remote, run):
-        branch_info = self.get_branch(run["branch"])
-
-        self.insert_wip_psql(remote, run, branch_info)
-
-        existing = self.get_wip_row(remote, run)
-
-        data = run.copy()
-        if existing:
-            data['_id'] = existing['_id']
-            data['_rev'] = existing['_rev']
-        else:
-            data['_id'] = uuid.uuid4().hex
-        data["remote"] = remote["name"]
-        when = datetime.datetime.fromisoformat(branch_info['date'])
-        data["start"] = str(when)
-        when += datetime.timedelta(hours=2, minutes=58)
-        data["end"] = str(when)
-        data["results"] = None
-
-        self.res_db.save(data)
-
-    def insert_real(self, remote, run):
-        self.insert_real_psql(remote, run)
-        existing = self.get_wip_row(remote, run)
-
-        data = run.copy()
-        if existing:
-            data['_id'] = existing['_id']
-            data['_rev'] = existing['_rev']
-        else:
-            data['_id'] = uuid.uuid4().hex
-        data["remote"] = remote["name"]
-
-        self.res_db.save(data)
 
 
 def write_json_atomic(path, data):
