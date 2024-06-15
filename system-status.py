@@ -39,6 +39,13 @@ def add_one_service(result, name):
     result['time-mono'] = time.monotonic_ns() // 1000
 
 
+def add_disk_size(result, path):
+    output = subprocess.check_output(f"df {path} --output=avail,size".split()).decode('utf-8')
+    sizes = output.split('\n')[1].split()
+    sizes = [int(s) for s in sizes]
+    result["disk-use"] = round(sizes[0] / sizes[1] * 100, 2)
+
+
 def pre_strip(line, needle):
     return line[line.find(needle) + len(needle):].strip()
 
@@ -175,12 +182,17 @@ def add_db(result, cfg):
         size = cur.fetchall()[0][0]
         print("DB size", size)
 
-        arg = cur.mogrify("(NOW(),%s)", (size, ))
-        cur.execute(f"INSERT INTO {tbl}(ts, size) VALUES" + arg.decode('utf-8'))
+        remote_disk = 0
+        for _, remote in result["remote"].items():
+            remote_disk = remote["disk-use"]
+
+        arg = cur.mogrify("(NOW(),%s,%s,%s)", (size, result["disk-use"], remote_disk))
+        cur.execute(f"INSERT INTO {tbl}(ts, size, disk_pct, disk_pct_metal) VALUES" + arg.decode('utf-8'))
 
     with psql.cursor() as cur:
-        cur.execute(f"SELECT ts,size FROM {tbl} ORDER BY id DESC LIMIT 40")
-        result["db"]["data"] = [ {'ts': t.isoformat(), 'size': s} for t, s in reversed(cur.fetchall()) ]
+        cur.execute(f"SELECT ts,size,disk_pct,disk_pct_metal FROM {tbl} ORDER BY id DESC LIMIT 40")
+        result["db"]["data"] = [ {'ts': t.isoformat(), 'size': s, 'disk': d, 'disk_remote': dr}
+                                 for t, s, d, dr in reversed(cur.fetchall()) ]
 
 
 def main():
@@ -235,6 +247,8 @@ def main():
     if "remote" in cfg:
         for remote in cfg["remote"]:
             add_remote_services(result, remote)
+
+    add_disk_size(result, "/")
 
     if "db" in cfg and run_db:
         add_db(result, cfg)

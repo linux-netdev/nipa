@@ -314,8 +314,17 @@ function load_db_size(data)
 	data: {
 	    labels: data.map(function(e){return new Date(e.ts).toDateString();}),
 	    datasets: [{
-		label: 'size in kB',
+		yAxisID: 'A',
+		label: 'DB size in kB',
 		data: data.map(function(e){return Math.floor(e.size / 1024);}),
+	    }, {
+		yAxisID: 'B',
+		label: 'free disk %',
+		data: data.map(function(e){return e.disk;}),
+	    }, {
+		yAxisID: 'B',
+		label: 'metal free disk %',
+		data: data.map(function(e){return e.disk_remote;}),
 	    }]
 	},
 	options: {
@@ -326,9 +335,19 @@ function load_db_size(data)
 		},
 		title: {
 		    display: true,
-		    text: 'DB size'
+		    text: 'Storage use'
 		}
-	    }
+	    },
+	    scales: {
+		A: {
+		    display: true
+		},
+		B: {
+		    position: 'right',
+		    display: true,
+		    beginAtZero: true
+		}
+	    },
 	}
     });
 }

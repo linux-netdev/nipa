@@ -60,5 +60,7 @@ CREATE INDEX by_branch ON results (branch DESC);
 CREATE TABLE db_monitor (
     id                  serial primary key,
     ts                  timestamp not null,
-    size                int not null check (size > 0)
+    size                int not null check (size > 0),
+    disk_pct            REAL,
+    disk_pct_metal      REAL
 );
