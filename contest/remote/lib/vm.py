@@ -385,7 +385,7 @@ class VM:
         in_crash = False
         start = 0
         crash_lines = []
-        finger_prints = []
+        finger_prints = set()
         last5 = [""] * 5
         combined = self.log_out.split('\n') + self.log_err.split('\n')
         for line in combined:
@@ -395,8 +395,8 @@ class VM:
                 in_crash &= line[-2:] != '] '
                 if not in_crash:
                     self._load_filters()
-                    finger_prints.append(crash_finger_print(self.filter_data,
-                                                            crash_lines[start:]))
+                    finger_prints.add(crash_finger_print(self.filter_data,
+                                                         crash_lines[start:]))
             else:
                 in_crash |= '] Hardware name: ' in line
                 in_crash |= '] ref_tracker: ' in line
@@ -428,11 +428,10 @@ class VM:
         self._load_filters()
         if self.filter_data is not None and 'ignore-crashes' in self.filter_data:
             ignore = set(self.filter_data["ignore-crashes"])
-            seen = set(finger_prints)
-            if not seen - ignore:
+            if not finger_prints - ignore:
                 print(f"INFO{self.print_pfx} all crashes were ignored")
                 self.fail_state = ""
-        return finger_prints
+        return list(finger_prints)
 
     def check_health(self):
         if self.fail_state:
