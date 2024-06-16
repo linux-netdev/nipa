@@ -10,6 +10,7 @@ import os
 import psutil
 import re
 import signal
+from .crash import has_crash, extract_crash
 
 
 """
@@ -49,35 +50,6 @@ def decode_and_filter(buf):
 
     buf = buf.decode("utf-8", "ignore")
     return "".join([x for x in buf if (x in ['\n'] or unicodedata.category(x)[0]!="C")])
-
-
-def finger_print_skip_pfx_len(filters, needles):
-    # Filter may contain a list of needles we want to skip
-    # Assume it's well sorted, so we don't need LPM...
-    if filters and 'crash-prefix-skip' in filters:
-        for skip_pfx in filters['crash-prefix-skip']:
-            if len(needles) < len(skip_pfx):
-                continue
-            if needles[:len(skip_pfx)] == skip_pfx:
-                return len(skip_pfx)
-    return 0
-
-
-def crash_finger_print(filters, lines):
-    needles = []
-    need_re = re.compile(r'.*(  |0:)([a-z0-9_]+)\+0x[0-9a-f]+/0x[0-9a-f]+.*')
-    skip = 0
-    for line in lines:
-        m = need_re.match(line)
-        if not m:
-            continue
-        needles.append(m.groups()[1])
-        skip = finger_print_skip_pfx_len(filters, needles)
-        if len(needles) - skip == 5:
-            break
-
-    needles = needles[skip:]
-    return ":".join(needles)
 
 
 class VM:
@@ -287,10 +259,7 @@ class VM:
                 return read_some, output
             read_some = True
             output = decode_and_filter(buf)
-            if output.find("] RIP: ") != -1 or \
-                    output.find("] Call Trace:") != -1 or \
-                    output.find('] ref_tracker: ') != -1 or \
-                    output.find('unreferenced object 0x') != -1:
+            if has_crash(output):
                 self.fail_state = "oops"
         except BlockingIOError:
             pass
@@ -376,42 +345,17 @@ class VM:
         self.log_err = ""
 
     def _load_filters(self):
-        if self.filter_data is not None:
-            return
-        url = self.config.get("remote", "filters", fallback=None)
-        if not url:
-            return
-        r = requests.get(url)
-        self.filter_data = json.loads(r.content.decode('utf-8'))
+        if self.filter_data is None:
+            url = self.config.get("remote", "filters", fallback=None)
+            if not url:
+                return None
+            r = requests.get(url)
+            self.filter_data = json.loads(r.content.decode('utf-8'))
+        return self.filter_data
 
     def extract_crash(self, out_path):
-        in_crash = False
-        start = 0
-        crash_lines = []
-        finger_prints = set()
-        last5 = [""] * 5
-        combined = self.log_out.split('\n') + self.log_err.split('\n')
-        for line in combined:
-            if in_crash:
-                in_crash &= '] ---[ end trace ' not in line
-                in_crash &= ']  </TASK>' not in line
-                in_crash &= line[-2:] != '] '
-                if not in_crash:
-                    self._load_filters()
-                    finger_prints.add(crash_finger_print(self.filter_data,
-                                                         crash_lines[start:]))
-            else:
-                in_crash |= '] Hardware name: ' in line
-                in_crash |= '] ref_tracker: ' in line
-                if in_crash:
-                    start = len(crash_lines)
-                    crash_lines += last5
-
-            # Keep last 5 to get some of the stuff before stack trace
-            last5 = last5[1:] + ["| " + line]
-
-            if in_crash:
-                crash_lines.append(line)
+        crash_lines, finger_prints = extract_crash(self.log_out + self.log_err, "xx__-> ",
+                                                   lambda : self._load_filters())
         if not crash_lines:
             print(f"WARN{self.print_pfx} extract_crash found no crashes")
             return ["crash-extract-fail"]
