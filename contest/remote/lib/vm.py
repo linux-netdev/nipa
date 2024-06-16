@@ -105,8 +105,10 @@ class VM:
                                 stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
 
     def tree_cmd(self, cmd):
-        self.log_out += "> TREE CMD: " + cmd + "\n"
-        proc = self.tree_popen(cmd.split())
+        if isinstance(cmd, str):
+            cmd = cmd.split()
+        self.log_out += "> TREE CMD: " + " ".join(cmd) + "\n"
+        proc = self.tree_popen(cmd)
         stdout, stderr = proc.communicate()
         self.log_out += stdout.decode("utf-8", "ignore")
         self.log_err += stderr.decode("utf-8", "ignore")
@@ -140,10 +142,11 @@ class VM:
     def _get_ksft_timeout(self):
         default_timeout = 45 # from tools/testing/selftests/kselftest/runner.sh
 
-        target = self.config.get('ksft', 'target', fallback=None)
+        targets = self.config.get('ksft', 'target', fallback=None)
         tree_path = self.config.get('local', 'tree_path', fallback=None)
-        if not target or not tree_path:
+        if not targets or not tree_path:
             return default_timeout
+        target = targets.split()[0]
 
         settings_path = f'{tree_path}/tools/testing/selftests/{target}/settings'
         if not os.path.isfile(settings_path):

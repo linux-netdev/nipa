@@ -47,7 +47,7 @@ virtme_opt=--opt,--another one
 default_timeout=15
 boot_timeout=45
 [ksft]
-targets=net
+target=net
 nested_tests=off / on
 
 
@@ -58,14 +58,15 @@ group3 testV skip
 """
 
 
-def get_prog_list(vm, target):
+def get_prog_list(vm, targets):
     tmpdir = tempfile.mkdtemp()
-    vm.tree_cmd(f"make -C tools/testing/selftests/ TARGETS={target} INSTALL_PATH={tmpdir} install")
+    targets = " ".join(targets)
+    vm.tree_cmd(['make', '-C', 'tools/testing/selftests/', 'TARGETS=' + targets, 'INSTALL_PATH=' + tmpdir, 'install'])
 
     with open(os.path.join(tmpdir, 'kselftest-list.txt'), "r") as fp:
         targets = fp.readlines()
     vm.tree_cmd("rm -rf " + tmpdir)
-    return [e.split(":")[1].strip() for e in targets]
+    return [(e.split(":")[0].strip(), e.split(":")[1].strip()) for e in targets]
 
 
 def _parse_nested_tests(full_run):
@@ -106,7 +107,6 @@ def _parse_nested_tests(full_run):
     return tests
 
 def _vm_thread(config, results_path, thr_id, hard_stop, in_queue, out_queue):
-    target = config.get('ksft', 'target')
     vm = None
     vm_id = -1
 
@@ -119,6 +119,7 @@ def _vm_thread(config, results_path, thr_id, hard_stop, in_queue, out_queue):
 
         test_id = work_item['tid']
         prog = work_item['prog']
+        target = work_item['target']
         test_name = namify(prog)
         file_name = f"{test_id}-{test_name}"
         is_retry = 'result' in work_item
@@ -138,7 +139,7 @@ def _vm_thread(config, results_path, thr_id, hard_stop, in_queue, out_queue):
 
         print(f"INFO: thr-{thr_id} testing == " + prog)
         t1 = datetime.datetime.now()
-        vm.cmd(f'make -C tools/testing/selftests TARGETS={target} TEST_PROGS={prog} TEST_GEN_PROGS="" run_tests')
+        vm.cmd(f'make -C tools/testing/selftests TARGETS="{target}" TEST_PROGS={prog} TEST_GEN_PROGS="" run_tests')
         try:
             vm.drain_to_prompt(deadline=deadline)
             retcode = vm.bash_prev_retcode()
@@ -179,7 +180,8 @@ def _vm_thread(config, results_path, thr_id, hard_stop, in_queue, out_queue):
             outcome = work_item
             outcome['retry'] = result
         else:
-            outcome = {'tid': test_id, 'prog': prog, 'test': test_name, 'file_name': file_name,
+            outcome = {'tid': test_id, 'prog': prog, 'target': target,
+                       'test': test_name, 'file_name': file_name,
                        'result': result, 'time': (t2 - t1).total_seconds()}
             if crashes:
                 outcome['crashes'] = crashes
@@ -237,12 +239,12 @@ def test(binfo, rinfo, cbarg):
            config.get('local', 'results_path') + '/' + \
            rinfo['run-cookie']
     rinfo['link'] = link
-    target = config.get('ksft', 'target')
-    grp_name = "selftests-" + namify(target)
+    targets = config.get('ksft', 'target').split()
+    grp_name = "selftests-" + namify(targets[0])
 
     vm = VM(config)
 
-    if vm.build([f"tools/testing/selftests/{target}/config"]) == False:
+    if vm.build([f"tools/testing/selftests/{targets[0]}/config"]) == False:
         vm.dump_log(results_path + '/build')
         return [{
             'test': 'build',
@@ -254,11 +256,12 @@ def test(binfo, rinfo, cbarg):
     shutil.copy(os.path.join(config.get('local', 'tree_path'), '.config'),
                 results_path + '/config')
     vm.tree_cmd("make headers")
-    vm.tree_cmd(f"make -C tools/testing/selftests/{target}/")
+    for target in targets:
+        vm.tree_cmd(f"make -C tools/testing/selftests/{target}/")
     vm.dump_log(results_path + '/build')
 
-    progs = get_prog_list(vm, target)
-    progs.sort(reverse=True, key=lambda prog : cbarg.prev_runtime.get(prog, 0))
+    progs = get_prog_list(vm, targets)
+    progs.sort(reverse=True, key=lambda prog : cbarg.prev_runtime.get(prog[1], 0))
 
     dl_min = config.getint('executor', 'deadline_minutes', fallback=999999)
     hard_stop = datetime.datetime.fromisoformat(binfo["date"])
@@ -271,7 +274,7 @@ def test(binfo, rinfo, cbarg):
     i = 0
     for prog in progs:
         i += 1
-        in_queue.put({'tid': i, 'prog': prog})
+        in_queue.put({'tid': i, 'prog': prog[1], 'target': prog[0]})
 
     # In case we have multiple tests kicking off on the same machine,
     # add optional wait to make sure others have finished building
