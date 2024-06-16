@@ -162,6 +162,8 @@ def _vm_thread(config, results_path, thr_id, hard_stop, in_queue, out_queue):
         if indicators["fail"]:
             result = 'fail'
 
+        vm.check_health()
+
         crashes = None
         if vm.fail_state == 'oops':
             print(f"INFO: thr-{thr_id} test crashed kernel:", prog)

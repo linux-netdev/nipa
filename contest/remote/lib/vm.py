@@ -92,6 +92,7 @@ class VM:
         self.cfg_boot_to = int(config.get('vm', 'boot_timeout'))
 
         self.filter_data = None
+        self.has_kmemleak = None
         self.log_out = ""
         self.log_err = ""
 
@@ -223,6 +224,11 @@ class VM:
         self.cmd("PS1='xx__-> '")
         self.drain_to_prompt()
 
+        off = len(self.log_out)
+        self.cmd("ls /sys/kernel/debug/")
+        self.drain_to_prompt()
+        self.has_kmemleak = "kmemleak" in self.log_out[off:]
+
         self._set_env()
 
     def stop(self):
@@ -278,7 +284,10 @@ class VM:
                 return read_some, output
             read_some = True
             output = decode_and_filter(buf)
-            if output.find("] RIP: ") != -1 or output.find("] Call Trace:") != -1 or output.find('] ref_tracker: ') != -1:
+            if output.find("] RIP: ") != -1 or \
+                    output.find("] Call Trace:") != -1 or \
+                    output.find('] ref_tracker: ') != -1 or \
+                    output.find('unreferenced object 0x') != -1:
                 self.fail_state = "oops"
         except BlockingIOError:
             pass
@@ -424,6 +433,13 @@ class VM:
                 print(f"INFO{self.print_pfx} all crashes were ignored")
                 self.fail_state = ""
         return finger_prints
+
+    def check_health(self):
+        if self.fail_state:
+            return
+        if self.has_kmemleak:
+            self.cmd("echo scan > /sys/kernel/debug/kmemleak && cat /sys/kernel/debug/kmemleak")
+            self.drain_to_prompt()
 
     def bash_prev_retcode(self):
         self.cmd("echo $?")
