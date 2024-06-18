@@ -200,6 +200,7 @@ class VM:
             cmd += ["--cpus", cpus]
 
         print(f"INFO{self.print_pfx} VM starting:", " ".join(cmd))
+        self.log_out += "# " + " ".join(cmd) + "\n"
         self.p = self.tree_popen(cmd)
 
         for pipe in [self.p.stdout, self.p.stderr]:
