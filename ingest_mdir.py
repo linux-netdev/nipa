@@ -73,14 +73,11 @@ try:
     tester.start()
 
     pending.put(series)
-
-    # Shut workers down
-    tester.should_die = True
     pending.put(None)
 
+except:
+    tester.should_die = True
 finally:
-    tester.should_die = True
-    pending.put(None)
     tester.join()
 
 # Summary hack
