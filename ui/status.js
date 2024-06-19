@@ -319,12 +319,12 @@ function load_db_size(data)
 		data: data.map(function(e){return Math.floor(e.size / 1024);}),
 	    }, {
 		yAxisID: 'B',
-		label: 'free disk %',
-		data: data.map(function(e){return e.disk;}),
+		label: 'builder disk use %',
+		data: data.map(function(e){return 100 - e.disk;}),
 	    }, {
 		yAxisID: 'B',
-		label: 'metal free disk %',
-		data: data.map(function(e){return e.disk_remote;}),
+		label: 'metal disk use %',
+		data: data.map(function(e){return 100 - e.disk_remote;}),
 	    }]
 	},
 	options: {
