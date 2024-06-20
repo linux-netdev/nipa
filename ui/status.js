@@ -345,7 +345,7 @@ function load_db_size(data)
 		B: {
 		    position: 'right',
 		    display: true,
-		    beginAtZero: true
+		    suggestedMax: 100
 		}
 	    },
 	}
