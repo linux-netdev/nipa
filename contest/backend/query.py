@@ -74,6 +74,7 @@ def results():
 
     limit = 0
     where = []
+    log = ""
 
     form = request.args.get('format')
     remote = request.args.get('remote')
@@ -106,6 +107,7 @@ def results():
 
     if remote:
         where.append(f"remote = '{remote}'")
+        log += ', remote'
 
     where = "WHERE " + " AND ".join(where) if where else ""
 
@@ -125,11 +127,12 @@ def results():
                 else:
                     rows += r[0]
             rows += ']'
+        log += ', l2'
     else:
         rows = "[]"
 
     t3 = datetime.datetime.now()
-    print(f"Query for {br_cnt} branches, {limit} records took: {str(t3-t1)} ({str(t2-t1)}+{str(t3-t2)})")
+    print(f"Query for {br_cnt} branches, {limit} records{log} took: {str(t3-t1)} ({str(t2-t1)}+{str(t3-t2)})")
 
     return Response(rows, mimetype='application/json')
 
