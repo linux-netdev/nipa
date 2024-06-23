@@ -60,6 +60,7 @@ class VM:
         self.config = config
         self.vm_name = vm_name
         self.print_pfx = (": " + vm_name) if vm_name else ":"
+        self.tree_path = config.get('local', 'tree_path')
 
         self.cfg_boot_to = int(config.get('vm', 'boot_timeout'))
 
@@ -73,7 +74,7 @@ class VM:
         if self.config.get('env', 'paths'):
             env['PATH'] += ':' + self.config.get('env', 'paths')
 
-        return subprocess.Popen(cmd, env=env, cwd=self.config.get('local', 'tree_path'),
+        return subprocess.Popen(cmd, env=env, cwd=self.tree_path,
                                 stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
 
     def tree_cmd(self, cmd):

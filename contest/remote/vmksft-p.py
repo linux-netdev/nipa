@@ -244,7 +244,12 @@ def test(binfo, rinfo, cbarg):
 
     vm = VM(config)
 
-    if vm.build([f"tools/testing/selftests/{targets[0]}/config"]) == False:
+    kconfs = []
+    for target in targets:
+        conf = f"tools/testing/selftests/{target}/config"
+        if os.path.exists(os.path.join(vm.tree_path, conf)):
+            kconfs.append(conf)
+    if vm.build(kconfs) == False:
         vm.dump_log(results_path + '/build')
         return [{
             'test': 'build',
