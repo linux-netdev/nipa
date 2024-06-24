@@ -51,5 +51,10 @@ else
   msg="Found: ${msg:2}"
 fi
 
-echo -e "$msg" >&$DESC_FD
+if [[ -z $DESC_FD ]]
+then
+	echo -e "$msg"
+else
+	echo -e "$msg" >& $DESC_FD
+fi
 exit $res
