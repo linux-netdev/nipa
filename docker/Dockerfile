@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y \
 	bison \
 	libssl-dev \
 	libelf-dev \
-	clang \
+	clang lld llvm \
 	sparse \
 	bc \
 	cpio \
