@@ -31,6 +31,9 @@ git log -1 --pretty='%h ("%s")' HEAD~
 echo "Now at:"
 git log -1 --pretty='%h ("%s")' HEAD
 
+# These are either very slow or don't build
+export SKIP_TARGETS="bpf dt landlock livepatch lsm user_events mm powerpc"
+
 pr "Cleaning"
 make O=$output_dir $build_flags -C tools/testing/selftests/ clean
 
@@ -38,20 +41,17 @@ make O=$output_dir $build_flags -C tools/testing/selftests/ clean
 make -C tools/net/ynl/ distclean
 
 pr "Baseline building the tree"
+git checkout -q HEAD~
 make O=$output_dir $build_flags headers
-for what in net net/forwarding net/tcp_ao; do
-    make O=$output_dir $build_flags -C tools/testing/selftests/ \
-	 TARGETS=$what
-done
+make O=$output_dir $build_flags -C tools/testing/selftests/
+git checkout -q $HEAD
 
 pr "Building the tree before the patch"
 git checkout -q HEAD~
 
 make O=$output_dir $build_flags headers
-for what in net net/forwarding net/tcp_ao; do
-    make O=$output_dir $build_flags -C tools/testing/selftests/ \
-	 TARGETS=$what 2> >(tee -a $tmpfile_o >&2)
-done
+make O=$output_dir $build_flags -C tools/testing/selftests/ \
+     2> >(tee -a $tmpfile_o >&2)
 
 incumbent=$(grep -i -c "\(warn\|error\)" $tmpfile_o)
 
@@ -59,10 +59,8 @@ pr "Building the tree with the patch"
 git checkout -q $HEAD
 
 make O=$output_dir $build_flags headers
-for what in net net/forwarding net/tcp_ao; do
-    make O=$output_dir $build_flags -C tools/testing/selftests/ \
-	 TARGETS=$what 2> >(tee -a $tmpfile_n >&2)
-done
+make O=$output_dir $build_flags -C tools/testing/selftests/ \
+     2> >(tee -a $tmpfile_n >&2)
 
 current=$(grep -i -c "\(warn\|error\)" $tmpfile_n)
 
