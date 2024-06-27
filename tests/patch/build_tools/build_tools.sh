@@ -34,6 +34,9 @@ git log -1 --pretty='%h ("%s")' HEAD
 pr "Cleaning"
 make O=$output_dir $build_flags -C tools/testing/selftests/ clean
 
+# Hard-clean YNL, too, otherwise YNL-related build problems may be masked
+make -C tools/net/ynl/ distclean
+
 pr "Baseline building the tree"
 make O=$output_dir $build_flags headers
 for what in net net/forwarding net/tcp_ao; do
