@@ -13,7 +13,7 @@ pr() {
 }
 
 # If it doesn't touch tools/ or include/, don't bother
-if ! git diff --name-only HEAD~ | grep -E "^(include)|(tools)/"; then
+if ! git diff --name-only HEAD~ | grep -q -E "^(include)|(tools)/"; then
     echo "No tools touched, skip" >&$DESC_FD
     exit 0
 fi
