@@ -8,6 +8,10 @@ tmpfile_o=$(mktemp)
 tmpfile_n=$(mktemp)
 rc=0
 
+pr() {
+    echo " ====== $@ ======" | tee -a /dev/stderr
+}
+
 # If it doesn't touch tools/ or include/, don't bother
 if ! git diff --name-only HEAD~ | grep -E "^(include)|(tools)/"; then
     echo "No tools touched, skip" >&$DESC_FD
@@ -24,18 +28,20 @@ HEAD=$(git rev-parse HEAD)
 
 echo "Tree base:"
 git log -1 --pretty='%h ("%s")' HEAD~
+echo "Now at:"
+git log -1 --pretty='%h ("%s")' HEAD
 
-echo "Cleaning"
+pr "Cleaning"
 make O=$output_dir $build_flags -C tools/testing/selftests/ clean
 
-echo "Baseline building the tree"
+pr "Baseline building the tree"
 make O=$output_dir $build_flags headers
 for what in net net/forwarding net/tcp_ao; do
     make O=$output_dir $build_flags -C tools/testing/selftests/ \
 	 TARGETS=$what
 done
 
-echo "Building the tree before the patch"
+pr "Building the tree before the patch"
 git checkout -q HEAD~
 
 make O=$output_dir $build_flags headers
@@ -46,8 +52,7 @@ done
 
 incumbent=$(grep -i -c "\(warn\|error\)" $tmpfile_o)
 
-echo "Building the tree with the patch"
-
+pr "Building the tree with the patch"
 git checkout -q $HEAD
 
 make O=$output_dir $build_flags headers
