@@ -49,6 +49,13 @@ def get(url, token):
     return requests.get(url, headers=headers)
 
 
+def link(cbarg, config):
+    return "https://github.com/" + \
+           config.get('ci', 'owner') + "/" + \
+           config.get('ci', 'repo') + "/" + \
+           "actions/runs/" + str(cbarg.prev_runid)
+
+
 def get_results(config, cbarg, prev_run, page=1):
     token = config.get('gh', 'token')
     repo_url = f"https://api.github.com/repos/{config.get('ci', 'owner')}/{config.get('ci', 'repo')}"
@@ -104,7 +111,9 @@ def get_results(config, cbarg, prev_run, page=1):
         else:
             print("Unknown result:", c)
             result = 5
-    return encoder[result]
+    return [{'test': config.get('executor', 'test'),
+             'group': config.get('executor', 'group'),
+             'result': encoder[result], 'link': link(cbarg, config)}]
 
 
 def test_run(binfo, rinfo, cbarg, config, start):
@@ -117,7 +126,10 @@ def test_run(binfo, rinfo, cbarg, config, start):
         # If rerere fixed it, just commit
         res = subprocess.run('git diff -s --exit-code', cwd=tree_path, shell=True)
         if res.returncode != 0:
-            return 'skip'
+            return [{'test': config.get('executor', 'test'),
+                     'group': config.get('executor', 'group'),
+                     'result': 'skip', 'link': config.get('gh', 'link')}]
+
         subprocess.run('git commit --no-edit', cwd=tree_path, shell=True, check=True)
 
     out_remote = config.get('gh', 'out_remote')
@@ -142,7 +154,13 @@ def test_run(binfo, rinfo, cbarg, config, start):
         print("Not completed, waiting")
         time.sleep(config.getint('gh', 'wait_poll'))
 
-    return 'skip'
+    url = config.get('gh', 'link')
+    if hasattr(cbarg, "prev_runid") and cbarg.prev_runid != prev_runid:
+        url = link(cbarg, config)
+
+    return [{'test': config.get('executor', 'test'),
+             'group': config.get('executor', 'group'),
+             'result': 'skip', 'link': url}]
 
 
 def test(binfo, rinfo, cbarg):
@@ -159,16 +177,7 @@ def test(binfo, rinfo, cbarg):
 
     res = test_run(binfo, rinfo, cbarg, config, start)
 
-    link = config.get('gh', 'link')
-    if hasattr(cbarg, "prev_runid"):
-        link = "https://github.com/" + \
-               config.get('ci', 'owner') + "/" + \
-               config.get('ci', 'repo') + "/" + \
-               "actions/runs/" + str(cbarg.prev_runid)
-
-    return [{'test': config.get('executor', 'test'),
-             'group': config.get('executor', 'group'),
-             'result': res, 'link': link}]
+    return res
 
 
 def main() -> None:
