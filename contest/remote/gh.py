@@ -10,7 +10,7 @@ import sys
 import time
 
 from core import NipaLifetime
-from lib import Fetcher, CbArg
+from lib import Fetcher, CbArg, namify
 
 """
 [executor]
@@ -54,6 +54,14 @@ def link(cbarg, config):
            config.get('ci', 'owner') + "/" + \
            config.get('ci', 'repo') + "/" + \
            "actions/runs/" + str(cbarg.prev_runid)
+
+
+def gh_namify(name):
+    # This may be pretty BPF specific, the test name looks like:
+    #    x86_64-gcc / test (test_progs, false, 360) / test_progs on x86_64 with gcc
+    name = ' / '.join(name.split(' / ')[:2])
+    name = name.replace('test (test', '')
+    return namify(name)
 
 
 def get_results(config, cbarg, prev_run, page=1):
@@ -103,17 +111,29 @@ def get_results(config, cbarg, prev_run, page=1):
         5: 'fail',
     }
 
-    result = -1
+    url = link(cbarg, config)
+    res = []
     for job in jobs["jobs"]:
-        c = job["conclusion"]
+        if job["conclusion"] is None:
+            print("Still running, waiting for job:", job["name"])
+            return None
+        if job["conclusion"] == 'skipped':
+            continue
+
         if job["conclusion"] in decoder:
-            result = max(result, decoder[c])
+            result = encoder[decoder[job["conclusion"]]]
         else:
-            print("Unknown result:", c)
-            result = 5
-    return [{'test': config.get('executor', 'test'),
-             'group': config.get('executor', 'group'),
-             'result': encoder[result], 'link': link(cbarg, config)}]
+            print("Unknown result:", job["conclusion"])
+            result = 'fail'
+
+        test_link = job.get('html_url', url)
+
+        res.append({'test': gh_namify(job["name"]),
+                    'group': config.get('executor', 'group'),
+                    'result': result, 'link': test_link})
+    if not res:
+        print(f"Still waiting, {len(jobs['jobs'])} jobs skipped")
+    return res
 
 
 def test_run(binfo, rinfo, cbarg, config, start):
@@ -151,7 +171,6 @@ def test_run(binfo, rinfo, cbarg, config, start):
             print("Got result:", res)
             return res
 
-        print("Not completed, waiting")
         time.sleep(config.getint('gh', 'wait_poll'))
 
     url = config.get('gh', 'link')
