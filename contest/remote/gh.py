@@ -177,6 +177,17 @@ def test(binfo, rinfo, cbarg):
 
     res = test_run(binfo, rinfo, cbarg, config, start)
 
+    retry = []
+    for one in res:
+        if one['result'] == 'fail':
+            retry = test_run(binfo, rinfo, cbarg, config, start)
+            break
+    for one2 in retry:
+        for one in res:
+            if one['test'] == one2['test']:
+                one['retry'] = one2['result']
+                break
+
     return res
 
 
