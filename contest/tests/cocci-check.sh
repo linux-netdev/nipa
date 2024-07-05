@@ -27,6 +27,7 @@ clean_up_output() {
     sed -i '/^EXN: .*No such file or directory/d' $file
     sed -i '/^EXN: Coccinelle_modules.Common.Timeout /d' $file
     sed -i '/An error occurred when attempting /d' $file
+    sed -i '/mlx5_ifc.h:.* WARNING use flexible-array member instead/d' $file
 }
 
 # Figure out the number of physical cores, save 8 or half for other stuff
