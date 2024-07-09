@@ -1,3 +1,4 @@
 {
-  "run": ["kdoc.sh"]
+  "run": ["kdoc.sh"],
+  "pull-requests": true
 }
