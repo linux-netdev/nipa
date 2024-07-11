@@ -9,6 +9,7 @@ except ImportError:
 import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
+import time
 import urllib
 
 import core
@@ -125,7 +126,10 @@ class Patchwork(object):
             core.log("Headers", headers)
             core.log("Data", data)
             core.log("Response", ret)
-            core.log("Response data", ret.json())
+            try:
+                core.log("Response data", ret.json())
+            except json.decoder.JSONDecodeError:
+                core.log("Response data", ret.content.decode())
         finally:
             core.log_end_sec()
 
@@ -189,6 +193,10 @@ class Patchwork(object):
         }
 
         r = self._post(f'patches/{patch}/checks/', headers=headers, data=data)
+        if r.status_code == 502 or r.status_code == 504:
+            # Timeout, let's wait 30 sec and retry, POST isn't retried by the lib.
+            time.sleep(30)
+            r = self._post(f'patches/{patch}/checks/', headers=headers, data=data)
         if r.status_code != 201:
             raise PatchworkPostException(r)
 
