@@ -60,11 +60,11 @@ def pwe_has_all_checks(pw, entry) -> bool:
     if "checks" not in entry:
         return False
     checks = pw.request(entry["checks"])
-    found = 0
+    found = dict.fromkeys(gate_checks, 0)
     for c in checks:
-        if c["context"] in gate_checks and c["state"] == "success":
-            found += 1
-    return found == len(gate_checks)
+        if c["context"] in gate_checks:
+            found[c["context"]] = int(c["state"] == "success")
+    return sum(found.values()) == len(gate_checks)
 
 
 def pwe_series_id_or_none(entry) -> int:
