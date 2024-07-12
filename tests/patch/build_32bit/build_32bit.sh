@@ -49,7 +49,8 @@ fi
 # the "before", too.
 touch_relink=/dev/null
 if ! git log --diff-filter=A HEAD~.. --exit-code >>/dev/null || \
-   git diff --name-only HEAD~ | grep -q -E "Makefile$"
+   git diff --name-only HEAD~ | grep -q -E "Makefile$" || \
+   git diff --name-only HEAD~ | grep -q -E "Kconfig$"
 then
     echo "Trying to force re-linking, new files were added"
     touch_relink=${output_dir}/include/generated/utsrelease.h
