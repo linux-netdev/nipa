@@ -60,6 +60,7 @@ def extract_crash(outputs, prompt, get_filters):
         else:
             in_crash |= '] Hardware name: ' in line
             in_crash |= '] ref_tracker: ' in line
+            in_crash |= ' blocked for more than ' in line
             in_crash |= line.startswith('unreferenced object 0x')
             if in_crash:
                 start = len(crash_lines)
@@ -112,6 +113,14 @@ class TestCrashes(unittest.TestCase):
                           'dst_init:dst_alloc:ip6_dst_alloc:ip6_rt_pcpu_alloc:ip6_pol_route',
                           '___sys_sendmsg:__sys_sendmsg:do_syscall_64:ipv6_add_dev:addrconf_notify',
                           'dev_hard_start_xmit:__dev_queue_xmit:arp_solicit:neigh_probe:dst_init'})
+
+    def test_hung_task(self):
+        self.assertTrue(has_crash(TestCrashes.hung_task))
+        lines, fingers = extract_crash(TestCrashes.hung_task, "xx__->", lambda : None)
+        self.assertGreater(len(lines), 10)
+        self.assertEqual(fingers,
+                         {'__schedule:schedule:__wait_on_freeing_inode:find_inode_fast:iget_locked',
+                          '__schedule:schedule:d_alloc_parallel:__lookup_slow:walk_component'})
 
     #########################################################
     ### Sample outputs
@@ -559,6 +568,258 @@ xx__->
 [ 1908.677622][T12484]      __sys_sendmsg+0xc2/0x150
 [ 1908.677622][T12484]      do_syscall_64+0xc1/0x1d0
 [ 1908.677622][T12484] 
+"""
+
+    hung_task = """
+[ 1863.157993][ T9043] br0: port 1(vx0) entered forwarding state
+[ 2090.392704][   T43] INFO: task tc:9091 blocked for more than 122 seconds.
+[ 2090.393146][   T43]       Not tainted 6.10.0-virtme #1
+[ 2090.393327][   T43] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+[ 2090.393598][   T43] task:tc              state:D stack:26464 pid:9091  tgid:9091  ppid:9090   flags:0x00000000
+[ 2090.393857][   T43] Call Trace:
+[ 2090.393956][   T43]  <TASK>
+[ 2090.394033][   T43]  __schedule+0x6e0/0x17e0
+[ 2090.394184][   T43]  ? __pfx___schedule+0x10/0x10
+[ 2090.394318][   T43]  ? schedule+0x1a5/0x210
+[ 2090.394420][   T43]  ? __pfx_lock_acquire.part.0+0x10/0x10
+[ 2090.394562][   T43]  ? trace_lock_acquire+0x14d/0x1f0
+[ 2090.394701][   T43]  ? schedule+0x1a5/0x210
+[ 2090.394800][   T43]  schedule+0xdf/0x210
+[ 2090.395240][   T43]  d_alloc_parallel+0xaef/0xed0
+[ 2090.395379][   T43]  ? __pfx_d_alloc_parallel+0x10/0x10
+[ 2090.395505][   T43]  ? __pfx_default_wake_function+0x10/0x10
+[ 2090.395676][   T43]  ? lockdep_init_map_type+0x2cb/0x7c0
+[ 2090.395809][   T43]  __lookup_slow+0x17f/0x3c0
+[ 2090.395942][   T43]  ? __pfx___lookup_slow+0x10/0x10
+[ 2090.396075][   T43]  ? walk_component+0x29e/0x4f0
+[ 2090.396219][   T43]  walk_component+0x2ab/0x4f0
+[ 2090.396350][   T43]  link_path_walk.part.0.constprop.0+0x416/0x940
+[ 2090.396517][   T43]  ? __pfx_link_path_walk.part.0.constprop.0+0x10/0x10
+[ 2090.396706][   T43]  path_lookupat+0x72/0x660
+[ 2090.396832][   T43]  filename_lookup+0x19e/0x420
+[ 2090.396958][   T43]  ? __pfx_filename_lookup+0x10/0x10
+[ 2090.397090][   T43]  ? find_held_lock+0x2c/0x110
+[ 2090.397213][   T43]  ? __lock_release+0x103/0x460
+[ 2090.397335][   T43]  ? __pfx___lock_release+0x10/0x10
+[ 2090.397456][   T43]  ? trace_lock_acquire+0x14d/0x1f0
+[ 2090.397590][   T43]  ? __might_fault+0xc3/0x170
+[ 2090.397720][   T43]  ? lock_acquire+0x32/0xc0
+[ 2090.397838][   T43]  ? __might_fault+0xc3/0x170
+[ 2090.397966][   T43]  vfs_statx+0xbf/0x140
+[ 2090.398060][   T43]  ? __pfx_vfs_statx+0x10/0x10
+[ 2090.398183][   T43]  ? getname_flags+0xb3/0x410
+[ 2090.398307][   T43]  vfs_fstatat+0x80/0xc0
+[ 2090.398400][   T43]  __do_sys_newfstatat+0x75/0xd0
+[ 2090.398548][   T43]  ? __pfx___do_sys_newfstatat+0x10/0x10
+[ 2090.398669][   T43]  ? user_path_at+0x45/0x60
+[ 2090.398802][   T43]  ? __x64_sys_openat+0x123/0x1e0
+[ 2090.398929][   T43]  ? __pfx___x64_sys_openat+0x10/0x10
+[ 2090.399052][   T43]  ? __pfx_do_faccessat+0x10/0x10
+[ 2090.399179][   T43]  ? lockdep_hardirqs_on_prepare+0x275/0x410
+[ 2090.399327][   T43]  do_syscall_64+0xc1/0x1d0
+[ 2090.399451][   T43]  entry_SYSCALL_64_after_hwframe+0x77/0x7f
+[ 2090.399612][   T43] RIP: 0033:0x7fef39aaceae
+[ 2090.399746][   T43] RSP: 002b:00007ffc38865528 EFLAGS: 00000246 ORIG_RAX: 0000000000000106
+[ 2090.399969][   T43] RAX: ffffffffffffffda RBX: 0000000000000004 RCX: 00007fef39aaceae
+[ 2090.400180][   T43] RDX: 00007ffc38865600 RSI: 00007ffc38865530 RDI: 00000000ffffff9c
+[ 2090.400371][   T43] RBP: 00007ffc388656c0 R08: 00000000ffffffff R09: 00007ffc38865530
+[ 2090.400563][   T43] R10: 0000000000000000 R11: 0000000000000246 R12: 00007ffc38865537
+[ 2090.400745][   T43] R13: 00007ffc38865530 R14: 00007fef39abc220 R15: 00007fef39a7e000
+[ 2090.400949][   T43]  </TASK>
+[ 2090.401044][   T43] INFO: task jq:9092 blocked for more than 122 seconds.
+[ 2090.401211][   T43]       Not tainted 6.10.0-virtme #1
+[ 2090.401326][   T43] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+[ 2090.401539][   T43] task:jq              state:D stack:26464 pid:9092  tgid:9092  ppid:9090   flags:0x00004000
+[ 2090.401808][   T43] Call Trace:
+[ 2090.401901][   T43]  <TASK>
+[ 2090.401968][   T43]  __schedule+0x6e0/0x17e0
+[ 2090.402124][   T43]  ? __pfx___schedule+0x10/0x10
+[ 2090.402243][   T43]  ? schedule+0x1a5/0x210
+[ 2090.402338][   T43]  ? __pfx_lock_acquire.part.0+0x10/0x10
+[ 2090.402477][   T43]  ? trace_lock_acquire+0x14d/0x1f0
+[ 2090.402626][   T43]  ? schedule+0x1a5/0x210
+[ 2090.402731][   T43]  schedule+0xdf/0x210
+[ 2090.402824][   T43]  __wait_on_freeing_inode+0x115/0x280
+[ 2090.402982][   T43]  ? __pfx___wait_on_freeing_inode+0x10/0x10
+[ 2090.403171][   T43]  ? __pfx_wake_bit_function+0x10/0x10
+[ 2090.403329][   T43]  ? lock_acquire+0x32/0xc0
+[ 2090.403450][   T43]  ? find_inode_fast+0x158/0x450
+[ 2090.403605][   T43]  find_inode_fast+0x18d/0x450
+[ 2090.403742][   T43]  iget_locked+0x7d/0x390
+[ 2090.403834][   T43]  ? hlock_class+0x4e/0x130
+[ 2090.403972][   T43]  v9fs_fid_iget_dotl+0x78/0x2d0
+[ 2090.404117][   T43]  v9fs_vfs_lookup.part.0+0x1ed/0x390
+[ 2090.404263][   T43]  ? __pfx_v9fs_vfs_lookup.part.0+0x10/0x10
+[ 2090.404417][   T43]  ? lockdep_init_map_type+0x2cb/0x7c0
+[ 2090.404589][   T43]  __lookup_slow+0x209/0x3c0
+[ 2090.404723][   T43]  ? __pfx___lookup_slow+0x10/0x10
+[ 2090.404854][   T43]  ? walk_component+0x29e/0x4f0
+[ 2090.405009][   T43]  walk_component+0x2ab/0x4f0
+[ 2090.405137][   T43]  link_path_walk.part.0.constprop.0+0x416/0x940
+[ 2090.405312][   T43]  ? __pfx_link_path_walk.part.0.constprop.0+0x10/0x10
+[ 2090.405474][   T43]  path_openat+0x1be/0x440
+[ 2090.405608][   T43]  ? __pfx_path_openat+0x10/0x10
+[ 2090.405756][   T43]  ? __lock_acquire+0xaf0/0x1570
+[ 2090.405883][   T43]  do_filp_open+0x1b3/0x3e0
+[ 2090.406008][   T43]  ? __pfx_do_filp_open+0x10/0x10
+[ 2090.406162][   T43]  ? find_held_lock+0x2c/0x110
+[ 2090.406294][   T43]  ? do_raw_spin_lock+0x131/0x270
+[ 2090.406442][   T43]  ? __pfx_do_raw_spin_lock+0x10/0x10
+[ 2090.406589][   T43]  ? alloc_fd+0x1f5/0x650
+[ 2090.406693][   T43]  ? do_raw_spin_unlock+0x58/0x220
+[ 2090.406815][   T43]  ? _raw_spin_unlock+0x23/0x40
+[ 2090.406954][   T43]  ? alloc_fd+0x1f5/0x650
+[ 2090.407075][   T43]  do_sys_openat2+0x122/0x160
+[ 2090.407208][   T43]  ? __pfx_do_sys_openat2+0x10/0x10
+[ 2090.407332][   T43]  ? user_path_at+0x45/0x60
+[ 2090.407490][   T43]  __x64_sys_openat+0x123/0x1e0
+[ 2090.407635][   T43]  ? __pfx___x64_sys_openat+0x10/0x10
+[ 2090.407764][   T43]  ? __pfx_do_faccessat+0x10/0x10
+[ 2090.407950][   T43]  do_syscall_64+0xc1/0x1d0
+[ 2090.408091][   T43]  entry_SYSCALL_64_after_hwframe+0x77/0x7f
+[ 2090.408251][   T43] RIP: 0033:0x7f7b9086b0e8
+[ 2090.408406][   T43] RSP: 002b:00007fff468c5918 EFLAGS: 00000287 ORIG_RAX: 0000000000000101
+[ 2090.408637][   T43] RAX: ffffffffffffffda RBX: 00007fff468c5b9f RCX: 00007f7b9086b0e8
+[ 2090.408838][   T43] RDX: 0000000000080000 RSI: 00007fff468c5990 RDI: 00000000ffffff9c
+[ 2090.409040][   T43] RBP: 00007fff468c5980 R08: 0000000000080000 R09: 00007fff468c5990
+[ 2090.409220][   T43] R10: 0000000000000000 R11: 0000000000000287 R12: 00007fff468c5997
+[ 2090.409439][   T43] R13: 00007fff468c5bb0 R14: 00007fff468c5990 R15: 00007f7b9083c000
+[ 2090.409652][   T43]  </TASK>
+[ 2090.409788][   T43] 
+[ 2090.409788][   T43] Showing all locks held in the system:
+[ 2090.409977][   T43] 1 lock held by khungtaskd/43:
+[ 2090.410101][   T43]  #0: ffffffffb9368c00 (rcu_read_lock){....}-{1:2}, at: debug_show_all_locks+0x70/0x3a0
+[ 2090.410350][   T43] 1 lock held by tc/9091:
+[ 2090.410439][   T43]  #0: ffff888001720148 (&type->i_mutex_dir_key#3){++++}-{3:3}, at: walk_component+0x29e/0x4f0
+[ 2090.410714][   T43] 1 lock held by jq/9092:
+[ 2090.410814][   T43]  #0: ffff888001720148 (&type->i_mutex_dir_key#3){++++}-{3:3}, at: walk_component+0x29e/0x4f0
+[ 2090.411085][   T43] 
+[ 2090.411150][   T43] =============================================
+[ 2090.411150][   T43] 
+[ 2213.272644][   T43] INFO: task tc:9091 blocked for more than 245 seconds.
+[ 2213.272927][   T43]       Not tainted 6.10.0-virtme #1
+[ 2213.273055][   T43] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+[ 2213.273269][   T43] task:tc              state:D stack:26464 pid:9091  tgid:9091  ppid:9090   flags:0x00000000
+[ 2213.273565][   T43] Call Trace:
+[ 2213.273667][   T43]  <TASK>
+[ 2213.273738][   T43]  __schedule+0x6e0/0x17e0
+[ 2213.273875][   T43]  ? __pfx___schedule+0x10/0x10
+[ 2213.274005][   T43]  ? schedule+0x1a5/0x210
+[ 2213.274109][   T43]  ? __pfx_lock_acquire.part.0+0x10/0x10
+[ 2213.274250][   T43]  ? trace_lock_acquire+0x14d/0x1f0
+[ 2213.274387][   T43]  ? schedule+0x1a5/0x210
+[ 2213.274486][   T43]  schedule+0xdf/0x210
+[ 2213.274603][   T43]  d_alloc_parallel+0xaef/0xed0
+[ 2213.274757][   T43]  ? __pfx_d_alloc_parallel+0x10/0x10
+[ 2213.274882][   T43]  ? __pfx_default_wake_function+0x10/0x10
+[ 2213.275038][   T43]  ? lockdep_init_map_type+0x2cb/0x7c0
+[ 2213.275175][   T43]  __lookup_slow+0x17f/0x3c0
+[ 2213.275305][   T43]  ? __pfx___lookup_slow+0x10/0x10
+[ 2213.275438][   T43]  ? walk_component+0x29e/0x4f0
+[ 2213.275597][   T43]  walk_component+0x2ab/0x4f0
+[ 2213.275749][   T43]  link_path_walk.part.0.constprop.0+0x416/0x940
+[ 2213.275908][   T43]  ? __pfx_link_path_walk.part.0.constprop.0+0x10/0x10
+[ 2213.276067][   T43]  path_lookupat+0x72/0x660
+[ 2213.276193][   T43]  filename_lookup+0x19e/0x420
+[ 2213.276317][   T43]  ? __pfx_filename_lookup+0x10/0x10
+[ 2213.276454][   T43]  ? find_held_lock+0x2c/0x110
+[ 2213.276596][   T43]  ? __lock_release+0x103/0x460
+[ 2213.276723][   T43]  ? __pfx___lock_release+0x10/0x10
+[ 2213.276850][   T43]  ? trace_lock_acquire+0x14d/0x1f0
+[ 2213.276984][   T43]  ? __might_fault+0xc3/0x170
+[ 2213.277110][   T43]  ? lock_acquire+0x32/0xc0
+[ 2213.277230][   T43]  ? __might_fault+0xc3/0x170
+[ 2213.277356][   T43]  vfs_statx+0xbf/0x140
+[ 2213.277457][   T43]  ? __pfx_vfs_statx+0x10/0x10
+[ 2213.277617][   T43]  ? getname_flags+0xb3/0x410
+[ 2213.277748][   T43]  vfs_fstatat+0x80/0xc0
+[ 2213.277850][   T43]  __do_sys_newfstatat+0x75/0xd0
+[ 2213.277982][   T43]  ? __pfx___do_sys_newfstatat+0x10/0x10
+[ 2213.278105][   T43]  ? user_path_at+0x45/0x60
+[ 2213.278239][   T43]  ? __x64_sys_openat+0x123/0x1e0
+[ 2213.278363][   T43]  ? __pfx___x64_sys_openat+0x10/0x10
+[ 2213.278483][   T43]  ? __pfx_do_faccessat+0x10/0x10
+[ 2213.278627][   T43]  ? lockdep_hardirqs_on_prepare+0x275/0x410
+[ 2213.278779][   T43]  do_syscall_64+0xc1/0x1d0
+[ 2213.278921][   T43]  entry_SYSCALL_64_after_hwframe+0x77/0x7f
+[ 2213.279083][   T43] RIP: 0033:0x7fef39aaceae
+[ 2213.279221][   T43] RSP: 002b:00007ffc38865528 EFLAGS: 00000246 ORIG_RAX: 0000000000000106
+[ 2213.279415][   T43] RAX: ffffffffffffffda RBX: 0000000000000004 RCX: 00007fef39aaceae
+[ 2213.279615][   T43] RDX: 00007ffc38865600 RSI: 00007ffc38865530 RDI: 00000000ffffff9c
+[ 2213.279801][   T43] RBP: 00007ffc388656c0 R08: 00000000ffffffff R09: 00007ffc38865530
+[ 2213.279989][   T43] R10: 0000000000000000 R11: 0000000000000246 R12: 00007ffc38865537
+[ 2213.280184][   T43] R13: 00007ffc38865530 R14: 00007fef39abc220 R15: 00007fef39a7e000
+[ 2213.280377][   T43]  </TASK>
+[ 2213.280470][   T43] INFO: task jq:9092 blocked for more than 245 seconds.
+[ 2213.280628][   T43]       Not tainted 6.10.0-virtme #1
+[ 2213.280743][   T43] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+[ 2213.280955][   T43] task:jq              state:D stack:26464 pid:9092  tgid:9092  ppid:9090   flags:0x00004000
+[ 2213.281199][   T43] Call Trace:
+[ 2213.281296][   T43]  <TASK>
+[ 2213.281364][   T43]  __schedule+0x6e0/0x17e0
+[ 2213.281495][   T43]  ? __pfx___schedule+0x10/0x10
+[ 2213.281642][   T43]  ? schedule+0x1a5/0x210
+[ 2213.281737][   T43]  ? __pfx_lock_acquire.part.0+0x10/0x10
+[ 2213.281868][   T43]  ? trace_lock_acquire+0x14d/0x1f0
+[ 2213.282003][   T43]  ? schedule+0x1a5/0x210
+[ 2213.282109][   T43]  schedule+0xdf/0x210
+[ 2213.282219][   T43]  __wait_on_freeing_inode+0x115/0x280
+[ 2213.282350][   T43]  ? __pfx___wait_on_freeing_inode+0x10/0x10
+[ 2213.282505][   T43]  ? __pfx_wake_bit_function+0x10/0x10
+[ 2213.282650][   T43]  ? lock_acquire+0x32/0xc0
+[ 2213.282775][   T43]  ? find_inode_fast+0x158/0x450
+[ 2213.282903][   T43]  find_inode_fast+0x18d/0x450
+[ 2213.283054][   T43]  iget_locked+0x7d/0x390
+[ 2213.283149][   T43]  ? hlock_class+0x4e/0x130
+[ 2213.283280][   T43]  v9fs_fid_iget_dotl+0x78/0x2d0
+[ 2213.283410][   T43]  v9fs_vfs_lookup.part.0+0x1ed/0x390
+[ 2213.283539][   T43]  ? __pfx_v9fs_vfs_lookup.part.0+0x10/0x10
+[ 2213.283705][   T43]  ? lockdep_init_map_type+0x2cb/0x7c0
+[ 2213.283835][   T43]  __lookup_slow+0x209/0x3c0
+[ 2213.283959][   T43]  ? __pfx___lookup_slow+0x10/0x10
+[ 2213.284091][   T43]  ? walk_component+0x29e/0x4f0
+[ 2213.284232][   T43]  walk_component+0x2ab/0x4f0
+[ 2213.284356][   T43]  link_path_walk.part.0.constprop.0+0x416/0x940
+[ 2213.284510][   T43]  ? __pfx_link_path_walk.part.0.constprop.0+0x10/0x10
+[ 2213.284680][   T43]  path_openat+0x1be/0x440
+[ 2213.284804][   T43]  ? __pfx_path_openat+0x10/0x10
+[ 2213.284926][   T43]  ? __lock_acquire+0xaf0/0x1570
+[ 2213.285051][   T43]  do_filp_open+0x1b3/0x3e0
+[ 2213.285180][   T43]  ? __pfx_do_filp_open+0x10/0x10
+[ 2213.285321][   T43]  ? find_held_lock+0x2c/0x110
+[ 2213.285455][   T43]  ? do_raw_spin_lock+0x131/0x270
+[ 2213.285599][   T43]  ? __pfx_do_raw_spin_lock+0x10/0x10
+[ 2213.285735][   T43]  ? alloc_fd+0x1f5/0x650
+[ 2213.285834][   T43]  ? do_raw_spin_unlock+0x58/0x220
+[ 2213.285964][   T43]  ? _raw_spin_unlock+0x23/0x40
+[ 2213.286086][   T43]  ? alloc_fd+0x1f5/0x650
+[ 2213.286188][   T43]  do_sys_openat2+0x122/0x160
+[ 2213.286320][   T43]  ? __pfx_do_sys_openat2+0x10/0x10
+[ 2213.286446][   T43]  ? user_path_at+0x45/0x60
+[ 2213.286586][   T43]  __x64_sys_openat+0x123/0x1e0
+[ 2213.286709][   T43]  ? __pfx___x64_sys_openat+0x10/0x10
+[ 2213.286829][   T43]  ? __pfx_do_faccessat+0x10/0x10
+[ 2213.286972][   T43]  do_syscall_64+0xc1/0x1d0
+[ 2213.287100][   T43]  entry_SYSCALL_64_after_hwframe+0x77/0x7f
+[ 2213.287251][   T43] RIP: 0033:0x7f7b9086b0e8
+[ 2213.287381][   T43] RSP: 002b:00007fff468c5918 EFLAGS: 00000287 ORIG_RAX: 0000000000000101
+[ 2213.287577][   T43] RAX: ffffffffffffffda RBX: 00007fff468c5b9f RCX: 00007f7b9086b0e8
+[ 2213.287758][   T43] RDX: 0000000000080000 RSI: 00007fff468c5990 RDI: 00000000ffffff9c
+[ 2213.287935][   T43] RBP: 00007fff468c5980 R08: 0000000000080000 R09: 00007fff468c5990
+[ 2213.288117][   T43] R10: 0000000000000000 R11: 0000000000000287 R12: 00007fff468c5997
+[ 2213.288318][   T43] R13: 00007fff468c5bb0 R14: 00007fff468c5990 R15: 00007f7b9083c000
+[ 2213.288514][   T43]  </TASK>
+[ 2213.288614][   T43] 
+[ 2213.288614][   T43] Showing all locks held in the system:
+[ 2213.288798][   T43] 1 lock held by khungtaskd/43:
+[ 2213.288925][   T43]  #0: ffffffffb9368c00 (rcu_read_lock){....}-{1:2}, at: debug_show_all_locks+0x70/0x3a0
+[ 2213.289157][   T43] 1 lock held by tc/9091:
+[ 2213.289251][   T43]  #0: ffff888001720148 (&type->i_mutex_dir_key#3){++++}-{3:3}, at: walk_component+0x29e/0x4f0
+[ 2213.289500][   T43] 1 lock held by jq/9092:
+[ 2213.289611][   T43]  #0: ffff888001720148 (&type->i_mutex_dir_key#3){++++}-{3:3}, at: walk_component+0x29e/0x4f0
+[ 2213.289855][   T43] 
+[ 2213.289919][   T43] =============================================
+[ 2213.289919][   T43] 
 """
 
 
