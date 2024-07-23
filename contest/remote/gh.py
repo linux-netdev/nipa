@@ -49,11 +49,11 @@ def get(url, token):
     return requests.get(url, headers=headers)
 
 
-def link(cbarg, config):
+def link(runid, config):
     return "https://github.com/" + \
            config.get('ci', 'owner') + "/" + \
            config.get('ci', 'repo') + "/" + \
-           "actions/runs/" + str(cbarg.prev_runid)
+           "actions/runs/" + str(runid)
 
 
 def gh_namify(name):
@@ -62,6 +62,63 @@ def gh_namify(name):
     name = ' / '.join(name.split(' / ')[:2])
     name = name.replace('test (test', '')
     return namify(name)
+
+
+def get_jobs_page(config, repo_url, found, token, page=1, res=None):
+    resp = get(repo_url + f'/actions/runs/{found["id"]}/jobs?page={page}', token)
+    jobs = resp.json()
+
+    if 'jobs' not in jobs:
+        print("bad jobs", jobs)
+        return None
+
+    if len(jobs['jobs']) == 0:
+        if page == 1:
+            print("short jobs", jobs)
+        return res
+    # Must be page 1, init res to empty array
+    if res is None:
+        res = []
+
+    decoder = {
+        'success': 0,
+        'skipped': 1,
+        None: 2,
+        'failure': 3,
+        'cancelled': 4,
+        'unknown': 5,
+    }
+    encoder = {
+        0: 'pass',
+        1: 'pass',
+        2: None,
+        3: 'fail',
+        4: 'fail',
+        5: 'fail',
+    }
+
+    url = link(found["id"], config)
+    for job in jobs["jobs"]:
+        if job["conclusion"] is None:
+            print("Still running, waiting for job:", job["name"])
+            return None
+        if job["conclusion"] == 'skipped':
+            continue
+
+        if job["conclusion"] in decoder:
+            result = encoder[decoder[job["conclusion"]]]
+        else:
+            print("Unknown result:", job["conclusion"])
+            result = 'fail'
+
+        test_link = job.get('html_url', url)
+
+        res.append({'test': gh_namify(job["name"]),
+                    'group': config.get('executor', 'group'),
+                    'result': result, 'link': test_link})
+    if not res:
+        print(f"Still waiting, {len(jobs['jobs'])} jobs skipped")
+    return get_jobs_page(config, repo_url, found, token, page=(page + 1), res=res)
 
 
 def get_results(config, cbarg, prev_run, page=1):
@@ -86,54 +143,7 @@ def get_results(config, cbarg, prev_run, page=1):
         return None
     cbarg.prev_runid = found["id"]
 
-    resp = get(repo_url + f'/actions/runs/{found["id"]}/jobs', token)
-    jobs = resp.json()
-
-    if 'jobs' not in jobs:
-        print("bad jobs")
-        print(jobs)
-        return None
-
-    decoder = {
-        'success': 0,
-        'skipped': 1,
-        None: 2,
-        'failure': 3,
-        'cancelled': 4,
-        'unknown': 5,
-    }
-    encoder = {
-        0: 'pass',
-        1: 'pass',
-        2: None,
-        3: 'fail',
-        4: 'fail',
-        5: 'fail',
-    }
-
-    url = link(cbarg, config)
-    res = []
-    for job in jobs["jobs"]:
-        if job["conclusion"] is None:
-            print("Still running, waiting for job:", job["name"])
-            return None
-        if job["conclusion"] == 'skipped':
-            continue
-
-        if job["conclusion"] in decoder:
-            result = encoder[decoder[job["conclusion"]]]
-        else:
-            print("Unknown result:", job["conclusion"])
-            result = 'fail'
-
-        test_link = job.get('html_url', url)
-
-        res.append({'test': gh_namify(job["name"]),
-                    'group': config.get('executor', 'group'),
-                    'result': result, 'link': test_link})
-    if not res:
-        print(f"Still waiting, {len(jobs['jobs'])} jobs skipped")
-    return res
+    return get_jobs_page(config, repo_url, found, token)
 
 
 def test_run(binfo, rinfo, cbarg, config, start):
@@ -175,7 +185,7 @@ def test_run(binfo, rinfo, cbarg, config, start):
 
     url = config.get('gh', 'link')
     if hasattr(cbarg, "prev_runid") and cbarg.prev_runid != prev_runid:
-        url = link(cbarg, config)
+        url = link(cbarg.prev_runid, config)
 
     return [{'test': config.get('executor', 'test'),
              'group': config.get('executor', 'group'),
