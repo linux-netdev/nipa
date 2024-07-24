@@ -129,7 +129,7 @@ def get_results(config, cbarg, prev_run, page=1):
     resp = get(repo_url + f'/actions/runs?page={page}', token)
     runs = resp.json()
     found = None
-    for run in runs.get('workflow_runs'):
+    for run in runs.get('workflow_runs', []):
         if ref in [r['ref'] for r in run['referenced_workflows']]:
             if found is None or found["id"] < run["id"]:
                 found = run
