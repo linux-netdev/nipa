@@ -27,8 +27,10 @@ HEAD=$(git rev-parse HEAD)
 echo "Tree base:"
 git log -1 --pretty='%h ("%s")' HEAD~
 
-if [ x$FIRST_IN_SERIES == x0 ]; then
-    echo "Skip baseline build, not the first patch"
+if [ x$FIRST_IN_SERIES == x0 ] && \
+   ! git diff --name-only HEAD~ | grep -q -E "Kconfig$"
+then
+    echo "Skip baseline build, not the first patch and no Kconfig updates"
 else
     echo "Baseline building the tree"
 
