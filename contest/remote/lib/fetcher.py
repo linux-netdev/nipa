@@ -158,6 +158,8 @@ class Fetcher:
 
 
 def namify(what):
+    if not what:
+        return "no-name"
     name = re.sub(r'[^0-9a-zA-Z]+', '-', what)
     if name[-1] == '-':
         name = name[:-1]
