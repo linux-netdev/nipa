@@ -309,7 +309,7 @@ def test(binfo, rinfo, cbarg):
             'result': r["result"],
             'link': link + '/' + r['file_name']
         }
-        for key in ['retry', 'crashes', 'results']:
+        for key in ['time', 'retry', 'crashes', 'results']:
             if key in r:
                 outcome[key] = r[key]
         cases.append(outcome)
