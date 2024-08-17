@@ -305,7 +305,7 @@ def test(binfo, rinfo, cbarg):
             cbarg.prev_runtime[r["prog"]] = r["time"]
         outcome = {
             'test': r['test'],
-            'group': grp_name,
+            'group': "selftests-" + namify(r['target']),
             'result': r["result"],
             'link': link + '/' + r['file_name']
         }
