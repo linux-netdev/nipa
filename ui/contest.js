@@ -32,14 +32,14 @@ function load_result_table(data_raw)
     let warn_box = document.getElementById("fl-warn-box");
     warn_box.innerHTML = "";
 
-    let row_count = 0;
-
     let form = "";
     if (document.getElementById("ld-cases").checked)
 	form = "&ld-cases=1";
 
+    let rows = [];
+
     $.each(data_raw, function(i, v) {
-	if (row_count >= 5000) {
+	if (rows.length >= 5000) {
 	    warn_box.innerHTML = "Reached 5000 rows. Set an executor, branch or test filter. Otherwise this page will set your browser on fire...";
 	    return 0;
 	}
@@ -65,6 +65,26 @@ function load_result_table(data_raw)
 	    if (pw_n == false && nipa_pw_reported(v, r) == false)
 		return 1;
 
+	    rows.push({"v": v, "r": r});
+	});
+    });
+
+    let sort_time = nipa_sort_get('time');
+    if (sort_time)
+	rows.sort(function(a, b) {
+	    if (a.r.time === undefined && b.r.time === undefined)
+		return 0;
+	    if (a.r.time === undefined)
+		return 1;
+	    if (b.r.time === undefined)
+		return -1;
+	    return sort_time * (b.r.time - a.r.time);
+	});
+
+    for (const result of rows) {
+	const r = result.r;
+	const v = result.v;
+
 	    var row = table.insertRow();
 
 	    var date = row.insertCell(0);
@@ -76,6 +96,7 @@ function load_result_table(data_raw)
 	    var res = row.insertCell(6);
 	    let row_id = 7;
 	    var retry = row.insertCell(row_id++);
+	    var time = row.insertCell(row_id++);
 	    var outputs = row.insertCell(row_id++);
 	    var flake = row.insertCell(row_id++);
 	    var hist = row.insertCell(row_id++);
@@ -88,14 +109,13 @@ function load_result_table(data_raw)
 	    test.innerHTML = "<b>" + r.test + "</b>";
 	    if ("retry" in r)
 		retry.innerHTML = colorify_str(r.retry);
+	    if ("time" in r)
+		time.innerHTML = nipa_msec_to_str(Math.round(r.time) * 1000);
 	    res.innerHTML = colorify_str(r.result);
 	    outputs.innerHTML = "<a href=\"" + r.link + "\">outputs</a>";
 	    hist.innerHTML = "<a href=\"contest.html?test=" + r.test + form + "\">history</a>";
 	    flake.innerHTML = "<a href=\"flakes.html?min-flip=0&tn-needle=" + r.test + form + "\">matrix</a>";
-
-	    row_count++;
-	});
-    });
+    }
 }
 
 function find_branch_urls(loaded_data)
@@ -227,6 +247,8 @@ function do_it()
 	document.getElementById("ld_branch").value = urlParams.get("branch");
 	document.getElementById("ld_cnt").value = 1;
     }
+
+    nipa_sort_cb = results_update;
 
     /*
      * Please remember to keep these assets in sync with `scripts/ui_assets.sh`

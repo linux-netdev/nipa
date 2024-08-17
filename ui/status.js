@@ -361,32 +361,7 @@ function status_system(data_raw)
 }
 
 function msec_to_str(msec) {
-    const convs = [
-        [1, "ms"],
-        [1000, "s"],
-        [60, "m"],
-        [60, "h"],
-        [24, "d"],
-        [7, "w"]
-    ];
-
-    if (msec <= 0)
-	return msec.toString();
-
-    for (i = 0; i < convs.length; i++) {
-        if (msec < convs[i][0]) {
-            var full = Math.floor(msec) + convs[i - 1][1];
-            if (i > 1) {
-                var frac = Math.round(msec * convs[i - 1][0] % convs[i - 1][0]);
-                if (frac)
-                    full += " " + frac + convs[i - 2][1];
-            }
-            return full;
-        }
-        msec /= convs[i][0];
-    }
-
-    return "TLE";
+    return nipa_msec_to_str(msec);
 }
 
 function colorify_str_psf(str_psf, name, value, color)

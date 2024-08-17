@@ -1,3 +1,32 @@
+function nipa_msec_to_str(msec) {
+    const convs = [
+        [1, "ms"],
+        [1000, "s"],
+        [60, "m"],
+        [60, "h"],
+        [24, "d"],
+        [7, "w"]
+    ];
+
+    if (msec <= 0)
+	return msec.toString();
+
+    for (i = 0; i < convs.length; i++) {
+        if (msec < convs[i][0]) {
+            var full = Math.floor(msec) + convs[i - 1][1];
+            if (i > 1) {
+                var frac = Math.round(msec * convs[i - 1][0] % convs[i - 1][0]);
+                if (frac)
+                    full += " " + frac + convs[i - 2][1];
+            }
+            return full;
+        }
+        msec /= convs[i][0];
+    }
+
+    return "TLE";
+}
+
 function nipa_test_fullname(v, r)
 {
     return v.remote + "/" + v.executor + "/" + r.group + "/" + r.test;
@@ -134,4 +163,44 @@ function nipa_load_sitemap()
     $(document).ready(function() {
 	$("#sitemap").load("sitemap.html")
     });
+}
+
+// ------------------
+
+var nipa_sort_cb = null;
+let nipa_sort_keys = [];
+let nipa_sort_polarity = [];
+
+function nipa_sort_key_set(what)
+{
+    const index = nipa_sort_keys.indexOf(what);
+    let polarity = 1;
+
+    if (index != -1) {
+	polarity = -1 * nipa_sort_polarity[index];
+	// delete it
+	nipa_sort_keys.splice(index, 1);
+	nipa_sort_polarity.splice(index, 1);
+
+	// We flipped back to normal polarity, that's a reset
+	if (polarity == 1) {
+	    nipa_sort_cb();
+	    return;
+	}
+    }
+
+    // add it
+    nipa_sort_keys.unshift(what);
+    nipa_sort_polarity.unshift(polarity);
+
+    nipa_sort_cb();
+}
+
+function nipa_sort_get(what)
+{
+    const index = nipa_sort_keys.indexOf(what);
+
+    if (index == -1)
+	return 0;
+    return nipa_sort_polarity[index];
 }
