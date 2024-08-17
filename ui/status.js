@@ -554,6 +554,8 @@ function add_summaries(table, summary, reported)
 	link_to_contest += "&pw-n=0";
     else
 	link_to_contest += "&pw-y=0";
+    if (summary["fail"] + summary["skip"] > 0)
+	link_to_contest += "&pass=0";
     link_to_contest += "\">" + str_psf.str + "</a>";
 
     cell = row.insertCell(i++);     // tests
@@ -671,6 +673,8 @@ function load_result_table_one(data_raw, table, reported, avgs)
 		    link_to_contest += "&pw-n=0";
 		else
 		    link_to_contest += "&pw-y=0";
+		if (fail + skip > 0)
+		    link_to_contest += "&pass=0";
 		link_to_contest += "\">";
 
 		cnt.innerHTML = link_to_contest + str_psf.str + "</a>";
