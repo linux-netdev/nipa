@@ -266,7 +266,7 @@ def test(binfo, rinfo, cbarg):
     vm.dump_log(results_path + '/build')
 
     progs = get_prog_list(vm, targets)
-    progs.sort(reverse=True, key=lambda prog : cbarg.prev_runtime.get(prog[1], 0))
+    progs.sort(reverse=True, key=lambda prog : cbarg.prev_runtime.get(prog, 0))
 
     dl_min = config.getint('executor', 'deadline_minutes', fallback=999999)
     hard_stop = datetime.datetime.fromisoformat(binfo["date"])
@@ -279,7 +279,7 @@ def test(binfo, rinfo, cbarg):
     i = 0
     for prog in progs:
         i += 1
-        in_queue.put({'tid': i, 'prog': prog[1], 'target': prog[0]})
+        in_queue.put({'tid': i, 'target': prog[0], 'prog': prog[1]})
 
     # In case we have multiple tests kicking off on the same machine,
     # add optional wait to make sure others have finished building
@@ -302,7 +302,7 @@ def test(binfo, rinfo, cbarg):
     while not out_queue.empty():
         r = out_queue.get()
         if 'time' in r:
-            cbarg.prev_runtime[r["prog"]] = r["time"]
+            cbarg.prev_runtime[(r["target"], r["prog"])] = r["time"]
         outcome = {
             'test': r['test'],
             'group': "selftests-" + namify(r['target']),
