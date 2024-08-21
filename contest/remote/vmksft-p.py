@@ -101,7 +101,7 @@ def _parse_nested_tests(full_run):
         r = {'test': namify(v[3])}
 
         if len(v) > 5 and v[4] and v[5]:
-            if v[5].lower().startswith('skip') and result == "pass":
+            if v[5].lower().startswith('skip'):
                 result = "skip"
 
             t = time_re.findall(v[5].lower())
