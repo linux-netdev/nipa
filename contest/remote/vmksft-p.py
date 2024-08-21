@@ -74,6 +74,7 @@ def _parse_nested_tests(full_run):
     nested_tests = False
 
     result_re = re.compile(r"(not )?ok (\d+)( -)? ([^#]*[^ ])( # )?([^ ].*)?$")
+    time_re = re.compile(r"time=(\d+)ms")
 
     for line in full_run.split('\n'):
         # nested subtests support: we parse the comments from 'TAP version'
@@ -97,12 +98,19 @@ def _parse_nested_tests(full_run):
             continue
 
         v = result_re.match(line).groups()
-        name = v[3]
+        r = {'test': namify(v[3])}
+
         if len(v) > 5 and v[4] and v[5]:
             if v[5].lower().startswith('skip') and result == "pass":
                 result = "skip"
 
-        tests.append({'test': namify(name), 'result': result})
+            t = time_re.findall(v[5].lower())
+            if t:
+                r['time'] = round(int(t[-1]) / 1000.) # take the last one
+
+        r['result'] = result
+
+        tests.append(r)
 
     return tests
 
