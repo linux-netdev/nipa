@@ -98,7 +98,7 @@ def _parse_nested_tests(full_run):
 
         v = result_re.match(line).groups()
         name = v[3]
-        if len(v) > 5 and v[5]:
+        if len(v) > 5 and v[4] and v[5]:
             if v[5].lower().startswith('skip') and result == "pass":
                 result = "skip"
 
