@@ -27,6 +27,10 @@ tr:nth-child(even) {
     font-style: italic;
 }
 
+.column-sorted {
+    background-color: #d0d0d0;
+}
+
 .box-pass  { background-color: green; }
 .box-skip  { background-color: royalblue; }
 .box-flake { background-color: red; }
@@ -91,5 +95,8 @@ tr:nth-child(even) {
     }
     .end-row td {
 	border-color: #202020;
+    }
+    .column-sorted {
+	background-color: #484848;
     }
 }

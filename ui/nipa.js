@@ -171,27 +171,46 @@ var nipa_sort_cb = null;
 let nipa_sort_keys = [];
 let nipa_sort_polarity = [];
 
-function nipa_sort_key_set(what)
+function nipa_sort_key_set(event)
 {
+    let elem = event.target;
+    let what = elem.innerText.toLowerCase().replace(/[^a-z0-9]/g, '');
     const index = nipa_sort_keys.indexOf(what);
     let polarity = 1;
 
     if (index != -1) {
-	polarity = -1 * nipa_sort_polarity[index];
+	polarity = nipa_sort_polarity[index];
+
+	// if it's the main sort key invert direction, otherwise we're changing
+	// order of keys but not their direction
+	let main_key = index == nipa_sort_keys.length - 1;
+	if (main_key)
+	    polarity *= -1;
+
 	// delete it
 	nipa_sort_keys.splice(index, 1);
 	nipa_sort_polarity.splice(index, 1);
+	elem.innerText = elem.innerText.slice(0, -2);
 
 	// We flipped back to normal polarity, that's a reset
-	if (polarity == 1) {
+	if (main_key && polarity == 1) {
+	    elem.classList.remove('column-sorted');
 	    nipa_sort_cb();
 	    return;
 	}
+    } else {
+	elem.classList.add('column-sorted');
+    }
+
+    if (polarity == 1) {
+	elem.innerHTML = elem.innerText + " &#11206;";
+    } else {
+	elem.innerHTML = elem.innerText + " &#11205;";
     }
 
     // add it
-    nipa_sort_keys.unshift(what);
-    nipa_sort_polarity.unshift(polarity);
+    nipa_sort_keys.push(what);
+    nipa_sort_polarity.push(polarity);
 
     nipa_sort_cb();
 }

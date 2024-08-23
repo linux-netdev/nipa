@@ -10,6 +10,33 @@ function colorify_str(value)
     return ret + value + '</span>';
 }
 
+function sort_results(rows)
+{
+    for (const sort_key of nipa_sort_keys) {
+	let sort_ord = nipa_sort_get(sort_key);
+
+	if (sort_key === "date") {
+	    rows.sort(function(a, b) {
+		return sort_ord * (b.v.end - a.v.end);
+	    });
+	} else if (sort_key === "time") {
+	    rows.sort(function(a, b) {
+		if (a.r[sort_key] === undefined && b.r[sort_key] === undefined)
+		    return 0;
+		if (a.r[sort_key] === undefined)
+		    return 1;
+		if (b.r[sort_key] === undefined)
+		    return -1;
+		return sort_ord * (b.r[sort_key] - a.r[sort_key]);
+	    });
+	} else {
+	    rows.sort(function(a, b) {
+		return sort_ord * (b.r[sort_key] < a.r[sort_key] ? 1 : -1);
+	    });
+	}
+    }
+}
+
 function load_result_table(data_raw)
 {
     var table = document.getElementById("results");
@@ -69,17 +96,13 @@ function load_result_table(data_raw)
 	});
     });
 
-    let sort_time = nipa_sort_get('time');
-    if (sort_time)
-	rows.sort(function(a, b) {
-	    if (a.r.time === undefined && b.r.time === undefined)
-		return 0;
-	    if (a.r.time === undefined)
-		return 1;
-	    if (b.r.time === undefined)
-		return -1;
-	    return sort_time * (b.r.time - a.r.time);
-	});
+    // Trim the time, so that sort behavior matches what user sees
+    for (const result of rows) {
+	if (result.r.time)
+	    result.r.time = Math.round(result.r.time);
+    }
+
+    sort_results(rows);
 
     for (const result of rows) {
 	const r = result.r;
@@ -110,7 +133,7 @@ function load_result_table(data_raw)
 	    if ("retry" in r)
 		retry.innerHTML = colorify_str(r.retry);
 	    if ("time" in r)
-		time.innerHTML = nipa_msec_to_str(Math.round(r.time) * 1000);
+		time.innerHTML = nipa_msec_to_str(r.time * 1000);
 	    res.innerHTML = colorify_str(r.result);
 	    outputs.innerHTML = "<a href=\"" + r.link + "\">outputs</a>";
 	    hist.innerHTML = "<a href=\"contest.html?test=" + r.test + form + "\">history</a>";
@@ -172,6 +195,10 @@ function loaded_one()
     if (--xfr_todo)
 	return;
 
+    let headers = document.getElementsByTagName("th");
+    for (const th of headers) {
+	th.addEventListener("click", nipa_sort_key_set);
+    }
     reload_select_filters(true);
     nipa_filters_enable(reload_data, "ld-pw");
     nipa_filters_enable(results_update, "fl-pw");
