@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# expect URL to to the base dir as the only agrumnet
+# base dir is the one below test outputs, where "config" is
+[ -z "$1" ] && echo "Usage: $0 DIR_URL" && exit 1
+URL="$1"
+
+index=$(mktemp)
+info=$(mktemp)
+
+declare -A worker_to_test
+
+clr() {
+    echo -ne "                                                              \r"
+}
+
+curl -s $URL > $index
+
+i=0
+for subtest in $(cat $index | sed -n 's@<a href="\([0-9][^"]*/\)".*@\1@p' | sort -n); do
+    ((i++))
+    clr
+    echo -ne "Fetching info for $subtest\r"
+    curl -s $URL/$subtest/info > $info
+
+    thr=$(cat $info | awk '/thr-id/ { print $2; }')
+    vm=$(cat $info | awk '/vm-id/ { print $2; }')
+
+    worker_to_test["Thread$thr-VM$vm"]=${worker_to_test["Thread$thr-VM$vm"]}" "$subtest
+done
+
+clr
+echo "Fetched $i subtests"
+
+for key in ${!worker_to_test[@]}; do
+    echo $key
+    for value in ${worker_to_test[$key]}; do
+	echo -e '\t' $value
+    done
+done
+
+rm $index $info
