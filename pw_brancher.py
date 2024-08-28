@@ -192,7 +192,7 @@ def db_insert(config, state, name):
         cur.execute("INSERT INTO branches VALUES " + arg.decode('utf-8'))
 
 
-def generate_deltas(config, name):
+def generate_deltas(config, tree, name):
     outdir = config.get("output", "deltas", fallback=None)
     if not outdir:
         return
@@ -201,7 +201,7 @@ def generate_deltas(config, name):
     cidiff = os.path.join(os.path.dirname(__file__), "contest", "cidiff")
 
     with open(outfile, 'w') as fp:
-        subprocess.run([cidiff, name], stdout=fp, check=True)
+        subprocess.run([cidiff, name], cwd=tree.path, stdout=fp, check=True)
 
 
 def create_new(pw, config, state, tree, tgt_remote) -> None:
@@ -250,7 +250,7 @@ def create_new(pw, config, state, tree, tgt_remote) -> None:
     log_end_sec()
 
     log_open_sec("Generate deltas")
-    generate_deltas(config, branch_name)
+    generate_deltas(config, tree, branch_name)
     log_end_sec()
 
 
