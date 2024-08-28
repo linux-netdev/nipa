@@ -6,6 +6,7 @@ import datetime
 import json
 import os
 import psycopg2
+import subprocess
 import time
 from typing import List, Tuple
 import uuid
@@ -32,6 +33,7 @@ pull=git://git.kernel.org/pub/scm/linux/kernel/git/netdev/net.git
 [output]
 branches=branches.json
 info=branches-info.json
+deltas=/path/to/dir/
 [db]
 db=db-name
 """
@@ -190,6 +192,18 @@ def db_insert(config, state, name):
         cur.execute("INSERT INTO branches VALUES " + arg.decode('utf-8'))
 
 
+def generate_deltas(config, name):
+    outdir = config.get("output", "deltas", fallback=None)
+    if not outdir:
+        return
+
+    outfile = os.path.join(outdir, name)
+    cidiff = os.path.join(os.path.dirname(__file__), "contest", "cidiff")
+
+    with open(outfile, 'w') as fp:
+        subprocess.run([cidiff, name], stdout=fp, check=True)
+
+
 def create_new(pw, config, state, tree, tgt_remote) -> None:
     now = datetime.datetime.now(datetime.UTC)
     pfx = config.get("target", "branch_pfx")
@@ -233,6 +247,10 @@ def create_new(pw, config, state, tree, tgt_remote) -> None:
 
     log_open_sec("Pushing out")
     tree.git_push(tgt_remote, "HEAD:" + branch_name)
+    log_end_sec()
+
+    log_open_sec("Generate deltas")
+    generate_deltas(config, branch_name)
     log_end_sec()
 
 

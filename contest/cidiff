@@ -18,6 +18,15 @@ if [ x$BRANCH1$BRANCH2 == x ]; then
     echo "  " $BRANCH1
     echo "  " $BRANCH2
     echo
+elif [ x$BRANCH2 == x ]; then
+    echo "Single branch specified, using that and the previous one:"
+    branches=( $(git branch -a | grep -B1 "$1") )
+    BRANCH1=${branches[0]}
+    BRANCH2=${branches[1]}
+
+    echo "  " $BRANCH1
+    echo "  " $BRANCH2
+    echo
 fi
 
 get_base() {
