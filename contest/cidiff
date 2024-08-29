@@ -54,3 +54,5 @@ git log --format="%s" $base2..$BRANCH2 > $tmp2
 
 echo "==== COMMIT DIFF ===="
 git --no-pager diff --no-index $tmp1 $tmp2
+
+exit 0
