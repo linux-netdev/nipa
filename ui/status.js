@@ -543,9 +543,9 @@ function add_summaries(table, summary, reported)
     row.setAttribute("class", "summary-row");
 }
 
-function reset_summary(summary)
+function reset_summary(summary, branch)
 {
-    summary["branch"] = null;
+    summary["branch"] = branch;
     summary["remote-cnt"] = 0;
     summary["time-pass"] = 0;
     summary["total"] = 0;
@@ -559,11 +559,17 @@ function load_result_table_one(data_raw, table, reported, avgs)
     const summarize = document.getElementById("contest-summary").checked;
     let summary = {};
 
-    reset_summary(summary);
+    reset_summary(summary, data_raw[0].branch);
 
     $.each(data_raw, function(i, v) {
 	var pass = 0, skip = 0, fail = 0, total = 0, ignored = 0;
 	var link = v.link;
+
+	if (summary["branch"] != v.branch) {
+	    add_summaries(table, summary, reported);
+	    reset_summary(summary, v.branch);
+	}
+
 	$.each(v.results, function(i, r) {
 	    if (nipa_pw_reported(v, r) != reported) {
 		ignored++;
@@ -589,11 +595,7 @@ function load_result_table_one(data_raw, table, reported, avgs)
 	var t_start = new Date(v.start);
 	var t_end = new Date(v.end);
 
-	if (v.remote == "brancher") {
-	    summary["branch"] = v.branch;
-	    add_summaries(table, summary, reported);
-	    reset_summary(summary);
-	} else {
+	if (v.executor != "brancher") {
 	    summary["total"] += total;
 	    if (total) {
 		summary["remote-cnt"] += 1;
@@ -694,9 +696,11 @@ function load_result_table_one(data_raw, table, reported, avgs)
 	    branch.innerHTML = a + v.branch + "</a>" + br_pull;
 	    branch.setAttribute("colspan", "2");
 	    res.innerHTML = "<a href=\"static/nipa/branch_deltas/" + v.branch + "\">cidiff</a>";
-	    row.setAttribute("class", "end-row");
+	    res.setAttribute("style", "text-align: right;");
 	}
     });
+
+    add_summaries(table, summary, reported);
 }
 
 function rem_exe(v)
@@ -804,6 +808,14 @@ function load_result_table(data_raw, reload)
     data_raw.sort(function(a, b){
 	if (b.branch != a.branch)
 	    return b.branch > a.branch ? 1 : -1;
+
+	// Keep brancher first
+	if (a.executor == b.executor)
+	    /* use other keys */;
+	else if (b.executor == "brancher")
+	    return 1;
+	else if (a.executor == "brancher")
+	    return -1;
 
 	// fake entry for "no result" always up top
 	if (b.end === 0)
