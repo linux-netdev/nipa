@@ -61,6 +61,8 @@ def result_as_l2(raw):
             for case in l1["results"]:
                 data = l1.copy()
                 del data["results"]
+                if "time" in data:
+                    del data["time"]
                 data |= case
                 data["test"] = l1["test"] + '.' + case["test"]
                 flat.append(data)
