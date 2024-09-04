@@ -73,7 +73,7 @@ def _parse_nested_tests(full_run):
     tests = []
     nested_tests = False
 
-    result_re = re.compile(r"(not )?ok (\d+)( -)? ([^#]*[^ ])( # )?([^ ].*)?$")
+    result_re = re.compile(r"(not )?ok (\d+)( -)? ([^#]*[^ ])( +# +)?([^ ].*)?$")
     time_re = re.compile(r"time=(\d+)ms")
 
     for line in full_run.split('\n'):
