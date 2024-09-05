@@ -5,6 +5,7 @@ import configparser
 import datetime
 import json
 import os
+import shutil
 import subprocess
 
 from core import NipaLifetime
@@ -138,9 +139,11 @@ def summary_result(expected, got, link, sub_path=""):
 def test(binfo, rinfo, config):
     print("Run at", datetime.datetime.now())
 
+    tree_path = config.get('local', 'tree_path')
+
     process = subprocess.Popen(['./tools/testing/kunit/kunit.py', 'run', '--alltests', '--json', '--arch=x86_64'],
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                               cwd=config.get('local', 'tree_path'))
+                               cwd=tree_path)
     stdout, stderr = process.communicate()
     stdout = stdout.decode("utf-8", "ignore")
     stderr = stderr.decode("utf-8", "ignore")
@@ -160,6 +163,8 @@ def test(binfo, rinfo, config):
         fp.write(stdout)
     with open(os.path.join(results_path, 'stderr'), 'w') as fp:
         fp.write(stderr)
+    shutil.copyfile(os.path.join(tree_path, '.kunit', 'test.log'),
+                    os.path.join(results_path, 'kunit-test.log'))
 
     try:
         results_json = stdout_get_json(stdout)
