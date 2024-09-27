@@ -218,6 +218,7 @@ def _vm_thread(config, results_path, thr_id, hard_stop, in_queue, out_queue):
             vm = None
 
     if vm is not None:
+        vm.capture_gcov(results_path + f'/kernel-thr{thr_id}-{vm_id}.lcov')
         vm.stop()
         vm.dump_log(results_path + f'/vm-stop-thr{thr_id}-{vm_id}')
     return
