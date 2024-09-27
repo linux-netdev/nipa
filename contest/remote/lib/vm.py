@@ -116,12 +116,11 @@ class VM:
         default_timeout = 45 # from tools/testing/selftests/kselftest/runner.sh
 
         targets = self.config.get('ksft', 'target', fallback=None)
-        tree_path = self.config.get('local', 'tree_path', fallback=None)
-        if not targets or not tree_path:
+        if not targets:
             return default_timeout
         target = targets.split()[0]
 
-        settings_path = f'{tree_path}/tools/testing/selftests/{target}/settings'
+        settings_path = f'{self.tree_path}/tools/testing/selftests/{target}/settings'
         if not os.path.isfile(settings_path):
             return default_timeout
 
