@@ -9,6 +9,7 @@ import json
 import os
 import psutil
 import re
+import shutil
 import signal
 from .crash import has_crash, extract_crash
 
@@ -38,6 +39,7 @@ virtme_opt=--opt,--another one
 default_timeout=15
 boot_timeout=45
 slowdown=2.5 # mark the machine as slow and multiply the ksft timeout by 2.5
+gcov=off / on
 """
 
 
@@ -66,6 +68,7 @@ class VM:
 
         self.filter_data = None
         self.has_kmemleak = None
+        self.has_gcov = self.config.getboolean('vm', 'gcov', fallback=False)
         self.log_out = ""
         self.log_err = ""
 
@@ -101,11 +104,13 @@ class VM:
         if extra_configs:
             configs += extra_configs
 
+        gcov = " --configitem GCOV_KERNEL=y" if self.has_gcov else ""
+
         print(f"INFO{self.print_pfx} building kernel")
         # Make sure we rebuild, config and module deps can be stale otherwise
         self.tree_cmd("make mrproper")
 
-        rc = self.tree_cmd("vng -v -b" + " -f ".join([""] + configs))
+        rc = self.tree_cmd("vng -v -b" + " -f ".join([""] + configs) + gcov)
         if rc != 0:
             print(f"INFO{self.print_pfx} kernel build failed")
             return False
@@ -204,6 +209,7 @@ class VM:
         self.cmd("ls /sys/kernel/debug/")
         self.drain_to_prompt()
         self.has_kmemleak = "kmemleak" in self.log_out[off:]
+        self.has_gcov = self.has_gcov and "gcov" in self.log_out[off:]
 
         self._set_env()
 
@@ -387,6 +393,18 @@ class VM:
         if self.has_kmemleak:
             self.cmd("echo scan > /sys/kernel/debug/kmemleak && cat /sys/kernel/debug/kmemleak")
             self.drain_to_prompt()
+
+    def capture_gcov(self, dest):
+        if not self.has_gcov:
+            return
+
+        lcov = "kernel.lcov"
+        self.cmd(f"lcov --capture --keep-going --rc geninfo_unexecuted_blocks=1 --function-coverage --branch-coverage -j $(nproc) -o {lcov}")
+        self.drain_to_prompt()
+
+        lcov = os.path.join(self.tree_path, lcov)
+        if os.path.isfile(lcov):
+            shutil.copy(lcov, dest)
 
     def bash_prev_retcode(self):
         self.cmd("echo $?")
