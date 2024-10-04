@@ -882,11 +882,12 @@ function branch_res_doit(data_raw)
 function add_one_test_filter_hdr(keys_present, key, hdr, row)
 {
     if (!keys_present.has(key))
-	return ;
+	return false;
 
     let th = document.createElement("th");
     th.innerHTML = hdr;
     row.appendChild(th);
+    return true;
 }
 
 function add_one_test_filter(keys_present, key, v, i, row)
@@ -921,11 +922,16 @@ function filters_doit(data_raw)
     });
 
     let cf_tests_hdr = document.getElementById("cf-tests-hdr");
+    let has_notes = false;
     add_one_test_filter_hdr(keys_present, "remote", "Remote", cf_tests_hdr);
     add_one_test_filter_hdr(keys_present, "executor", "Executor", cf_tests_hdr);
     add_one_test_filter_hdr(keys_present, "branch", "Branch", cf_tests_hdr);
     add_one_test_filter_hdr(keys_present, "group", "Group", cf_tests_hdr);
     add_one_test_filter_hdr(keys_present, "test", "Test", cf_tests_hdr);
+
+    if (add_one_test_filter_hdr(keys_present, "link", "Notes", cf_tests_hdr) ||
+	add_one_test_filter_hdr(keys_present, "comment", "Notes", cf_tests_hdr))
+	has_notes = true;
 
     $.each(data_raw["ignore-results"], function(_i, v) {
 	let row = cf_tests.insertRow();
@@ -936,6 +942,15 @@ function filters_doit(data_raw)
 	i += add_one_test_filter(keys_present, "branch", v, i, row);
 	i += add_one_test_filter(keys_present, "group", v, i, row);
 	i += add_one_test_filter(keys_present, "test", v, i, row);
+
+	// Must be last, we don't handle counting columns properly here.
+	if (has_notes)
+	    cell = row.insertCell(i);
+	if (v["comment"] || v["link"]) {
+	    let comment = v["comment"] || "link";
+	    comment = wrap_link(v, v, comment);
+	    cell.innerHTML = comment;
+	}
     });
 
     output = "<b>Crashes ignored:</b><br />";
