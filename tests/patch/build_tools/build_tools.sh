@@ -55,6 +55,10 @@ make O=$output_dir $build_flags -C tools/testing/selftests/ \
 
 incumbent=$(grep -i -c "\(warn\|error\)" $tmpfile_o)
 
+pr "Checking if tree is clean"
+git status -s 1>&2
+incumbent_dirt=$(git status -s | grep -c '^??')
+
 pr "Building the tree with the patch"
 git checkout -q $HEAD
 
@@ -64,7 +68,11 @@ make O=$output_dir $build_flags -C tools/testing/selftests/ \
 
 current=$(grep -i -c "\(warn\|error\)" $tmpfile_n)
 
-echo "Errors and warnings before: $incumbent this patch: $current" >&$DESC_FD
+pr "Checking if tree is clean"
+git status -s 1>&2
+current_dirt=$(git status -s | grep -c '^??')
+
+echo "Errors and warnings before: $incumbent (+$incumbent_dirt) this patch: $current (+$current_dirt)" >&$DESC_FD
 
 if [ $current -gt $incumbent ]; then
   echo "New errors added" 1>&2
@@ -83,6 +91,12 @@ if [ $current -gt $incumbent ]; then
   rm $tmpfile_fo $tmpfile_fn
 
   rc=1
+fi
+
+if [ $current_dirt -gt $incumbent_dirt ]; then
+    echo "New untracked files added" 1>&2
+
+    rc=1
 fi
 
 rm $tmpfile_o $tmpfile_n
