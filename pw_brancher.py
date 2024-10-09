@@ -204,6 +204,18 @@ def generate_deltas(config, tree, name):
         subprocess.run([cidiff, name], cwd=tree.path, stdout=fp, check=True)
 
 
+def get_change_from_last(tree, branch_list) -> bool:
+    branch_list = list(sorted(branch_list))
+    if len(branch_list) < 2:
+        return True
+
+    try:
+        tree.git(['diff', '--quiet', branch_list[-1], branch_list[-2]])
+        return False
+    except:
+        return True
+
+
 def create_new(pw, config, state, tree, tgt_remote) -> None:
     now = datetime.datetime.now(datetime.UTC)
     pfx = config.get("target", "branch_pfx")
@@ -240,6 +252,8 @@ def create_new(pw, config, state, tree, tgt_remote) -> None:
 
     extras = apply_local_patches(config, tree)
     state["info"][branch_name]["extras"] = extras
+
+    state["info"][branch_name]["new-changes"] = get_change_from_last(tree, state["info"].keys())
 
     state["branches"][branch_name] = now.isoformat()
 
