@@ -417,6 +417,7 @@ def new_vm(results_path, vm_id, thr=None, vm=None, config=None, cwd=None):
 def guess_indicators(output):
     return {
         "fail": output.find("[FAIL]") != -1 or output.find("[fail]") != -1 or \
+                output.find(" FAIL:") != -1 or \
                 output.find("\nnot ok 1 selftests: ") != -1 or \
                 output.find("\n# not ok 1") != -1,
         "skip": output.find("[SKIP]") != -1 or output.find("[skip]") != -1 or \
