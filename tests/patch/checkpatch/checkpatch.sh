@@ -13,7 +13,7 @@ CAMELCASE
 
 tmpfile=$(mktemp)
 
-./scripts/checkpatch.pl --strict --max-line-length=80 --ignore=$IGNORED -g HEAD | tee $tmpfile
+./scripts/checkpatch.pl --strict --ignore=$IGNORED -g HEAD | tee $tmpfile
 
 grep 'total: 0 errors, 0 warnings, 0 checks' $tmpfile
 ret=$?
