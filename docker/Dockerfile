@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y \
 	ccache \
 	flex \
 	bison \
+	gawk \
 	libssl-dev \
 	libelf-dev \
 	clang lld llvm \
