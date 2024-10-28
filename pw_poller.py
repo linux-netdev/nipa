@@ -249,6 +249,12 @@ class PwPoller:
         except KeyboardInterrupt:
             pass  # finally will still run, but don't splat
         finally:
+            # Dump state before trying to stop workers, in case they hang
+            self._state['last_poll'] = prev_big_scan.timestamp()
+            self._state['done_series'] = list(self.seen_series)
+            with open('poller.state', 'w') as f:
+                json.dump(self._state, f)
+
             log_open_sec(f"Stopping threads")
             for worker in self._workers:
                 worker.should_die = True
@@ -257,12 +263,6 @@ class PwPoller:
                 log(f"Waiting for worker {worker.tree.name} / {worker.name}")
                 worker.join()
             log_end_sec()
-
-            self._state['last_poll'] = prev_big_scan.timestamp()
-            self._state['done_series'] = list(self.seen_series)
-            # Dump state
-            with open('poller.state', 'w') as f:
-                json.dump(self._state, f)
 
 
 if __name__ == "__main__":
