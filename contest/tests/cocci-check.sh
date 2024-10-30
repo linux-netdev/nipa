@@ -23,6 +23,9 @@ clean_up_output() {
     # remove the command lines
     sed -i '/^\/usr\/local\/bin\/spatch -D report /d' $file
 
+    # ignore the str helpers like str_on_off(), we don't care
+    sed -i '/: opportunity for str_/d' $file
+
     # if files are removed or added cocci will fail in pre- or post- run
     sed -i '/^EXN: .*No such file or directory/d' $file
     sed -i '/^EXN: Coccinelle_modules.Common.Timeout /d' $file
