@@ -63,6 +63,9 @@ def result_as_l2(raw):
                 del data["results"]
                 if "time" in data:
                     del data["time"]
+                # in case of retry, the subtest might not have been re-executed
+                if "retry" in data:
+                    del data["retry"]
                 data |= case
                 data["test"] = l1["test"] + '.' + case["test"]
                 flat.append(data)

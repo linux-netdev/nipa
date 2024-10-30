@@ -69,7 +69,7 @@ def get_prog_list(vm, targets):
     return [(e.split(":")[0].strip(), e.split(":")[1].strip()) for e in targets]
 
 
-def _parse_nested_tests(full_run):
+def _parse_nested_tests(full_run, prev_results):
     tests = []
     nested_tests = False
 
@@ -110,8 +110,20 @@ def _parse_nested_tests(full_run):
 
         r['result'] = result
 
-        tests.append(r)
+        if prev_results is not None:
+            for entry in prev_results:
+                if entry['test'] == r['test']:
+                    entry['retry'] = result
+                    break
+            else:
+                # the first run didn't validate this test: add it to the list
+                r['result'] = 'skip'
+                r['retry'] = result
+                prev_results.append(r)
+        else:
+            tests.append(r)
 
+    # return an empty list when there are prev results: no replacement needed
     return tests
 
 def _vm_thread(config, results_path, thr_id, hard_stop, in_queue, out_queue):
@@ -195,8 +207,13 @@ def _vm_thread(config, results_path, thr_id, hard_stop, in_queue, out_queue):
                 outcome['crashes'] = crashes
 
         if config.getboolean('ksft', 'nested_tests', fallback=False):
+            if is_retry:
+                prev_results = outcome['results'] if 'results' in outcome else []
+            else:
+                prev_results = None
+
             # this will only parse nested tests inside the TAP comments
-            nested_tests = _parse_nested_tests(vm.log_out)
+            nested_tests = _parse_nested_tests(vm.log_out, prev_results)
             if nested_tests:
                 outcome['results'] = nested_tests
 
