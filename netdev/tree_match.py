@@ -53,6 +53,8 @@ def _tree_name_should_be_local_files(raw_email):
         'include/linux/skbuff.h',
         'include/net/',
         'include/phy/',
+        # lib/ is pretty broad but patch volume is low
+        'lib/',
         'net/',
         'drivers/atm/',
         'drivers/dpll/',
