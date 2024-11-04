@@ -179,6 +179,9 @@ class VM:
         cpus = self.config.get('vm', 'cpus', fallback="")
         if cpus:
             cmd += ["--cpus", cpus]
+        mem = self.config.get('vm', 'mem', fallback="")
+        if mem:
+            cmd += ["--memory", mem]
 
         print(f"INFO{self.print_pfx} VM starting:", " ".join(cmd))
         self.log_out += "# " + " ".join(cmd) + "\n"
