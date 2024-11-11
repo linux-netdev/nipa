@@ -247,7 +247,7 @@ def main():
     dr = DocRefs()
     for file in os.listdir(os.path.join(sys.argv[1], 'Documentation', 'process')):
         if not os.path.isfile(os.path.join(sys.argv[1], 'Documentation', 'process', file)):
-            return
+            continue
         name = file[:-4]
         dr.load_section('process/' + name, name)
     if len(sys.argv) > 2:
