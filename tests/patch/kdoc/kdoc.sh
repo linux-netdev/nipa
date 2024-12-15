@@ -35,9 +35,9 @@ if [ $current -gt $incumbent ]; then
   tmpfile_fo=$(mktemp)
   tmpfile_fn=$(mktemp)
 
-  grep -i "\(warn\|error\)" $tmpfile_o | sed -n 's@\(^\.\./[/a-zA-Z0-9_.-]*.[ch]\):.*@\1@p' | sort | uniq -c \
+  grep -i "\(warn\|error\)" $tmpfile_o | sed -n 's@\(^[/a-zA-Z0-9_.-]*.[ch]\):.*@\1@p' | sort | uniq -c \
     > $tmpfile_fo
-  grep -i "\(warn\|error\)" $tmpfile_n | sed -n 's@\(^\.\./[/a-zA-Z0-9_.-]*.[ch]\):.*@\1@p' | sort | uniq -c \
+  grep -i "\(warn\|error\)" $tmpfile_n | sed -n 's@\(^[/a-zA-Z0-9_.-]*.[ch]\):.*@\1@p' | sort | uniq -c \
     > $tmpfile_fn
 
   diff $tmpfile_fo $tmpfile_fn 1>&2
