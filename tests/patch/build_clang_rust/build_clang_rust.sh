@@ -58,7 +58,7 @@ prep_config() {
     config_rust=$(./scripts/config --file $output_dir/.config --state CONFIG_RUST)
 
     if [ $config_rust != "y" ]; then
-	echo Unable to enable CONFIG_RUST
+	echo "CONFIG_RUST not set in generated config" >& $DESC_FD
 	exit 1
     fi
 }
