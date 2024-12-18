@@ -12,7 +12,7 @@ tmpfile_n=$(mktemp)
 rc=0
 
 prep_config() {
-    make LLVM=1 O=$output_dir allmodconfig
+    make LLVM=1 O=$output_dir allmodconfig $build_flags
 
     # Disable -Werror so we get to see all the errors
     ./scripts/config --file $output_dir/.config -d werror
@@ -49,7 +49,7 @@ prep_config() {
 
     # Setting options above enabled some new options. Set them to their
     # defaults
-    make LLVM=1 O=$output_dir olddefconfig
+    make LLVM=1 O=$output_dir olddefconfig $build_flags
 
     # And verify rust is now actually enabled in the configuration.
     config_rust=$(./scripts/config --file $output_dir/.config --state CONFIG_RUST)
