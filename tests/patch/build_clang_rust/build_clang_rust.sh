@@ -20,6 +20,12 @@ prep_config() {
     # KVM has its own WERROR control, and it currently does generate errors!
     ./scripts/config --file $output_dir/.config -d kvm_werror
 
+    # Unclear if this is related to Rust but we seem to get key generation
+    # issues with SHA1 on Fedora 41. Switch to SHA256.
+    ./scripts/config --file $output_dir/.config -d module_sig_sha1
+    ./scripts/config --file $output_dir/.config -e module_sig_sha256
+    ./scripts/config --file $output_dir/.config --set-str module_sig_hash sha256
+
     # allmodconfig is not sufficient to get Rust support enabled. So
     # flip some options.
 
