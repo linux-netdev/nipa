@@ -28,14 +28,11 @@ prep_config() {
     ./scripts/config --file $output_dir/.config -d randstruct_full
     ./scripts/config --file $output_dir/.config -e randstruct_none
     ./scripts/config --file $output_dir/.config -d modversions
+    # Rust also seems currently incompatible with CFI (Rust 1.83)
+    ./scripts/config --file $output_dir/.config -d cfi_clang
 
     # Now Rust can be enabled
     ./scripts/config --file $output_dir/.config -e rust
-
-    # The Rust compiler does not play nicely with the kernel workarounds
-    # for speculation attacks. So turn off RETHUNK and X86_KERNEL_IBT
-    ./scripts/config --file $output_dir/.config -d rethunk
-    ./scripts/config --file $output_dir/.config -d x86_kernel_ibt
 
     # Rust currently requires all dependencies are built in, so make
     # phylib built in.
