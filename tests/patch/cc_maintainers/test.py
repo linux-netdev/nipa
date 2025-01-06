@@ -148,7 +148,7 @@ def cc_maintainers(tree, thing, result_dir) -> Tuple[int, str, str]:
     addrs += msg.get_all('cc', [])
     addrs += msg.get_all('from', [])
     addrs += msg.get_all('sender', [])
-    included = set([e for n, e in email.utils.getaddresses(addrs)])
+    included = set([e.lower() for n, e in email.utils.getaddresses(addrs)])
     out += ["=== Email ===",
             f"From: {msg.get_all('from')}",
             f"Included: {included}", ""]
@@ -174,7 +174,7 @@ def cc_maintainers(tree, thing, result_dir) -> Tuple[int, str, str]:
                 raw_gm.append(line.strip())
                 match = emailpat.search(line)
                 if match:
-                    addr = match.group(1)
+                    addr = match.group(1).lower()
                     expected.add(addr)
                     if 'blamed_fixes' in line:
                         blamed.add(addr)
@@ -226,7 +226,7 @@ def cc_maintainers(tree, thing, result_dir) -> Tuple[int, str, str]:
                         continue
                     for have in included:
                         if have in mmap_emails:
-                            mapped.add(m)
+                            mapped.add(m.lower())
 
         found.update(mapped)
         missing.difference_update(mapped)
