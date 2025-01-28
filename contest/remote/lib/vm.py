@@ -395,6 +395,10 @@ class VM:
         if self.has_kmemleak:
             self.cmd("echo scan > /sys/kernel/debug/kmemleak && cat /sys/kernel/debug/kmemleak")
             self.drain_to_prompt()
+            # Do it twice, kmemleak likes to hide the leak on the first attempt
+            self.cmd("echo scan > /sys/kernel/debug/kmemleak && cat /sys/kernel/debug/kmemleak")
+            self.drain_to_prompt()
+
 
     def capture_gcov(self, dest):
         if not self.has_gcov:
