@@ -63,6 +63,8 @@ echo "Starting at $(date)"
 echo
 
 IGNORED=( scripts/coccinelle/misc/minmax.cocci )
+
+git reset --hard
 for ign_file in ${IGNORED[@]}; do
     echo "Ignoring " $ign_file
     mv $ign_file $ign_file.ignore
