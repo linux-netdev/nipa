@@ -250,6 +250,11 @@ def main():
             continue
         name = file[:-4]
         dr.load_section('process/' + name, name)
+    for file in os.listdir(os.path.join(sys.argv[1], 'Documentation', 'maintainer')):
+        if not os.path.isfile(os.path.join(sys.argv[1], 'Documentation', 'maintainer', file)):
+            continue
+        name = file[:-4]
+        dr.load_section('maintainer/' + name, name)
     if len(sys.argv) > 2:
         form_letters = sys.argv[2]
     else:
