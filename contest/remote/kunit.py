@@ -10,6 +10,7 @@ import subprocess
 
 from core import NipaLifetime
 from lib import Fetcher, namify
+from lib import wait_loadavg
 
 
 """
@@ -30,6 +31,8 @@ tree_path=/root-path/to/kernel/git
 patches_path=/root-path/to/patches/dir
 [www]
 url=https://url-to-reach-base-path
+[cfg]
+wait_loadavg=
 
 
 Expected:
@@ -140,6 +143,10 @@ def test(binfo, rinfo, config):
     print("Run at", datetime.datetime.now())
 
     tree_path = config.get('local', 'tree_path')
+
+    load_tgt = config.getfloat("cfg", "wait_loadavg", fallback=None)
+    if load_tgt:
+        wait_loadavg(load_tgt)
 
     process = subprocess.Popen(['./tools/testing/kunit/kunit.py', 'run', '--alltests', '--json', '--arch=x86_64'],
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
