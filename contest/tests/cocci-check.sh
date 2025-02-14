@@ -62,7 +62,11 @@ done
 echo "Starting at $(date)"
 echo
 
-IGNORED=( scripts/coccinelle/misc/minmax.cocci )
+IGNORED=(
+    scripts/coccinelle/misc/minmax.cocci
+    # secs_to_jiffies is broken in report mode
+    scripts/coccinelle/misc/secs_to_jiffies.cocci
+)
 
 git reset --hard
 for ign_file in ${IGNORED[@]}; do
