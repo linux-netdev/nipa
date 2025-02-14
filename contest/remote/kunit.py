@@ -148,9 +148,13 @@ def test(binfo, rinfo, config):
     if load_tgt:
         wait_loadavg(load_tgt)
 
+    penv = os.environ.copy()
+    if 'PYTHONUNBUFFERED' in penv:
+        del penv['PYTHONUNBUFFERED']
+
     process = subprocess.Popen(['./tools/testing/kunit/kunit.py', 'run', '--alltests', '--json', '--arch=x86_64'],
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                               cwd=tree_path)
+                               cwd=tree_path, env=penv)
     stdout, stderr = process.communicate()
     stdout = stdout.decode("utf-8", "ignore")
     stderr = stderr.decode("utf-8", "ignore")
