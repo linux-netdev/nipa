@@ -290,6 +290,9 @@ def reap_old(config, state, tree, tgt_remote) -> None:
         br = br.strip()
         if not br.startswith(r_tgt_pfx + pfx):
             continue
+        # In case our prefix is a prefix of another brancher
+        if len(br) != len(r_tgt_pfx + pfx + "2000-01-01--00-00"):
+            continue
         br = br[len(r_tgt_pfx):]
         found.add(br)
         if br not in state["branches"]:
