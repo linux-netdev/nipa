@@ -49,6 +49,7 @@ CREATE INDEX ON branches (branch DESC);
 
 CREATE TABLE branches (
     branch              varchar(80),
+    stream              varchar(60),
     t_date              timestamp,
     base                varchar(80),
     url                 varchar(200),

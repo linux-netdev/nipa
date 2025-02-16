@@ -179,6 +179,8 @@ def apply_local_patches(config, tree) -> List:
 def db_insert(config, state, name):
     global psql_conn
 
+    # Branches usually have a trailing separator
+    pfx = config.get("target", "branch_pfx")[:-1]
     pub_url = config.get('target', 'public_url')
     row = {"branch": name,
            "date": state["branches"][name],
@@ -187,9 +189,11 @@ def db_insert(config, state, name):
     row |= state["info"][name]
 
     with psql_conn.cursor() as cur:
-        arg = cur.mogrify("(%s,%s,%s,%s,%s)", (row["branch"], row["date"], row["base"], row["url"],
-                                               json.dumps(row)))
-        cur.execute("INSERT INTO branches VALUES " + arg.decode('utf-8'))
+        cols = "(branch, stream, t_date, base, url, info)"
+        arg = cur.mogrify("(%s,%s,%s,%s,%s,%s)",
+                           (row["branch"], pfx, row["date"], row["base"],
+                            row["url"], json.dumps(row)))
+        cur.execute(f"INSERT INTO branches {cols} VALUES " + arg.decode('utf-8'))
 
 
 def generate_deltas(config, tree, name):
