@@ -236,6 +236,7 @@ function load_runners(data_raw)
 	let cell_id = 0;
 	var name = row.insertCell(cell_id++);
 	var qlen = row.insertCell(cell_id++);
+	var modify = row.insertCell(cell_id++);
 	var tid = row.insertCell(cell_id++);
 	var test = row.insertCell(cell_id++);
 	var pid = row.insertCell(cell_id++);
@@ -247,6 +248,12 @@ function load_runners(data_raw)
 	tid.innerHTML = v["test-progress"];
 	test.innerHTML = v.test;
 	qlen.innerHTML = v.backlog;
+
+	let since = Date.now() - (new Date(v.mtime * 1000));
+	modify.innerHTML = nipa_msec_to_str(since);
+	if (v.patch && since > 90 * 60 * 1000) { // 1.5 hours
+		row.setAttribute("style", "color: red");
+	}
     });
 }
 

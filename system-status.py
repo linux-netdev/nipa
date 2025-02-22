@@ -53,7 +53,10 @@ def pre_strip(line, needle):
 def add_one_tree(result, pfx, name):
     global char_filter
 
-    with open(os.path.join(pfx, name), 'r') as fp:
+    log_file = os.path.join(pfx, name)
+    stat = os.stat(log_file)
+
+    with open(log_file, 'r') as fp:
         lines = fp.readlines()
     last = None
     test = ''
@@ -93,7 +96,8 @@ def add_one_tree(result, pfx, name):
                                "progress": progress,
                                "test": test,
                                "test-progress": test_prog,
-                               "backlog": blog}
+                               "backlog": blog,
+                               "mtime": stat.st_mtime}
 
 
 def add_one_runtime(fname, total, res):
