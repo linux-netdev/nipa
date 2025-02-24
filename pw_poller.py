@@ -172,6 +172,9 @@ class PwPoller:
 
         if hasattr(s, 'tree_name') and s.tree_name:
             s.tree_selection_comment = comment
+            if not s.tree_name in self._work_queues:
+                log(f"skip {pw_series['id']} for unknown tree {s.tree_name}", "")
+                return
             self._work_queues[s.tree_name].put(s)
         else:
             core.write_tree_selection_result(self.result_dir, s, comment)
