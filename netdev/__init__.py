@@ -12,3 +12,6 @@ from .tree_match import series_tree_name_direct, \
     series_tree_name_should_be_local, \
     series_is_a_fix_for, \
     series_needs_async
+
+current_tree = 'net'
+next_tree = 'net-next'

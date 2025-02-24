@@ -12,6 +12,7 @@ import shutil
 import time
 import queue
 from typing import Dict
+from importlib import import_module
 
 from core import NIPA_DIR
 from core import NipaLifetime
@@ -21,7 +22,6 @@ from core import Tree
 from pw import Patchwork
 from pw import PwSeries
 import core
-import netdev
 
 
 class IncompleteSeries(Exception):
@@ -80,6 +80,9 @@ class PwPoller:
         self._recheck_period = config.getint('poller', 'recheck_period', fallback=3)
         self._recheck_lookback = config.getint('poller', 'recheck_lookback', fallback=9)
 
+        listmodname = config.get('list', 'module', fallback='netdev')
+        self.list_module = import_module(listmodname)
+
     def init_state_from_disk(self) -> None:
         try:
             with open('poller.state', 'r') as f:
@@ -91,15 +94,15 @@ class PwPoller:
             pass
 
     def _series_determine_tree(self, s: PwSeries) -> str:
-        s.tree_name = netdev.series_tree_name_direct(s)
+        s.tree_name = self.list_module.series_tree_name_direct(s)
         s.tree_mark_expected = True
         s.tree_marked = bool(s.tree_name)
 
         if s.is_pure_pull():
             if s.title.find('-next') >= 0:
-                s.tree_name = 'net-next'
+                s.tree_name = self.list_module.next_tree
             else:
-                s.tree_name = 'net'
+                s.tree_name = self.list_module.current_tree
             s.tree_mark_expected = None
             return f"Pull request for {s.tree_name}"
 
@@ -107,12 +110,12 @@ class PwPoller:
             log(f'Series is clearly designated for: {s.tree_name}', "")
             return f"Clearly marked for {s.tree_name}"
 
-        s.tree_mark_expected, should_test = netdev.series_tree_name_should_be_local(s)
+        s.tree_mark_expected, should_test = self.list_module.series_tree_name_should_be_local(s)
         if not should_test:
             log("No tree designation found or guessed", "")
             return "Not a local patch"
 
-        if netdev.series_ignore_missing_tree_name(s):
+        if self.list_module.series_ignore_missing_tree_name(s):
             s.tree_mark_expected = None
             log('Okay to ignore lack of tree in subject, ignoring series', "")
             return "Series ignored based on subject"
@@ -122,11 +125,12 @@ class PwPoller:
         else:
             log_open_sec('Series okay without a tree designation')
 
-        # TODO: make this configurable
-        if "net" in self._trees and netdev.series_is_a_fix_for(s, self._trees["net"]):
-            s.tree_name = "net"
-        elif "net-next" in self._trees and self._trees["net-next"].check_applies(s):
-            s.tree_name = "net-next"
+        if self.list_module.current_tree in self._trees and \
+           self.list_module.series_is_a_fix_for(s, self._trees[self.list_module.current_tree]):
+            s.tree_name = self.list_module.current_tree
+        elif self.list_module.next_tree in self._trees and \
+             self._trees[self.list_module.next_tree].check_applies(s):
+            s.tree_name = self.list_module.next_tree
 
         if s.tree_name:
             log(f"Target tree - {s.tree_name}", "")
@@ -166,7 +170,7 @@ class PwPoller:
             raise IncompleteSeries
 
         comment = self.series_determine_tree(s)
-        s.need_async = netdev.series_needs_async(s)
+        s.need_async = self.list_module.series_needs_async(s)
         if s.need_async:
             comment += ', async'
 
