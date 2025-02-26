@@ -69,7 +69,7 @@ class Fetcher:
                 found = True
                 break
         if not found:
-            old_db.append({'url': None, 'branch': branch_name, 'executor': self.name})
+            old_db.append({'url': url, 'branch': branch_name, 'executor': self.name})
 
         with open(self._results_manifest, "w") as fp:
             json.dump(old_db, fp)
