@@ -71,6 +71,9 @@ class Fetcher:
         if not found:
             old_db.append({'url': url, 'branch': branch_name, 'executor': self.name})
 
+        # Maintain only the last 500 entries
+        old_db = old_db[-500:]
+
         with open(self._results_manifest, "w") as fp:
             json.dump(old_db, fp)
 
