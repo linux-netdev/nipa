@@ -105,13 +105,18 @@ class Fetcher:
         self._result_set(binfo['branch'], url)
 
     def _clean_old_branches(self, remote, current):
-        ret = subprocess.run('git branch', shell=True, capture_output=True)
+        ret = subprocess.run('git branch',
+                             cwd=self._tree_path, shell=True,
+                             capture_output=True, check=True)
+
         existing = set([x.strip() for x in ret.stdout.decode('utf-8').split('\n')])
 
         for b in remote:
             if b["branch"] in existing and b["branch"] != current:
-                subprocess.run('git branch -d ' + b["branch"],
-                               cwd=self._tree_path, shell=True)
+                print("Clean up old branch", b["branch"])
+                subprocess.run('git branch -D ' + b["branch"],
+                               cwd=self._tree_path, shell=True,
+                               check=True)
 
     def _run_once(self):
         r = requests.get(self._branches_url)
