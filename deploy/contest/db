@@ -65,3 +65,19 @@ CREATE TABLE db_monitor (
     disk_pct            REAL,
     disk_pct_metal      REAL
 );
+
+CREATE TABLE stability (
+    remote              varchar(80),
+    executor            varchar(80),
+    grp                 varchar(80),
+    test                varchar(128),
+    subtest             varchar(256),
+    pass_cnt		integer NOT NULL DEFAULT 0,
+    fail_cnt		integer NOT NULL DEFAULT 0,
+    pass_srk		integer NOT NULL DEFAULT 0,
+    fail_srk		integer NOT NULL DEFAULT 0,
+    pass_cur		integer NOT NULL DEFAULT 0,
+    fail_cur		integer NOT NULL DEFAULT 0,
+    last_update		timestamp,
+    passing		timestamp
+);
