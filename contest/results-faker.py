@@ -16,14 +16,32 @@ Config:
 
 [input]
 branches=/path/to/branches.json,/path/to/branches2.json
+infos=/path/to/infos.json,/path/to/infos2.json
 [output]
 dir=/path/to/output
 url_pfx=relative/within/server
+info=/path/to/info.json
 """
+
+def combine_infos(config):
+    paths = config.get("input", "infos", fallback="").split(',')
+    if not paths:
+        return
+
+    infos = {}
+    for path in paths:
+        with open(path, "r") as fp:
+            infos.update(json.load(fp))
+
+    with open(config.get("output", "info"), 'w') as fp:
+        json.dump(infos, fp)
+
 
 def main() -> None:
     config = configparser.ConfigParser()
     config.read(['faker.config'])
+
+    combine_infos(config)
 
     branches = []
     paths = config.get("input", "branches")
