@@ -715,6 +715,11 @@ function rem_exe(v)
     return v.remote + "/" + v.executor;
 }
 
+function br_pfx_get(name)
+{
+    return name.substring(0, name.length - 18);
+}
+
 var awol_executors;
 
 function load_result_table(data_raw, reload)
@@ -743,6 +748,9 @@ function load_result_table(data_raw, reload)
     $.each(data_raw, function(i, v) {
 	v.start = new Date(v.start);
 	v.end = new Date(v.end);
+
+	v.br_pfx = br_pfx_get(v.branch);
+	v.br_date = v.branch.substring(v.branch.length - 17);
 
 	branches.add(v.branch);
 
@@ -804,6 +812,8 @@ function load_result_table(data_raw, reload)
 		"executor" : known_execs[re].executor,
 		"remote" : known_execs[re].remote,
 		"branch" : br,
+		"br_pfx" : br.substring(0, br.length - 18),
+		"br_date": br.substring(br.length - 17),
 		"start" : branch_start[br],
 		"end" : 0,
 	    });
@@ -813,8 +823,11 @@ function load_result_table(data_raw, reload)
 
     // Sort & display
     data_raw.sort(function(a, b){
-	if (b.branch != a.branch)
-	    return b.branch > a.branch ? 1 : -1;
+	if (b.branch !== a.branch) {
+	    if (b.br_date !== a.br_date)
+		return b.br_date.localeCompare(a.br_date);
+	    return b.br_pfx.localeCompare(a.br_pfx);
+	}
 
 	// Keep brancher first
 	if (a.executor == b.executor)
@@ -837,7 +850,9 @@ function load_result_table(data_raw, reload)
 	if (a.results == null)
 	    return -1;
 
-	return b.end - a.end;
+	if (b.end != a.end)
+	    return b.end - a.end > 0 ? 1 : -1;
+	return 0;
     });
 
     $("#contest tr").slice(1).remove();
