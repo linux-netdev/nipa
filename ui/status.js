@@ -766,7 +766,7 @@ function load_result_table(data_raw, reload)
 	if (!v.results)
 	    return 1;
 
-	const ent_name = v.remote + '/' + v.executor;
+	const ent_name = rem_exe(v);
 
 	if (!(ent_name in avgs))
 	    avgs[ent_name] = {"cnt": 0, "sum": 0, "min-dly": 0};
@@ -796,8 +796,10 @@ function load_result_table(data_raw, reload)
 	    known_execs[re] = {
 		"executor": v.executor,
 		"remote" : v.remote,
+		"br_pfx" : new Set(),
 		"branches" : new Set()
 	    };
+	known_execs[re].br_pfx.add(v.br_pfx);
 	known_execs[re].branches.add(v.branch);
     }
 
@@ -806,6 +808,9 @@ function load_result_table(data_raw, reload)
     for (br of branches) {
 	for (re of known_exec_set) {
 	    if (branch_execs[br].has(re))
+		continue;
+	    // Exec works on different branch stream
+	    if (!known_execs[re].br_pfx.has(br_pfx_get(br)))
 		continue;
 
 	    data_raw.push({
