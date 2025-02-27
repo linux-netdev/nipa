@@ -15,7 +15,7 @@ It holds no history, only live branches will show up.
 Config:
 
 [input]
-branches=/path/to/branches.json
+branches=/path/to/branches.json,/path/to/branches2.json
 [output]
 dir=/path/to/output
 url_pfx=relative/within/server
@@ -25,8 +25,13 @@ def main() -> None:
     config = configparser.ConfigParser()
     config.read(['faker.config'])
 
-    with open(config.get("input", "branches"), "r") as fp:
-        branches = json.load(fp)
+    branches = []
+    paths = config.get("input", "branches")
+    for path in paths.split(','):
+        with open(path, "r") as fp:
+            branches += json.load(fp)
+
+    branches = sorted(branches, key=lambda x: x["date"])
 
     url = config.get("output", "url_pfx")
     if url[-1] != '/':
