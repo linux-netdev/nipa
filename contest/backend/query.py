@@ -29,11 +29,13 @@ def branches():
     global psql
 
     with psql.cursor() as cur:
-        cur.execute(f"SELECT branch, t_date, base, url FROM branches ORDER BY branch DESC LIMIT 40")
+        cur.execute(f"SELECT branch, t_date, base, url FROM branches ORDER BY t_date DESC LIMIT 40")
         rows = [{"branch": r[0], "date": r[1].isoformat() + "+00:00", "base": r[2], "url": r[3]} for r in cur.fetchall()]
         rows.reverse()
     return rows
 
+
+#SELECT branch,branch_date,count(*),remote FROM results GROUP BY branch,branch_date,remote ORDER BY branch_date DESC LIMIT 510;
 
 def branches_to_rows(br_cnt, remote):
     global psql
@@ -41,9 +43,9 @@ def branches_to_rows(br_cnt, remote):
     cnt = 0
     with psql.cursor() as cur:
         if remote:
-            q = f"SELECT branch,count(*),remote FROM results GROUP BY branch, remote ORDER BY branch DESC LIMIT {br_cnt}"
+            q = f"SELECT branch,count(*),branch_date,remote FROM results GROUP BY branch,branch_date,remote ORDER BY branch_date DESC LIMIT {br_cnt}"
         else:
-            q = f"SELECT branch,count(*) FROM results GROUP BY branch ORDER BY branch DESC LIMIT {br_cnt}"
+            q = f"SELECT branch,count(*),branch_date        FROM results GROUP BY branch,branch_date        ORDER BY branch_date DESC LIMIT {br_cnt}"
         cur.execute(q)
         for r in cur.fetchall():
             cnt += r[1]
@@ -118,11 +120,11 @@ def results():
 
     if not form or form == "normal":
         with psql.cursor() as cur:
-            cur.execute(f"SELECT json_normal FROM results {where} ORDER BY branch DESC LIMIT {limit}")
+            cur.execute(f"SELECT json_normal FROM results {where} ORDER BY branch_date DESC LIMIT {limit}")
             rows = "[" + ",".join([r[0] for r in cur.fetchall()]) + "]"
     elif form == "l2":
         with psql.cursor() as cur:
-            cur.execute(f"SELECT json_normal, json_full FROM results {where} ORDER BY branch DESC LIMIT {limit}")
+            cur.execute(f"SELECT json_normal, json_full FROM results {where} ORDER BY branch_date DESC LIMIT {limit}")
             rows = "["
             for r in cur.fetchall():
                 if rows[-1] != '[':

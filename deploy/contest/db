@@ -47,6 +47,7 @@ CREATE TABLE results (
 );
 
 CREATE INDEX ON branches (branch DESC);
+CREATE INDEX ON branches (t_date DESC);
 
 CREATE TABLE branches (
     branch              varchar(80),
@@ -58,6 +59,7 @@ CREATE TABLE branches (
 );
 
 CREATE INDEX by_branch ON results (branch DESC);
+CREATE INDEX by_branch_date ON results (branch_date DESC);
 
 CREATE TABLE db_monitor (
     id                  serial primary key,
