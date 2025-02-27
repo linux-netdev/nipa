@@ -168,9 +168,11 @@ class FetcherState:
             stability = self.psql_get_stability(data, row)
             if not stability["exists"]:
                 with self.psql_conn.cursor() as cur:
-                    cur.execute(f"INSERT INTO {self.tbl_stb} (remote, executor, grp, test, subtest) " +
-                                cur.mogrify("VALUES (%s, %s, %s, %s, %s)",
-                                            (data["remote"], data["executor"], row["group"], row["test"], row["subtest"],)).decode('utf-8'))
+                    cur.execute(f"INSERT INTO {self.tbl_stb} (remote, executor, grp, test, subtest, autoignore) " +
+                                cur.mogrify("VALUES (%s, %s, %s, %s, %s, %s)",
+                                            (data["remote"], data["executor"], row["group"],
+                                             row["test"], row["subtest"], int("device" in data))
+                                            ).decode('utf-8'))
             # Update state
             if row["result"]:
                 key_pfx = "pass"
