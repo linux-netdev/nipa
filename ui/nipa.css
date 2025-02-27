@@ -33,7 +33,7 @@ tr:nth-child(even) {
 .box-flake { background-color: red; }
 .box-fail  { background-color: #d06060; }
 
-@media screen and (max-resolution: 116dpi) {
+@media screen and (max-resolution: 250dpi) {
     .row {
 	display: flex;
     }
