@@ -39,6 +39,7 @@ CREATE TABLE results (
     branch              varchar(80),
     remote              varchar(80),
     executor            varchar(80),
+    branch_date         varchar(17),
     t_start             timestamp,
     t_end               timestamp,
     json_normal         text,

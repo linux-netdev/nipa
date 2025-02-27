@@ -90,10 +90,12 @@ class FetcherState:
         return rows and len(rows) > 0
 
     def insert_result_psql(self, cur, data):
+        fields = "(branch, branch_date, remote, executor, t_start, t_end, json_normal, json_full)"
         normal, full = self.psql_json_split(data)
-        arg = cur.mogrify("(%s,%s,%s,%s,%s,%s,%s)", (data["branch"], data["remote"], data["executor"],
-                                                     data["start"], data["end"], normal, full))
-        cur.execute(f"INSERT INTO {self.tbl_res} VALUES " + arg.decode('utf-8'))
+        arg = cur.mogrify("(%s,%s,%s,%s,%s,%s,%s,%s)",
+                          (data["branch"], data["branch"][-17:], data["remote"], data["executor"],
+                           data["start"], data["end"], normal, full))
+        cur.execute(f"INSERT INTO {self.tbl_res} {fields} VALUES " + arg.decode('utf-8'))
 
     def insert_wip(self, remote, run):
         if self.psql_has_wip(remote, run):
