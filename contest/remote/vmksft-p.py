@@ -7,6 +7,7 @@ import fcntl
 import os
 import re
 import queue
+import subprocess
 import sys
 import tempfile
 import threading
@@ -49,6 +50,8 @@ boot_timeout=45
 [ksft]
 target=net
 nested_tests=off / on
+[device]
+info_script=cmd_printing_json
 
 
 Expected:
@@ -267,6 +270,11 @@ def test(binfo, rinfo, cbarg):
     rinfo['link'] = link
     targets = config.get('ksft', 'target').split()
     grp_name = "selftests-" + namify(targets[0])
+
+    if config.get('device', 'info_script', fallback=None):
+        dev_info = subprocess.run(config.get('device', 'info_script'),
+                                  shell=True, stdout=subprocess.PIPE, check=True)
+        rinfo['device'] = dev_info.stdout.decode('utf-8').strip()
 
     vm = VM(config)
 

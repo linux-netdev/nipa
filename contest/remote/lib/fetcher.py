@@ -103,6 +103,8 @@ class Fetcher:
         }
         if 'link' in rinfo:
             entry['link'] = rinfo['link']
+        if 'device' in rinfo:
+            entry['device'] = rinfo['device']
         url = self._write_result(entry, run_id_cookie)
 
         self._result_set(binfo['branch'], url)

@@ -33,6 +33,7 @@ paths=/extra/exec/PATH:/another/bin
 paths=/extra/exec/PATH:/another/bin
 ld_paths=/extra/lib/PATH:/another/lib
 exports=VAR1=val1,VAR2=val2
+setup=path_to_script.sh
 configs=relative/path/config,another/config
 init_prompt=expected_on-boot#
 virtme_opt=--opt,--another one
