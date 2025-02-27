@@ -185,7 +185,7 @@ class FetcherState:
 
             now = datetime.datetime.now().isoformat() + "+00:00"
             if stability[key_pfx + "_srk"] > 15 and not stability["passing"]: # 5 clean days for HW
-                print("Test reached stability", row["remote"], row["test"], row["subtest"])
+                print("Test reached stability", data["remote"], row["test"], row["subtest"])
                 stability["passing"] = now
 
             with self.psql_conn.cursor() as cur:
