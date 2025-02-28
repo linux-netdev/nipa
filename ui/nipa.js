@@ -108,16 +108,21 @@ function nipa_filters_set_from_url()
     nipa_input_set_from_url("fl-pw");
 }
 
+function nipa_select_add_option(select_elem, show_str, value)
+{
+    const opt = document.createElement('option');
+    opt.value = value;
+    opt.innerHTML = show_str;
+    select_elem.appendChild(opt);
+}
+
 function nipa_filter_add_options(data_raw, elem_id, field)
 {
     var elem = document.getElementById(elem_id);
     var values = new Set();
 
     // Re-create "all"
-    const opt = document.createElement('option');
-    opt.value = "";
-    opt.innerHTML = "-- all --";
-    elem.appendChild(opt);
+    nipa_select_add_option(elem, "-- all --", "");
 
     // Create the dynamic entries
     $.each(data_raw, function(i, v) {
@@ -127,10 +132,7 @@ function nipa_filter_add_options(data_raw, elem_id, field)
 	    values.add(v);
     });
     for (const value of values) {
-	const opt = document.createElement('option');
-	opt.value = value;
-	opt.innerHTML = value;
-	elem.appendChild(opt);
+	nipa_select_add_option(elem, value, value);
     }
 }
 
