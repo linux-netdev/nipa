@@ -715,11 +715,6 @@ function rem_exe(v)
     return v.remote + "/" + v.executor;
 }
 
-function br_pfx_get(name)
-{
-    return name.substring(0, name.length - 18);
-}
-
 var awol_executors;
 
 function load_result_table(data_raw, reload)
@@ -749,7 +744,7 @@ function load_result_table(data_raw, reload)
 	v.start = new Date(v.start);
 	v.end = new Date(v.end);
 
-	v.br_pfx = br_pfx_get(v.branch);
+	v.br_pfx = nipa_br_pfx_get(v.branch);
 	v.br_date = v.branch.substring(v.branch.length - 17);
 
 	branches.add(v.branch);
@@ -810,7 +805,7 @@ function load_result_table(data_raw, reload)
 	    if (branch_execs[br].has(re))
 		continue;
 	    // Exec works on different branch stream
-	    if (!known_execs[re].br_pfx.has(br_pfx_get(br)))
+	    if (!known_execs[re].br_pfx.has(nipa_br_pfx_get(br)))
 		continue;
 
 	    data_raw.push({

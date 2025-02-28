@@ -27,6 +27,11 @@ function nipa_msec_to_str(msec) {
     return "TLE";
 }
 
+function nipa_br_pfx_get(name)
+{
+    return name.substring(0, name.length - 18);
+}
+
 function nipa_test_fullname(v, r)
 {
     return v.remote + "/" + v.executor + "/" + r.group + "/" + r.test;
