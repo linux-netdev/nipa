@@ -168,7 +168,7 @@ function reload_select_filters(first_load)
 	old_values[elem_id] = elem.value;
     }
 
-    // Keep the "all" option, remove the rest
+    // Wipe the options and re-add
     $("select option").remove();
 
     // We have all JSONs now, do processing.

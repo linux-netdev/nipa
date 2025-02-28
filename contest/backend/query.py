@@ -35,17 +35,17 @@ def branches():
     return rows
 
 
-#SELECT branch,branch_date,count(*),remote FROM results GROUP BY branch,branch_date,remote ORDER BY branch_date DESC LIMIT 510;
-
-def branches_to_rows(br_cnt, remote):
+def branches_to_rows(br_cnt, remote, br_pfx=None):
     global psql
 
     cnt = 0
     with psql.cursor() as cur:
-        if remote:
-            q = f"SELECT branch,count(*),branch_date,remote FROM results GROUP BY branch,branch_date,remote ORDER BY branch_date DESC LIMIT {br_cnt}"
-        else:
-            q = f"SELECT branch,count(*),branch_date        FROM results GROUP BY branch,branch_date        ORDER BY branch_date DESC LIMIT {br_cnt}"
+        remote_k = ",remote" if remote else ""
+        # Slap the -2 in here as the first letter of the date, to avoid prefix of prefix matches
+        pfx_flt = f"WHERE branch LIKE '{br_pfx}-2%' " if br_pfx else ""
+
+        q = f"SELECT branch,count(*),branch_date{remote_k} FROM results {pfx_flt} GROUP BY branch,branch_date{remote_k} ORDER BY branch_date DESC LIMIT {br_cnt}"
+
         cur.execute(q)
         for r in cur.fetchall():
             cnt += r[1]
@@ -108,7 +108,12 @@ def results():
         if not br_cnt:
             br_cnt = 10
 
-        limit = branches_to_rows(br_cnt, remote)
+        br_pfx = request.args.get('br-pfx')
+        if br_pfx:
+            # Slap the -2 in here as the first letter of the date, to avoid prefix of prefix matches
+            where.append(f"branch LIKE '{br_pfx}-2%'")
+
+        limit = branches_to_rows(br_cnt, remote, br_pfx)
 
         t2 = datetime.datetime.now()
 

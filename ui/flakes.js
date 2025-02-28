@@ -12,6 +12,8 @@ function get_sort_key()
     return "cnt";
 }
 
+var branch_pfx_set = new Set();
+
 function load_result_table(data_raw)
 {
     // Get all branch names
@@ -21,6 +23,19 @@ function load_result_table(data_raw)
     });
     let br_cnt = document.getElementById("br-cnt").value;
     const branches = Array.from(branch_set).slice(0, br_cnt);
+
+    // Populate the load filters with prefixes
+    let select_br_pfx = document.getElementById("br-pfx");
+    for (const br of branches) {
+	const br_pfx = nipa_br_pfx_get(br);
+
+	if (select_br_pfx.length == 0)
+	    nipa_select_add_option(select_br_pfx, "-- all --", "");
+	if (branch_pfx_set.has(br_pfx))
+	    continue;
+	nipa_select_add_option(select_br_pfx, br_pfx, br_pfx);
+	branch_pfx_set.add(br_pfx);
+    }
 
     // Build the result map
     var pw_n = document.getElementById("pw-n").checked;
@@ -175,6 +190,7 @@ function reload_data()
 {
     const format_l2 = document.getElementById("ld-cases");
     const br_cnt = document.getElementById("br-cnt");
+    const br_pfx = document.getElementById("br-pfx");
     const remote = document.getElementById("ld-remote");
 
     let req_url = "query/results";
@@ -184,6 +200,8 @@ function reload_data()
 	req_url += "&format=l2";
     if (remote.value)
 	req_url += "&remote=" + remote.value;
+    if (br_pfx.value)
+	req_url += "&br-pfx=" + br_pfx.value;
 
     nipa_filters_disable(["ld-pw", "fl-pw"]);
     $(document).ready(function() {
