@@ -173,7 +173,7 @@ class FetcherState:
                     cur.execute(f"INSERT INTO {self.tbl_stb} (remote, executor, grp, test, subtest, autoignore) " +
                                 cur.mogrify("VALUES (%s, %s, %s, %s, %s, %s)",
                                             (data["remote"], data["executor"], row["group"],
-                                             row["test"], row["subtest"], int("device" in data))
+                                             row["test"], row["subtest"], "device" in data)
                                             ).decode('utf-8'))
             # Update state
             if row["result"]:
