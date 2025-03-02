@@ -541,7 +541,7 @@ function add_summaries(table, summary, reported)
 
     colorify_str_psf(str_psf, "fail", summary["fail"], "red");
     colorify_str_psf(str_psf, "skip", summary["skip"], "#809fff");
-    colorify_str_psf(str_psf, "pass", summary["total"], "green");
+    colorify_str_psf(str_psf, "pass", summary["pass"], "green");
 
     var link_to_contest = "<a href=\"contest.html?pw-n=0&";
     link_to_contest += "branch=" + summary["branch"];
@@ -571,6 +571,7 @@ function reset_summary(summary, branch)
     summary["total"] = 0;
     summary["skip"] = 0;
     summary["fail"] = 0;
+    summary["pass"] = 0;
     summary["hidden"] = 0;
 }
 
@@ -625,6 +626,7 @@ function load_result_table_one(data_raw, table, reported, avgs)
 
 	    summary["skip"] += skip;
 	    summary["fail"] += fail;
+	    summary["pass"] += pass;
 	    if (summarize && total && total == pass) {
 		summary["hidden"] += 1;
 		return 1;
