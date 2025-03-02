@@ -449,7 +449,8 @@ function load_partial_tests(data)
     let table = document.getElementById("test-presence");
     let pending_executors = {};
     let count_map = {};
-    let total = 0;
+    let br_map = {};
+    let total = {};
 
     $.each(data, function(i, v) {
 	// Ignore tests from AWOL executors, that should be rare
@@ -457,7 +458,10 @@ function load_partial_tests(data)
 	    return 1;
 
 	if (v.executor == "brancher") {
-	    total++;
+	    if (v.br_pfx in total)
+		total[v.br_pfx]++;
+	    else
+		total[v.br_pfx] = 1;
 	    return 1;
 	}
 
@@ -474,15 +478,24 @@ function load_partial_tests(data)
 	$.each(v.results, function(i, r) {
 	    let name = nipa_test_fullname(v, r);
 
-	    if (name in count_map)
+	    if (name in count_map) {
 		count_map[name]++;
-	    else
+	    } else {
 		count_map[name] = 1;
+		br_map[name] = new Set();
+	    }
+
+	    br_map[name].add(v.br_pfx);
 	});
     });
 
     for (const name of Object.keys(count_map)) {
-	let missing = total - count_map[name];
+	let expect = 0;
+
+	for (const br_pfx of br_map[name])
+	    expect += total[br_pfx];
+
+	let missing = expect - count_map[name];
 
 	if (!missing)
 	    continue;
