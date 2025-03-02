@@ -188,7 +188,7 @@ class FetcherState:
             stability[key_pfx + "_srk"] = max(stability[key_pfx + "_cur"], stability[key_pfx + "_srk"])
 
             now = datetime.datetime.now().isoformat() + "+00:00"
-            if stability[key_pfx + "_srk"] > 15 and not stability["passing"]: # 5 clean days for HW
+            if stability["pass_srk"] > 15 and not stability["passing"]: # 5 clean days for HW
                 print("Test reached stability", data["remote"], row["test"], row["subtest"])
                 stability["passing"] = now
 
