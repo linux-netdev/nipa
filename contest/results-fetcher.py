@@ -141,7 +141,7 @@ class FetcherState:
             return base + " AND subtest is NULL"
         return base + cur.mogrify(" AND subtest = %s", (row["subtest"],)).decode('utf-8')
 
-    def psql_get_stability(self, data, row):
+    def psql_get_test_stability(self, data, row):
         with self.psql_conn.cursor() as cur:
             cur.execute(f"SELECT pass_cnt, fail_cnt, pass_srk, fail_srk, pass_cur, fail_cur, passing FROM {self.tbl_stb} " +
                         self.psql_stability_selector(cur, data, row))
@@ -167,7 +167,7 @@ class FetcherState:
 
         for row in flat:
             # Fetch current state
-            stability = self.psql_get_stability(data, row)
+            stability = self.psql_get_test_stability(data, row)
             if not stability["exists"]:
                 with self.psql_conn.cursor() as cur:
                     cur.execute(f"INSERT INTO {self.tbl_stb} (remote, executor, grp, test, subtest, autoignore) " +
