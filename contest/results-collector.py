@@ -4,6 +4,7 @@
 import configparser
 import copy
 import datetime
+import functools
 import json
 import os
 import psycopg2
@@ -141,6 +142,24 @@ class FetcherState:
             return base + " AND subtest is NULL"
         return base + cur.mogrify(" AND subtest = %s", (row["subtest"],)).decode('utf-8')
 
+    def psql_get_unstable(self, data):
+        with self.psql_conn.cursor() as cur:
+            rem_exe = cur.mogrify("remote = %s AND executor = %s",
+                                  (data["remote"], data["executor"],)).decode('utf-8')
+            cur.execute(f"SELECT grp, test, subtest FROM {self.tbl_stb} " +
+                        "WHERE autoignore = True AND passing IS NULL AND " + rem_exe)
+            rows = cur.fetchall()
+        res = {}
+        for row in rows:
+            res[(row[0], row[1], row[2])] = {
+                "group": row[0],
+                "test": row[1],
+                "subtest": row[2]
+            }
+        if res:
+            print(f"Unstable for {data['remote']}/{data['executor']} got", len(res))
+        return res
+
     def psql_get_test_stability(self, data, row):
         with self.psql_conn.cursor() as cur:
             cur.execute(f"SELECT pass_cnt, fail_cnt, pass_srk, fail_srk, pass_cur, fail_cur, passing FROM {self.tbl_stb} " +
@@ -262,6 +281,46 @@ def fetch_remote(fetcher, remote, seen):
         json.dump(manifest, fp)
 
 
+def apply_stability(fetcher, data, unstable):
+    u_key = (data['remote'], data['executor'])
+    if u_key not in unstable:
+        unstable[u_key] = fetcher.psql_get_unstable(data)
+
+    # Non-HW runners have full stability, usually
+    if not unstable[u_key]:
+        return
+
+    def filter_l1(test):
+        # Defer filtering to L2
+        if test.get("results"):
+            return True
+        return (test['group'], test['test'], None) not in unstable[u_key]
+
+    def trim_l2(test):
+        # Skip over pure L1s
+        if "results" not in test:
+            return test
+
+        def filter_l1_l2(case):
+            return (test['group'], test['test'], case['test']) not in unstable[u_key]
+
+        test["results"] = list(filter(filter_l1_l2, test["results"]))
+        if not test["results"]:
+            return None
+
+        # See if we removed all failing subtests
+        all_pass = True
+        all_pass &= not test.get("crashes")
+        if test["result"].lower() != "pass":
+            all_pass = functools.reduce(lambda x, y: x and y["result"].lower() == "pass", test["results"], all_pass)
+            if all_pass:
+                test["result"] = "pass"
+        return test
+
+    data["results"] = list(filter(filter_l1, data["results"]))
+    data["results"] = list(map(trim_l2, data["results"]))
+    data["results"] = list(filter(lambda x: x is not None, data["results"]))
+
 
 def build_combined(fetcher, remote_db):
     r = requests.get(fetcher.config.get('input', 'branch_url'))
@@ -303,6 +362,11 @@ def build_combined(fetcher, remote_db):
 
             data['remote'] = name
             combined.append(data)
+
+    unstable = {}
+    for run in combined:
+        apply_stability(fetcher, run, unstable)
+
     return combined
 
 
