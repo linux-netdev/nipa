@@ -29,4 +29,4 @@ ip -netns ns-remote addr add dev eth1 2001:db8::2/64
 export  LOCAL_V6=2001:db8::1
 export REMOTE_V6=2001:db8::2
 
-sleep 1
+sleep 2
