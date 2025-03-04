@@ -119,20 +119,22 @@ class FetcherState:
     def psql_json_split(self, data):
         # return "normal" and "full" as json string or None
         # "full" will be None if they are the same to save storage
-        if data.get("results") is None:
-            return json.dumps(data), None
+        data = copy.deepcopy(data)
+        full_s = json.dumps(data)
 
-        normal = copy.deepcopy(data)
-        full = None
+        # Filter down the results
+        apply_stability(self, data, {})
 
-        for row in normal["results"]:
-            if "results" in row:
-                full = True
-                del row["results"]
+        if data.get("results"):
+            for row in data["results"]:
+                if "results" in row:
+                    del row["results"]
 
-        if full:
-            full = json.dumps(data)
-        return json.dumps(normal), full
+        norm_s = json.dumps(data)
+
+        if norm_s != full_s:
+            return norm_s, full_s
+        return full_s, None
 
     def psql_stability_selector(self, cur, data, row):
         base = cur.mogrify("WHERE remote = %s AND executor = %s AND grp = %s AND test = %s",
