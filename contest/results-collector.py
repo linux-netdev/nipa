@@ -203,6 +203,8 @@ class FetcherState:
         data = run.copy()
         data["remote"] = remote["name"]
 
+        self.psql_insert_stability(data)
+
         with self.psql_conn.cursor() as cur:
             if not self.psql_has_wip(remote, run):
                 self.insert_result_psql(cur, data)
@@ -213,8 +215,6 @@ class FetcherState:
                 selector = self.psql_run_selector(cur, remote, run)
                 q = f"UPDATE {self.tbl_res} " + vals + ' ' + selector
                 cur.execute(q)
-
-        self.psql_insert_stability(data)
 
 
 def write_json_atomic(path, data):
