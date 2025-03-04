@@ -154,7 +154,7 @@ class Fetcher:
         # After upgrading git 2.40.1 -> 2.47.1 CI hits a race in git,
         # where tree is locked, even though previous command has finished.
         # We need to sleep a bit and then wait for the lock to go away.
-        time.sleep(0.2)
+        time.sleep(1)
         lock_path = os.path.join(self._tree_path, '.git/HEAD.lock')
         while os.path.exists(lock_path):
             print("HEAD is still locked! Sleeping..")
