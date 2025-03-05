@@ -119,16 +119,17 @@ class FetcherState:
     def psql_json_split(self, data):
         # return "normal" and "full" as json string or None
         # "full" will be None if they are the same to save storage
-        data = copy.deepcopy(data)
         full_s = json.dumps(data)
+        if data.get("results") is None: # WIP result
+            return full_s, None
+        data = copy.deepcopy(data)
 
         # Filter down the results
         apply_stability(self, data, {})
 
-        if data.get("results"):
-            for row in data["results"]:
-                if "results" in row:
-                    del row["results"]
+        for row in data.get("results", []):
+            if "results" in row:
+                del row["results"]
 
         norm_s = json.dumps(data)
 
@@ -284,6 +285,9 @@ def fetch_remote(fetcher, remote, seen):
 
 
 def apply_stability(fetcher, data, unstable):
+    if data.get("results") is None: # WIP result
+        return
+
     u_key = (data['remote'], data['executor'])
     if u_key not in unstable:
         unstable[u_key] = fetcher.psql_get_unstable(data)
