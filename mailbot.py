@@ -675,8 +675,18 @@ def do_mail_delayed(msg, pw, dr):
         print("ERROR: message delayed for the second time", str(e))
 
 
+def fetch_tree(tree):
+    for _ in range(3):
+        try:
+            tree.git_fetch(tree.remote)
+            return
+        except:
+            print('WARNING: git fetch failed, retrying')
+            time.sleep(300)
+
+
 def check_new(tree, pw, dr):
-    tree.git_fetch(tree.remote)
+    fetch_tree(tree)
     hashes = tree.git(['log', "--format=%h", f'..{tree.remote}/{tree.branch}', '--reverse'])
     hashes = hashes.split()
     for h in hashes:
