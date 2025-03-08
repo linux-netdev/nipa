@@ -56,10 +56,14 @@ def main() -> None:
         url += '/'
     directory = config.get("output", "dir")
 
+    used_cookies = set()
     results = []
     for br in branches:
         br_dt = datetime.datetime.fromisoformat(br["date"])
-        run_id_cookie = str(int(br_dt.timestamp() / 60) % 1000000)
+        run_id_cookie = int(br_dt.timestamp() / 60) % 1000000
+        while run_id_cookie in used_cookies:
+            run_id_cookie += 1
+        used_cookies.add(run_id_cookie)
         fname = f"results-{run_id_cookie}.json"
 
         data = {'url': url + fname,
