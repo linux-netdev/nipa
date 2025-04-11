@@ -42,6 +42,10 @@ class Patchwork(object):
         self._token = config.get('patchwork', 'token', fallback='')
         self._user = config.get('patchwork', 'user', fallback='')
 
+        ua = config.get('patchwork', 'user-agent', fallback='')
+        if ua:
+            self._session.headers.update({"user-agent":ua})
+
         config_project = config.get('patchwork', 'project')
         pw_project = self.get_project(config_project)
         if pw_project:

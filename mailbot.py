@@ -32,6 +32,7 @@ authorized_users = set()
 auto_changes_requested = set()
 auto_awaiting_upstream = set()
 delay_actions = []  # contains tuples of (datetime, email)
+http_headers = None
 
 
 pw_act_active = {
@@ -189,7 +190,8 @@ class DocRefs:
 
         self.loc_map[name] = location
 
-        r = requests.get(f'https://www.kernel.org/doc/html/next/{location}.html')
+        r = requests.get(f'https://www.kernel.org/doc/html/next/{location}.html',
+                         headers=http_headers)
         data = r.content.decode('utf-8')
 
         offs = 0
@@ -208,7 +210,7 @@ class DocRefs:
 
         # Now populate the plain text contents
         url = f'https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/plain/Documentation/{location}.rst'
-        r = requests.get(url)
+        r = requests.get(url, headers=http_headers)
         data = r.content.decode('utf-8')
         lines = data.split('\n')
 
@@ -379,7 +381,8 @@ class MlEmail:
 
                 self._series_id = pw_obj[0]['series'][0]['id']
 
-                r = requests.get(f'https://lore.kernel.org/all/{mid}/raw')
+                r = requests.get(f'https://lore.kernel.org/all/{mid}/raw',
+                                 headers=http_headers)
                 data = r.content.decode('utf-8')
                 msg = email.message_from_string(data, policy=default)
                 self._series_author = msg.get('From')
@@ -708,6 +711,11 @@ def main():
 
     signal.signal(signal.SIGTERM, handler)
     signal.signal(signal.SIGINT, handler)
+
+    global http_headers
+    ua = config.get('patchwork', 'user-agent', fallback='')
+    if ua:
+        http_headers = {"user-agent":ua}
 
     global authorized_users
     users = config.get('mailbot', 'authorized')
