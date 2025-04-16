@@ -37,6 +37,7 @@ setup=path_to_script.sh
 configs=relative/path/config,another/config
 init_prompt=expected_on-boot#
 virtme_opt=--opt,--another one
+qemu_opt=--opt,this is --same one
 default_timeout=15
 boot_timeout=45
 slowdown=2.5 # mark the machine as slow and multiply the ksft timeout by 2.5
@@ -180,6 +181,9 @@ class VM:
 
         opts = self.config.get('vm', 'virtme_opt', fallback="")
         cmd += opts.split(',') if opts else []
+
+        opts = self.config.get('vm', 'qemu_opt', fallback="")
+        cmd += ["-o", " " + opts] if opts else []
 
         cpus = self.config.get('vm', 'cpus', fallback="")
         if cpus:
