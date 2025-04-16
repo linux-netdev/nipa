@@ -1,8 +1,8 @@
-The merge window for v6.10 has begun and we have already posted our pull
-request. Therefore net-next is closed for new drivers, features, code
-refactoring and optimizations. We are currently accepting bug fixes only.
+Linus already pulled net-next material v6.15 and therefore net-next is closed
+for new drivers, features, code refactoring and optimizations. We are currently
+accepting bug fixes only.
 
-Please repost when net-next reopens after May 26th.
+Please repost when net-next reopens after Apr 7th.
 
 RFC patches sent for review only are obviously welcome at any time.
 
