@@ -244,3 +244,10 @@ cp packetdrill ~/tools/fs/usr/bin/
 
 # Net tests need pyroute2 (for OvS tests)
 sudo dnf install python3-pyroute2.noarch
+
+# uring (needs ZC)
+ git clone https://github.com/axboe/liburing/
+ cd liburing
+ ./configure --prefix=/usr
+ make -j
+ sudo make install
