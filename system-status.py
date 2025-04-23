@@ -51,8 +51,6 @@ def pre_strip(line, needle):
 
 
 def add_one_tree(result, pfx, name):
-    global char_filter
-
     log_file = os.path.join(pfx, name)
     stat = os.stat(log_file)
 

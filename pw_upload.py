@@ -166,8 +166,6 @@ class TestWatcher(object):
             break
 
     def watch(self):
-        global should_stop
-
         if self.main_wd is None:
             raise Exception('Not initialized')
 

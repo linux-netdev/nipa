@@ -26,8 +26,6 @@ def hello():
 
 @app.route('/branches')
 def branches():
-    global psql
-
     with psql.cursor() as cur:
         cur.execute(f"SELECT branch, t_date, base, url FROM branches ORDER BY t_date DESC LIMIT 40")
         rows = [{"branch": r[0], "date": r[1].isoformat() + "+00:00", "base": r[2], "url": r[3]} for r in cur.fetchall()]
@@ -36,8 +34,6 @@ def branches():
 
 
 def branches_to_rows(br_cnt, remote, br_pfx=None):
-    global psql
-
     cnt = 0
     with psql.cursor() as cur:
         remote_k = ",remote" if remote else ""
@@ -77,8 +73,6 @@ def result_as_l2(raw):
 
 @app.route('/results')
 def results():
-    global psql
-
     limit = 0
     where = []
     log = ""
@@ -151,8 +145,6 @@ def results():
 
 @app.route('/remotes')
 def remotes():
-    global psql
-
     t1 = datetime.datetime.now()
 
     with psql.cursor() as cur:

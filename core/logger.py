@@ -220,24 +220,16 @@ def log_init(name, path, force_single_thread=False):
 
 
 def log_fini():
-    global tls
-
     tls.logger.fini()
 
 
 def log_open_sec(header):
-    global tls
-
     tls.logger.open_sec(header)
 
 
 def log_end_sec():
-    global tls
-
     tls.logger.end_sec()
 
 
 def log(header, data=''):
-    global tls
-
     tls.logger.log(header, data)

@@ -317,7 +317,6 @@ class MlEmail:
                 continue
             file_names.add(line[6:])
 
-        global maintainers
         maintainer_matches = maintainers.find_by_paths(file_names).find_by_owner(self.msg.get('From'))
         if len(maintainer_matches):
             self._authorized = repr(maintainer_matches)
@@ -340,7 +339,6 @@ class MlEmail:
             return False
         tags = subject[1:tags_end]
 
-        global auto_awaiting_upstream
         for designation in auto_awaiting_upstream:
             if designation in tags:
                 return True
@@ -538,7 +536,6 @@ def handler(signum, _):
 
 
 def pw_state_log(fields):
-    global config
     log_name = config.get('mailbot', 'change-log')
     if not log_name:
         return
@@ -551,8 +548,6 @@ def pw_state_log(fields):
 
 
 def weak_act_should_ignore(msg, series, want):
-    global pw_act_active
-
     if msg.user_authorized():
         return None
     current = series.state()
@@ -652,7 +647,6 @@ def do_mail_file(msg_path, pw, dr):
     try:
         do_mail(msg, pw, dr)
     except MlDelayActions as e:
-        global delay_actions
         msg.flush_actions()  # avoid duplicates, actions will get re-parsed
         delay_actions.append((e.when, msg, ))
 
@@ -717,15 +711,12 @@ def main():
     if ua:
         http_headers = {"user-agent":ua}
 
-    global authorized_users
     users = config.get('mailbot', 'authorized')
     authorized_users.update(set(users.split(',')))
 
-    global auto_changes_requested
     users = config.get('mailbot', 'error-bots')
     auto_changes_requested.update(set(users.split(',')))
 
-    global auto_awaiting_upstream
     users = config.get('mailbot', 'awaiting-upstream')
     auto_awaiting_upstream.update(set(users.split(',')))
 
@@ -746,7 +737,6 @@ def main():
     doc_load_time = datetime.datetime.fromtimestamp(0)
     dr = None
 
-    global should_stop
     while not should_stop:
         req_time = datetime.datetime.now()
 

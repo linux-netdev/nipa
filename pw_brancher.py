@@ -177,8 +177,6 @@ def apply_local_patches(config, tree) -> List:
 
 
 def db_insert(config, state, name):
-    global psql_conn
-
     # Branches usually have a trailing separator
     pfx = config.get("target", "branch_pfx")[:-1]
     pub_url = config.get('target', 'public_url')

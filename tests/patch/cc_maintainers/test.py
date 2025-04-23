@@ -116,8 +116,6 @@ stale_db = StalenessDB()
 
 
 def get_stale(sender_from, missing, out):
-    global stale_db
-
     sender_corp = None
     for corp in corp_suffix:
         if sender_from.endswith(corp):

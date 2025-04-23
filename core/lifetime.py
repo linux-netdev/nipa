@@ -23,6 +23,7 @@ def sig_init():
 
     if not sig_initialized:
         signal.signal(signal.SIGUSR1, sig_handler)
+        sig_initialized = True
 
 
 def nipa_git_version():
@@ -55,8 +56,6 @@ class NipaLifetime:
         self._restart = False
 
     def next_poll(self, wait_time=None):
-        global got_sigusr1
-
         if self._first_run:
             self._first_run = False
             return True
