@@ -178,10 +178,21 @@ class Patchwork(object):
             query['archived'] = 'false'
         return self.get_all('patches', query)
 
-    def get_series_all(self, project=None, since=None):
+    def get_new_series(self, project=None, since=None):
         if project is None:
             project = self._project
-        return self.get_all('series', {'project': project, 'since': since})
+        event_params = {
+            'project': project,
+            'since': since,
+            'order': 'date',
+            'category': 'series-created',
+        }
+        events = self.get_all('events', event_params)
+        if not events:
+            return [], since
+        since = events[-1]['date']
+        series = [self.get('series', e['payload']['series']['id']) for e in events]
+        return series, since
 
     def post_check(self, patch, name, state, url, desc):
         headers = {}
