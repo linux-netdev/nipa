@@ -38,8 +38,14 @@ class Person:
 
 
 class Maintainers:
-    def __init__(self, *, file=None, url=None):
+    def __init__(self, *, file=None, url=None, config=None):
         self.entries = MaintainersList()
+
+        self.http_headers = None
+        if config:
+            ua = config.get('patchwork', 'user-agent', fallback='')
+            if ua:
+                self.http_headers = {"user-agent":ua}
 
         if file:
             self._load_from_file(file)
@@ -72,7 +78,7 @@ class Maintainers:
             self._load_from_lines(f.read().split('\n'))
 
     def _load_from_url(self, url):
-        r = requests.get(url)
+        r = requests.get(url, headers=self.http_headers)
         data = r.content.decode('utf-8')
         self._load_from_lines(data.split('\n'))
 

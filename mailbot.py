@@ -752,7 +752,7 @@ def main():
 
         if (req_time - doc_load_time).total_seconds() > 24 * 60 * 60:
             global maintainers
-            maintainers = Maintainers(url='https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/MAINTAINERS')
+            maintainers = Maintainers(url='https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/MAINTAINERS', config=config)
 
             dr = DocRefs()
             dr.load_section('process/maintainer-netdev', 'net')
