@@ -197,6 +197,11 @@ class PwPoller:
                 json_resp, since = self._pw.get_new_series(since=since)
                 log(f"Loaded {len(json_resp)} series", "")
 
+                # Advance the time by 1 usec, pw does >= for time comparison
+                since  = datetime.datetime.fromisoformat(since)
+                since += datetime.timedelta(microseconds=1)
+                since  = since.isoformat()
+
                 for pw_series in json_resp:
                     try:
                         self.process_series(pw_series)
