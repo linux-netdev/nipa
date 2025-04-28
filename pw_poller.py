@@ -193,6 +193,7 @@ class PwPoller:
             secs = 0
             while life.next_poll(secs):
                 req_time = datetime.datetime.now()
+                log_open_sec(f"Querying patchwork at {req_time} since {since}")
                 json_resp, since = self._pw.get_new_series(since=since)
                 log(f"Loaded {len(json_resp)} series", "")
 
