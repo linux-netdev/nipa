@@ -300,11 +300,17 @@ def apply_stability(fetcher, data, unstable):
         # Defer filtering to L2
         if test.get("results"):
             return True
+        # Crashes must always be reported
+        if test.get("crashes"):
+            return True
         return (test['group'], test['test'], None) not in unstable[u_key]
 
     def trim_l2(test):
         # Skip over pure L1s
         if "results" not in test:
+            return test
+        # Crashes must always be reported
+        if test.get("crashes"):
             return test
 
         def filter_l1_l2(case):
