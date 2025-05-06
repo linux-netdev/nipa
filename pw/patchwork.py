@@ -185,7 +185,7 @@ class Patchwork(object):
             'project': project,
             'since': since,
             'order': 'date',
-            'category': 'series-created',
+            'category': 'series-completed',
         }
         events = self.get_all('events', event_params)
         if not events:
