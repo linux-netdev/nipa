@@ -8,7 +8,7 @@ for i in `seq 0 3`; do
     sudo ip link set dev tap$((i * 2    )) master br$i
     sudo ip link set dev tap$((i * 2 + 1)) master br$i
 
-    sudo ip link set dev br$i up
-    sudo ip link set dev tap$((i * 2    )) up
-    sudo ip link set dev tap$((i * 2 + 1)) up
+    sudo ip link set dev br$i mtu 12000 up
+    sudo ip link set dev tap$((i * 2    )) mtu 12000 up
+    sudo ip link set dev tap$((i * 2 + 1)) mtu 12000 up
 done
