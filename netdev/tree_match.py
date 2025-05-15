@@ -48,6 +48,7 @@ def _tree_name_should_be_local_files(raw_email):
         'drivers/vhost/',
     }
     required_files = {
+        'Documentation/devicetree/bindings/net/',
         'Documentation/netlink/',
         'Documentation/networking/',
         'include/linux/netdevice.h',
