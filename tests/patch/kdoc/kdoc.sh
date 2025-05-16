@@ -8,7 +8,7 @@ tmpfile_o=$(mktemp)
 tmpfile_n=$(mktemp)
 rc=0
 
-files=$(git show --pretty="" --name-only HEAD)
+files=$(git diff HEAD^ --pretty= --name-only)
 
 HEAD=$(git rev-parse HEAD)
 
