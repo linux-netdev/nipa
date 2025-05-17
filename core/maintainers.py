@@ -61,6 +61,11 @@ class Maintainers:
             if not started:
                 continue
 
+            # Fix up tabs vs spaces
+            if len(line) > 5 and line[0].isupper() and line[1:4] == ':  ':
+                print("Bad attr line:", group, line.strip())
+                line = line[:2] + '\t' + line[2:].strip()
+
             if line == '':
                 if len(group) > 1:
                     self.entries.add(MaintainersEntry(group))
