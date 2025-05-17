@@ -753,6 +753,8 @@ def main():
             dr.alias_section('submitting-patches', 'submit')
             dr.alias_section('submitting-patches', 'sub')
 
+            doc_load_time = req_time
+
         for t in mail_repos.values():
             check_new(t, pw, dr)
 
