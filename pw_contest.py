@@ -124,6 +124,7 @@ def branch_summarize(filters: dict, results_by_branch: dict) -> dict:
     for name, branch in results_by_branch.items():
         code = 0
         test_cnt = 0
+        pending = 0
         for remote in filters["remotes"]:
             new_code = Codes.PENDING
             if remote in branch:
@@ -132,7 +133,11 @@ def branch_summarize(filters: dict, results_by_branch: dict) -> dict:
                     new_code = branch[remote]['code']
                 test_cnt += branch[remote]["cnt"]
             code = max(code, new_code)
+            if new_code == Codes.PENDING:
+                pending += 1
         summary[name] = {'result': code_to_str[code], 'code': code, 'cnt': test_cnt}
+        if pending:
+            summary[name]['pending'] = pending
     return summary
 
 
@@ -153,7 +158,11 @@ def result_upgrades(states: dict, item_id: str, outcome: dict, branch: str):
     if prev['code'] > outcome['code']:
         return True
     if prev['code'] == outcome['code']:
-        return prev['cnt'] < outcome['cnt']
+        # use the run with most reported results, but wait for it to finish
+        # otherwise first contest for a patch updates the check every time
+        # a remote finishes and bumps the test case count (~12 updates)
+        if prev['cnt'] < outcome['cnt']:
+            return not outcome.get('pending')
     return False
 
 
