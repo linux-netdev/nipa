@@ -37,16 +37,15 @@ function load_result_table(data_raw)
 	branch_pfx_set.add(br_pfx);
     }
 
-    // Build the result map
+    // Annotate which results will be visible
     var pw_n = document.getElementById("pw-n").checked;
     var pw_y = document.getElementById("pw-y").checked;
     let needle = document.getElementById("tn-needle").value;
 
-    var test_row = {};
-    let tn_urls = {};
-
     $.each(data_raw, function(i, v) {
 	$.each(v.results, function(j, r) {
+	    r.visible = false;
+
 	    if (pw_y == false && nipa_pw_reported(v, r) == true)
 		return 1;
 	    if (pw_n == false && nipa_pw_reported(v, r) == false)
@@ -56,6 +55,20 @@ function load_result_table(data_raw)
 	    if (needle && !tn.includes(needle))
 		return 1;
 
+	    r.visible = true;
+	});
+    });
+
+    // Build the result map
+    var test_row = {};
+    let tn_urls = {};
+
+    $.each(data_raw, function(i, v) {
+	$.each(v.results, function(j, r) {
+	    if (!r.visible)
+		return 1;
+
+	    const tn = v.remote + '/' + r.group + '/' + r.test;
 	    tn_urls[tn] = "executor=" + v.executor + "&test=" + r.test;
 
 	    if (!(tn in test_row)) {
