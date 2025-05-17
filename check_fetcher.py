@@ -68,7 +68,7 @@ def main():
             continue
 
         seen_pids.add(p["id"])
-        checks = pw.request(p["checks"])
+        checks = pw.request_all(p["checks"])
         for c in checks:
             info = {
                 "id": p["id"],

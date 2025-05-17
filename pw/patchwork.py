@@ -73,6 +73,24 @@ class Patchwork(object):
     def request(self, url):
         return self._request(url).json()
 
+    def request_all(self, url):
+        items = []
+
+        while url:
+            response = self._request(url)
+            items += response.json()
+
+            if 'Link' not in response.headers:
+                break
+            url = ''
+            links = response.headers['Link'].split(',')
+            for link in links:
+                info = link.split(';')
+                if info[1].strip() == 'rel="next"':
+                    url = info[0][1:-1]
+
+        return items
+
     def get(self, object_type, identifier):
         return self._get(f'{object_type}/{identifier}/').json()
 
