@@ -85,3 +85,11 @@ CREATE TABLE stability (
     last_update		timestamp,
     passing		timestamp
 );
+
+
+CREATE TABLE devices_info (
+    remote              varchar(80),
+    executor            varchar(80),
+    changed             timestamp,
+    info                text
+);

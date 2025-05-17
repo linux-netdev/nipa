@@ -221,11 +221,35 @@ class FetcherState:
                                          stability["pass_cur"], stability["fail_cur"], stability["passing"], now)).decode('utf-8') +
                             self.psql_stability_selector(cur, data, row))
 
+    def psql_insert_device(self, data):
+        if 'device' not in data:
+            return
+
+        with self.psql_conn.cursor() as cur:
+            cur.execute(f"SELECT info FROM devices_info WHERE " +
+                        cur.mogrify("remote = %s AND executor = %s",
+                                    (data["remote"], data["executor"], )).decode('utf-8') +
+                        "ORDER BY changed DESC LIMIT 1")
+            rows = cur.fetchall()
+        if rows:
+            info = rows[0][0]
+        else:
+            info = 'x'
+        if info == data['device']:
+            return
+
+        with self.psql_conn.cursor() as cur:
+            cur.execute(f"INSERT INTO devices_info (remote, executor, changed, info) " +
+                        cur.mogrify("VALUES(%s, %s, %s, %s)",
+                                    (data["remote"], data["executor"],
+                                     data["start"], data["device"])).decode('utf-8'))
+
     def insert_real(self, remote, run):
         data = run.copy()
         data["remote"] = remote["name"]
 
         self.psql_insert_stability(data)
+        self.psql_insert_device(data)
 
         with self.psql_conn.cursor() as cur:
             if not self.psql_has_wip(remote, run):
