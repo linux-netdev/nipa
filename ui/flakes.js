@@ -21,12 +21,10 @@ function load_result_table(data_raw)
     $.each(data_raw, function(i, v) {
 	branch_set.add(v.branch);
     });
-    let br_cnt = document.getElementById("br-cnt").value;
-    const branches = Array.from(branch_set).slice(0, br_cnt);
 
     // Populate the load filters with prefixes
     let select_br_pfx = document.getElementById("br-pfx");
-    for (const br of branches) {
+    for (const br of branch_set) {
 	const br_pfx = nipa_br_pfx_get(br);
 
 	if (select_br_pfx.length == 0)
@@ -41,6 +39,7 @@ function load_result_table(data_raw)
     var pw_n = document.getElementById("pw-n").checked;
     var pw_y = document.getElementById("pw-y").checked;
     let needle = document.getElementById("tn-needle").value;
+    let br_pfx_with_data = new Set();
 
     $.each(data_raw, function(i, v) {
 	$.each(v.results, function(j, r) {
@@ -56,8 +55,19 @@ function load_result_table(data_raw)
 		return 1;
 
 	    r.visible = true;
+
+	    const br_pfx = nipa_br_pfx_get(v.branch);
+	    br_pfx_with_data.add(br_pfx);
 	});
     });
+
+    // Hide all the branches with prefixes which saw no data
+    let br_cnt = document.getElementById("br-cnt").value;
+    var branches = Array.from(branch_set);
+    branches = branches.filter(
+	(name) => br_pfx_with_data.has(nipa_br_pfx_get(name))
+    );
+    branches = branches.slice(0, br_cnt);
 
     // Build the result map
     var test_row = {};
