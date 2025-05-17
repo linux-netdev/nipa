@@ -57,6 +57,7 @@ def main():
     json_resp = pw.get_patches_all(delegate=delegate, since=since)
     jdb = []
     old_unchanged = 0
+    check_updates = 0
     seen_pids = set()
     for p in json_resp:
         pdate = datetime.datetime.fromisoformat(p["date"])
@@ -68,8 +69,14 @@ def main():
             continue
 
         seen_pids.add(p["id"])
+        seen_checks = set()
         checks = pw.request_all(p["checks"])
-        for c in checks:
+        for c in reversed(checks):
+            if c["context"] in seen_checks:
+                check_updates += 1
+                continue
+            seen_checks.add(c["context"])
+
             info = {
                 "id": p["id"],
                 "date": p["date"],
@@ -101,7 +108,7 @@ def main():
         new_db.append(row)
     new_db += jdb
     print(f'Old db: {len(old_db)}, retained: {old_stayed}')
-    print(f'Fetching: patches: {len(json_resp)}, patches old-unchanged: {old_unchanged}, checks fetched: {len(jdb)}')
+    print(f'Fetching: patches: {len(json_resp)}, patches old-unchanged: {old_unchanged}, checks fetched: {len(jdb)}, checks were updates: {check_updates}')
     print(f'Writing:  refreshed: {skipped}, new: {len(new_db) - old_stayed}, expired: {horizon_gc} new len: {len(new_db)}')
 
     with open(tgt_json, "w") as fp:
