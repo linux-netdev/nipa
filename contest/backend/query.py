@@ -155,3 +155,38 @@ def remotes():
     print(f"Query for remotes: {str(t2-t1)}")
 
     return rows
+
+
+@app.route('/stability')
+def stability():
+    # auto = query only tests which NIPA ignores based on stability
+    auto = request.args.get('auto')
+
+    where = ""
+    if auto == "y" or auto == '1' or auto == 't':
+        where = "WHERE autoignore = true";
+    elif auto == "n" or auto == '0' or auto == 'f':
+        where = "WHERE autoignore = false";
+
+    with psql.cursor() as cur:
+        cur.execute(f"SELECT * FROM stability {where}")
+
+        columns = [desc[0] for desc in cur.description]
+        rows = cur.fetchall()
+        # Convert each row to a dictionary with column names as keys
+        data = [{columns[i]: value for i, value in enumerate(row)} for row in rows]
+
+    return data
+
+
+@app.route('/device-info')
+def dev_info():
+    with psql.cursor() as cur:
+        cur.execute(f"SELECT * FROM devices_info")
+
+        columns = [desc[0] for desc in cur.description]
+        rows = cur.fetchall()
+        # Convert each row to a dictionary with column names as keys
+        data = [{columns[i]: value for i, value in enumerate(row)} for row in rows]
+
+    return data
