@@ -83,10 +83,17 @@ function load_tables()
 	    if (rn in sta_db[tn]) {
 		let ste = sta_db[tn][rn];
 
-		if (ste.passing)
+		pct = 100 * ste.pass_cnt / (ste.fail_cnt + ste.pass_cnt);
+		pct = Math.round(pct);
+		if (ste.passing) {
 		    cell.setAttribute("class", "box-pass");
-		else
+		    if (pct != 100)
+			cell.innerText = pct + "%";
+		} else {
 		    cell.setAttribute("class", "box-skip");
+		    if (pct != 0)
+			cell.innerText = pct + "%";
+		}
 	    }
 	}
     }
