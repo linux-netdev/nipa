@@ -235,14 +235,18 @@ class FetcherState:
             info = rows[0][0]
         else:
             info = 'x'
-        if info == data['device']:
+
+        new_info = data["device"]
+        if isinstance(new_info, dict):
+            new_info = json.dumps(new_info)
+        if info == new_info:
             return
 
         with self.psql_conn.cursor() as cur:
             cur.execute(f"INSERT INTO devices_info (remote, executor, changed, info) " +
                         cur.mogrify("VALUES(%s, %s, %s, %s)",
                                     (data["remote"], data["executor"],
-                                     data["start"], data["device"])).decode('utf-8'))
+                                     data["start"], new_info)).decode('utf-8'))
 
     def insert_real(self, remote, run):
         data = run.copy()
