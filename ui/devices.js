@@ -8,6 +8,10 @@ function load_tables()
     let rn_seen = new Set();
     let tn_db = [];
     let sta_db = {};
+    // Test age
+    let tn_time = {};
+    let year_ago = new Date();
+    year_ago.setFullYear(year_ago.getFullYear() - 1);
 
     for (ste of stability) {
 	let tn = ste.grp + ':' + ste.test + ':' + ste.subtest;
@@ -18,10 +22,14 @@ function load_tables()
 	if (!(tn in sta_db)) {
 	    sta_db[tn] = {};
 	    tn_db.push(tn);
+	    tn_time[tn] = year_ago;
 	}
 
 	sta_db[tn][rn] = ste;
 	rn_seen.add(rn);
+	let d = new Date(ste.last_update);
+	if (d > tn_time[tn])
+	    tn_time[tn] = d;
     }
 
     // Simple sort by name
@@ -55,21 +63,31 @@ function load_tables()
 
     // Create headers
     let sta_tb = document.getElementById("stability");
+    let sta_to = document.getElementById("stability-old");
 
-    const hdr = sta_tb.createTHead().insertRow();
-    hdr.insertCell().innerText = 'Group';
-    hdr.insertCell().innerText = 'Test';
-    hdr.insertCell().innerText = 'Subtest';
-    for (rn of Object.keys(display_names)) {
-	let cell = hdr.insertCell();
+    for (tbl of [sta_tb, sta_to]) {
+	const hdr = tbl.createTHead().insertRow();
+	hdr.insertCell().innerText = 'Group';
+	hdr.insertCell().innerText = 'Test';
+	hdr.insertCell().innerText = 'Subtest';
+	for (rn of Object.keys(display_names)) {
+	    let cell = hdr.insertCell();
 
-	cell.innerHTML = display_names[rn];
-	cell.setAttribute("style", "writing-mode: tb-rl;");
+	    cell.innerHTML = display_names[rn];
+	    cell.setAttribute("style", "writing-mode: tb-rl;");
+	}
     }
 
     // Display
+    let two_weeks_ago = new Date().setDate(new Date().getDate() - 14);
+
     for (tn of tn_db) {
-	let row = sta_tb.insertRow();
+	let row = null;
+
+	if (tn_time[tn] > two_weeks_ago)
+	    row = sta_tb.insertRow();
+	else
+	    row = sta_to.insertRow();
 
 	row.insertCell(0).innerText = tn.split(':')[0];
 	row.insertCell(1).innerText = tn.split(':')[1];
