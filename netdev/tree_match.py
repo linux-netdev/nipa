@@ -59,6 +59,7 @@ def _tree_name_should_be_local_files(raw_email):
         'lib/',
         'net/',
         'drivers/atm/',
+        'drivers/bluetooth/',
         'drivers/dpll/',
         'drivers/isdn/',
         'drivers/net/',
@@ -71,9 +72,7 @@ def _tree_name_should_be_local_files(raw_email):
         'tools/net/',
         'tools/testing/selftests/net/',
     }
-    excluded_files = {
-        'drivers/net/wireless/',
-    }
+    excluded_files = set()
     all_files = acceptable_files.union(required_files)
     required_found = False
     foreign_found = False
