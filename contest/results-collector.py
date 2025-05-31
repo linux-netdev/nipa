@@ -276,13 +276,19 @@ def write_json_atomic(path, data):
 
 def fetch_remote_run(fetcher, remote, run_info, remote_state):
     r = requests.get(run_info['url'])
-    data = json.loads(r.content.decode('utf-8'))
+    try:
+        data = json.loads(r.content.decode('utf-8'))
+    except json.decoder.JSONDecodeError:
+        print('WARN: Failed to decode results from remote:', remote['name'],
+              'invalid JSON at', run_info['url'])
+        return False
 
     fetcher.insert_real(remote, data)
 
     file = os.path.join(remote_state['dir'], os.path.basename(run_info['url']))
     with open(file, "w") as fp:
         json.dump(data, fp)
+    return True
 
 
 def fetch_remote(fetcher, remote, seen):
@@ -291,7 +297,7 @@ def fetch_remote(fetcher, remote, seen):
     try:
         manifest = json.loads(r.content.decode('utf-8'))
     except json.decoder.JSONDecodeError:
-        print('Failed to decode manifest from remote:', remote['name'])
+        print('WARN: Failed to decode manifest from remote:', remote['name'])
         return
     remote_state = seen[remote['name']]
 
@@ -305,8 +311,8 @@ def fetch_remote(fetcher, remote, seen):
             continue
 
         print('Fetching run', run['branch'])
-        fetch_remote_run(fetcher, remote, run, remote_state)
-        fetcher.fetched = True
+        if fetch_remote_run(fetcher, remote, run, remote_state):
+            fetcher.fetched = True
 
     with open(os.path.join(remote_state['dir'], 'results.json'), "w") as fp:
         json.dump(manifest, fp)
