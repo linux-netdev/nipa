@@ -295,8 +295,9 @@ def parse_configs():
 def main() -> None:
     config = parse_configs()
 
+    log_dir = config.get('log', 'dir', fallback=NIPA_DIR)
     log_init(config.get('log', 'type', fallback='org'),
-             config.get('log', 'file', fallback=os.path.join(NIPA_DIR, "contest.org")),
+             config.get('log', 'file', fallback=os.path.join(log_dir, "contest.org")),
              force_single_thread=True)
 
     pw = Patchwork(config)

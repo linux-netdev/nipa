@@ -697,8 +697,9 @@ def main():
     config = configparser.ConfigParser()
     config.read(['nipa.config', 'pw.config', 'mailbot.config'])
 
+    log_dir = config.get('log', 'dir', fallback=NIPA_DIR)
     log_init(config.get('log', 'type', fallback='org'),
-             config.get('log', 'file', fallback=os.path.join(NIPA_DIR, "mailbot.org")),
+             config.get('log', 'file', fallback=os.path.join(log_dir, "mailbot.org")),
              force_single_thread=True)
 
     pw = Patchwork(config)

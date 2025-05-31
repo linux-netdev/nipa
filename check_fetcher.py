@@ -34,8 +34,9 @@ def main():
     config = configparser.ConfigParser()
     config.read(['nipa.config', 'pw.config', 'checks.config'])
 
+    log_dir = config.get('log', 'dir', fallback=NIPA_DIR)
     log_init(config.get('log', 'type', fallback='org'),
-             config.get('log', 'file', fallback=os.path.join(NIPA_DIR, "checks.org")),
+             config.get('log', 'file', fallback=os.path.join(log_dir, "checks.org")),
              force_single_thread=True)
 
     rdir = config.get('dirs', 'results', fallback=os.path.join(NIPA_DIR, "results"))

@@ -242,8 +242,9 @@ if __name__ == "__main__":
     config = configparser.ConfigParser()
     config.read(['nipa.config', 'pw.config', 'poller.config'])
 
+    log_dir = config.get('log', 'dir', fallback=NIPA_DIR)
     log_init(config.get('log', 'type', fallback='org'),
-             config.get('log', 'file', fallback=os.path.join(NIPA_DIR, "poller.org")))
+             config.get('log', 'file', fallback=os.path.join(log_dir, "poller.org")))
 
     life = NipaLifetime(config)
     poller = PwPoller(config)

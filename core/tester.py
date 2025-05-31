@@ -68,9 +68,10 @@ class Tester(threading.Thread):
         self.config = configparser.ConfigParser()
         self.config.read(['nipa.config', 'pw.config', 'tester.config'])
 
+        log_dir = self.config.get('log', 'dir', fallback=core.NIPA_DIR)
         core.log_init(
             self.config.get('log', 'type', fallback='org'),
-            self.config.get('log', 'file', fallback=os.path.join(core.NIPA_DIR, f"{self.tree.name}.org")))
+            self.config.get('log', 'file', fallback=os.path.join(log_dir, f"{self.tree.name}.org")))
 
         core.log_open_sec("Tester init")
         if not os.path.exists(self.result_dir):
