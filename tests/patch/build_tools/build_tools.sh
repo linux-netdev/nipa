@@ -4,8 +4,6 @@
 output_dir=build_tools/
 ncpu=$(grep -c processor /proc/cpuinfo)
 build_flags="-Oline -j $ncpu"
-tmpfile_o=$(mktemp)
-tmpfile_n=$(mktemp)
 rc=0
 
 pr() {
@@ -17,6 +15,9 @@ if ! git diff --name-only HEAD~ | grep -q -E "^(include)|(tools)/"; then
     echo "No tools touched, skip" >&$DESC_FD
     exit 0
 fi
+
+tmpfile_o=$(mktemp)
+tmpfile_n=$(mktemp)
 
 # Looks like tools inherit WERROR, otherwise
 make O=$output_dir allmodconfig

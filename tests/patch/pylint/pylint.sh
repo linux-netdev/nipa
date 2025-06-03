@@ -2,8 +2,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
 HEAD=$(git rev-parse HEAD)
-tmpfile_o=$(mktemp)
-tmpfile_n=$(mktemp)
 rc=0
 
 pr() {
@@ -16,6 +14,9 @@ then
     echo "No python scripts touched, skip" >&$DESC_FD
     exit 0
 fi
+
+tmpfile_o=$(mktemp)
+tmpfile_n=$(mktemp)
 
 echo "Redirect to $tmpfile_o and $tmpfile_n"
 

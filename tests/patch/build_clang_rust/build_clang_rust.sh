@@ -7,8 +7,6 @@ cc=clang
 output_dir=build_clang_rust/
 ncpu=$(grep -c processor /proc/cpuinfo)
 build_flags="-Oline -j $ncpu W=1"
-tmpfile_o=$(mktemp)
-tmpfile_n=$(mktemp)
 rc=0
 
 prep_config() {
@@ -93,6 +91,9 @@ echo "Baseline building the tree"
 
 prep_config
 make LLVM=1 O=$output_dir $build_flags
+
+tmpfile_o=$(mktemp)
+tmpfile_n=$(mktemp)
 
 git checkout -q HEAD~
 
