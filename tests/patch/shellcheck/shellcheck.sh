@@ -8,8 +8,8 @@ pr() {
     echo " ====== $@ ======" | tee -a /dev/stderr
 }
 
-# If it doesn't touch .sh files, don't bother. Ignore created and deleted.
-if ! git show --diff-filter=AM --pretty="" --name-only HEAD | grep -q -E "\.sh$"
+# If it doesn't touch .sh files, don't bother. Ignore deleted.
+if ! git show --diff-filter=AM --pretty="" --name-only "${HEAD}" | grep -q -E "\.sh$"
 then
     echo "No shell scripts touched, skip" >&$DESC_FD
     exit 0
@@ -28,7 +28,8 @@ git log -1 --pretty='%h ("%s")' HEAD
 pr "Checking before the patch"
 git checkout -q HEAD~
 
-for f in $(git show --diff-filter=M --pretty="" --name-only HEAD | grep -E "\.sh$"); do
+# Also ignore created, as not present in the parent commit
+for f in $(git show --diff-filter=M --pretty="" --name-only "${HEAD}" | grep -E "\.sh$"); do
     (
 	echo "Checking $f"
 	echo
@@ -45,7 +46,7 @@ incumbent_w=$(grep -i -c "SC[0-9]* (" $tmpfile_o)
 pr "Building the tree with the patch"
 git checkout -q $HEAD
 
-for f in $(git show --diff-filter=AM --pretty="" --name-only HEAD | grep -E "\.sh$"); do
+for f in $(git show --diff-filter=AM --pretty="" --name-only "${HEAD}" | grep -E "\.sh$"); do
     (
 	echo "Checking $f"
 	echo
