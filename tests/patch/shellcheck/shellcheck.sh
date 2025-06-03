@@ -11,7 +11,7 @@ pr() {
 }
 
 # If it doesn't touch .sh files, don't bother. Ignore created and deleted.
-if ! git show --diff-filter=M --pretty="" --name-only HEAD | grep -q -E "\.sh$"
+if ! git show --diff-filter=AM --pretty="" --name-only HEAD | grep -q -E "\.sh$"
 then
     echo "No shell scripts touched, skip" >&$DESC_FD
     exit 0
