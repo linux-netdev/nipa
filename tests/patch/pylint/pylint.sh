@@ -8,8 +8,8 @@ pr() {
     echo " ====== $@ ======" | tee -a /dev/stderr
 }
 
-# If it doesn't touch .py files, don't bother. Ignore created and deleted.
-if ! git show --diff-filter=AM --pretty="" --name-only HEAD | grep -q -E "\.py$"
+# If it doesn't touch .py files, don't bother. Ignore deleted.
+if ! git show --diff-filter=AM --pretty="" --name-only "${HEAD}" | grep -q -E "\.py$"
 then
     echo "No python scripts touched, skip" >&$DESC_FD
     exit 0
@@ -28,7 +28,8 @@ git log -1 --pretty='%h ("%s")' HEAD
 pr "Checking before the patch"
 git checkout -q HEAD~
 
-for f in $(git show --diff-filter=M --pretty="" --name-only HEAD | grep -E "\.py$"); do
+# Also ignore created, as not present in the parent commit
+for f in $(git show --diff-filter=M --pretty="" --name-only "${HEAD}" | grep -E "\.py$"); do
     pylint $f | tee -a $tmpfile_o
 done
 
@@ -38,7 +39,7 @@ incumbent_w=$(grep -i -c ": [WC][0-9][0-9][0-9][0-9]: " $tmpfile_o)
 pr "Checking the tree with the patch"
 git checkout -q $HEAD
 
-for f in $(git show --diff-filter=AM --pretty="" --name-only HEAD | grep -E "\.py$"); do
+for f in $(git show --diff-filter=AM --pretty="" --name-only "${HEAD}" | grep -E "\.py$"); do
     pylint $f | tee -a $tmpfile_n
 done
 
