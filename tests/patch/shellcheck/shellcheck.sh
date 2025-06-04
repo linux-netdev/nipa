@@ -40,8 +40,10 @@ for f in $(git show --diff-filter=M --pretty="" --name-only "${HEAD}" | grep -E 
     )
 done
 
-incumbent=$(grep -i -c "(error)" $tmpfile_o)
-incumbent_w=$(grep -i -c "SC[0-9]* (" $tmpfile_o)
+# ex: SC3045 (warning): In POSIX sh, printf -v is undefined.
+# severity: error, warning, info, style
+incumbent=$(grep -c " (error):" $tmpfile_o)
+incumbent_w=$(grep -c " (warning):" $tmpfile_o)
 
 pr "Building the tree with the patch"
 git checkout -q $HEAD
@@ -57,8 +59,9 @@ for f in $(git show --diff-filter=AM --pretty="" --name-only "${HEAD}" | grep -E
     )
 done
 
-current=$(grep -i -c "(error)" $tmpfile_n)
-current_w=$(grep -i -c "SC[0-9]* (" $tmpfile_n)
+# severity: error, warning, info, style
+current=$(grep -c " (error):" $tmpfile_n)
+current_w=$(grep -c " (warning):" $tmpfile_n)
 
 echo "Errors before: $incumbent (+warn: $incumbent_w) this patch: $current (+warn: $current_w)" >&$DESC_FD
 
