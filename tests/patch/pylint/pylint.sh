@@ -15,6 +15,8 @@ then
     exit 0
 fi
 
+pylint --version || exit 1
+
 tmpfile_o=$(mktemp)
 tmpfile_n=$(mktemp)
 

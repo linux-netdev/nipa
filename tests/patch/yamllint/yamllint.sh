@@ -15,6 +15,8 @@ then
     exit 0
 fi
 
+yamllint --version || exit 1
+
 tmpfile_o=$(mktemp)
 tmpfile_n=$(mktemp)
 
