@@ -73,9 +73,9 @@ current_w=$(grep -c " (warning):" "$tmpfile_n")
 
 # if a file was compliant before or is new, mark everything as error to keep it good.
 for f in "${tmpfile_n}_"*; do
-    [ ! -s "${f}" ] && continue # still compliant
-
     sha="${f:${#tmpfile_n}+1}"
+    [ ! -s "${f}" ] && echo "${sha} is shellcheck compliant" && continue
+
     old="${tmpfile_o}_${sha}"
     [ -s "${old}" ] && continue # wasn't compliant
 
