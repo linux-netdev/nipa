@@ -32,11 +32,11 @@ git checkout -q HEAD~
 
 # Also ignore created, as not present in the parent commit
 for f in $(git show --diff-filter=M --pretty="" --name-only "${HEAD}" | grep -E "\.sh$"); do
-    (
-	sha=$(echo "$f" | sha256sum | awk '{print $1}')
-	echo "Checking $f - $sha"
-	echo
+    sha=$(echo "$f" | sha256sum | awk '{print $1}')
+    echo "Checking $f - $sha"
+    echo
 
+    (
 	cd "$(dirname "$f")" || exit 1
 	sha="${tmpfile_o}_${sha}"
 	rm -f "${sha}"
@@ -53,12 +53,14 @@ incumbent_w=$(grep -c " (warning):" "$tmpfile_o")
 pr "Checking the tree with the patch"
 git checkout -q "$HEAD"
 
+declare -A files
 for f in $(git show --diff-filter=AM --pretty="" --name-only "${HEAD}" | grep -E "\.sh$"); do
-    (
-	sha=$(echo "$f" | sha256sum | awk '{print $1}')
-	echo "Checking $f - $sha"
-	echo
+    sha=$(echo "$f" | sha256sum | awk '{print $1}')
+    files[${sha}]="${f}"
+    echo "Checking $f - $sha"
+    echo
 
+    (
 	cd "$(dirname "$f")" || exit 1
 	sha="${tmpfile_n}_${sha}"
 	rm -f "${sha}"
@@ -74,16 +76,16 @@ current_w=$(grep -c " (warning):" "$tmpfile_n")
 # if a file was compliant before or is new, mark everything as error to keep it good.
 for f in "${tmpfile_n}_"*; do
     sha="${f:${#tmpfile_n}+1}"
-    [ ! -s "${f}" ] && echo "${sha} is shellcheck compliant" && continue
+    fpath="${files[${sha}]}"
+    [ ! -s "${f}" ] && echo "${fpath} is shellcheck compliant" && continue
 
     old="${tmpfile_o}_${sha}"
     [ -s "${old}" ] && continue # wasn't compliant
 
-    fname=$(head -n2 "${f}" | tail -n1 | sed "s/^In \(\S\+\.sh\) line [0-9]\+:/\1/g")
     if [ -f "${old}" ]; then
-        echo "${fname} was shellcheck compliant, not anymore" 1>&2
+        echo "${fpath} was shellcheck compliant, not anymore" 1>&2
     else
-        echo "${fname} is a new file, but not shellcheck compliant" 1>&2
+        echo "${fpath} is a new file, but not shellcheck compliant" 1>&2
     fi
 
     extra=$(grep -c -E " \((warning|info|style)\):" "${f}")
