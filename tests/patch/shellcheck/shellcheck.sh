@@ -94,17 +94,16 @@ done
 
 echo "Errors before: $incumbent (+warn: $incumbent_w) this patch: $current (+warn: $current_w)" >&"$DESC_FD"
 
-if [ "$current_w" -gt "$incumbent_w" ]; then
-    echo "New warnings added" 1>&2
-
-    rc=250
-fi
-
 if [ "$current" -gt "$incumbent" ]; then
     echo "New errors added" 1>&2
     diff -U 0 "$tmpfile_o" "$tmpfile_n" 1>&2
 
     rc=1
+elif [ "$current_w" -gt "$incumbent_w" ]; then
+    echo "New warnings added" 1>&2
+    diff -U 0 "$tmpfile_o" "$tmpfile_n" 1>&2
+
+    rc=250
 fi
 
 rm "$tmpfile_o"* "$tmpfile_n"*
