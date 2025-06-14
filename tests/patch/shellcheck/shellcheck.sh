@@ -4,6 +4,9 @@
 HEAD=$(git rev-parse HEAD)
 rc=0
 
+# SC2317 = unreachable code, gets confused by test case definitions
+SC_FLAGS="-x -e SC2317"
+
 pr() {
     echo " ====== $* ======" | tee -a /dev/stderr
 }
@@ -40,7 +43,7 @@ for f in $(git show --diff-filter=M --pretty="" --name-only "${HEAD}" | grep -E 
 	cd "$(dirname "$f")" || exit 1
 	sha="${tmpfile_o}_${sha}"
 	rm -f "${sha}"
-	shellcheck -x "$(basename "$f")" | tee -a "${tmpfile_o}" "${sha}"
+	shellcheck $SC_FLAGS "$(basename "$f")" | tee -a "${tmpfile_o}" "${sha}"
 	echo
     )
 done
@@ -64,7 +67,7 @@ for f in $(git show --diff-filter=AM --pretty="" --name-only "${HEAD}" | grep -E
 	cd "$(dirname "$f")" || exit 1
 	sha="${tmpfile_n}_${sha}"
 	rm -f "${sha}"
-	shellcheck -x "$(basename "$f")" | tee -a "${tmpfile_n}" "${sha}"
+	shellcheck $SC_FLAGS "$(basename "$f")" | tee -a "${tmpfile_n}" "${sha}"
 	echo
     )
 done
