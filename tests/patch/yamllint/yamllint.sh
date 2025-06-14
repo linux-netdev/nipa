@@ -32,7 +32,11 @@ git checkout -q HEAD~
 
 # Also ignore created, as not present in the parent commit
 for f in $(git show --diff-filter=M --pretty="" --name-only "${HEAD}" | grep -E "\.yaml$"); do
-    yamllint "$f" | tee -a "$tmpfile_o"
+    (
+	cd "$(dirname "$f")" || exit 1
+
+	yamllint "$(basename "$f")" | tee -a "$tmpfile_o"
+    )
 done
 
 incumbent=$(grep -i -c " error " "$tmpfile_o")
@@ -42,7 +46,11 @@ pr "Checking the tree with the patch"
 git checkout -q "$HEAD"
 
 for f in $(git show --diff-filter=AM --pretty="" --name-only "${HEAD}" | grep -E "\.yaml$"); do
-    yamllint "$f" | tee -a "$tmpfile_n"
+    (
+	cd "$(dirname "$f")" || exit 1
+
+	yamllint "$(basename "$f")" | tee -a "$tmpfile_n"
+    )
 done
 
 current=$(grep -i -c " error " "$tmpfile_n")
