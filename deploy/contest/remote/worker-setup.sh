@@ -13,7 +13,7 @@ git config --global --add safe.directory /opt/nipa
 
 sudo dnf install pip meson
 
-sudo dnf install perf
+sudo dnf install perf bpftrace
 sudo dnf install nftables.x86_64
 sudo dnf install pixman-devel.x86_64 pixman.x86_64 libgudev.x86_64
 sudo dnf install libpcap-devel libpcap cmake
