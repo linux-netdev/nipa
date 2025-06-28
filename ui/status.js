@@ -717,7 +717,7 @@ function load_result_table_one(data_raw, table, reported, avgs)
 		br_pull = " (pull: " + v.pull_status + ")";
 	    branch.innerHTML = a + v.branch + "</a>" + br_pull;
 	    branch.setAttribute("colspan", "2");
-	    res.innerHTML = "<a href=\"static/nipa/branch_deltas/" + v.branch + "\">cidiff</a>";
+	    res.innerHTML = "<a href=\"static/nipa/branch_deltas/" + v.branch + ".html\">cidiff</a>";
 	    res.setAttribute("style", "text-align: right;");
 	}
     });

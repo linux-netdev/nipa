@@ -205,6 +205,13 @@ def generate_deltas(config, tree, name):
     with open(outfile, 'w') as fp:
         subprocess.run([cidiff, name], cwd=tree.path, stdout=fp, check=True)
 
+    outfile += ".html"
+    cidiff = os.path.join(os.path.dirname(__file__), "contest", "cidiff.py")
+    # pub_url is for git, so it most likely ends with ".git"
+    pub_url = config.get('target', 'public_url')[:-4]
+    subprocess.run([cidiff, name, '-H', '-o', outfile, '-g', pub_url],
+                   cwd=tree.path, check=True)
+
 
 def get_change_from_last(tree, branch_list) -> bool:
     branch_list = list(sorted(branch_list))
