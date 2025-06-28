@@ -158,20 +158,44 @@ def apply_pending_patches(pw, config, tree) -> Tuple[List, List]:
     return list(applied_series), list(applied_prs)
 
 
-def apply_local_patches(config, tree) -> List:
-    extras = []
-    for entry in config.get("local", "patches", fallback="").split(','):
-        with open(entry, "r") as fp:
+def _apply_local_patch(path, tree, dir_path=None) -> bool:
+    """Apply a single patch file to the tree."""
+    log_msg = "Applying: " + path
+    if dir_path:
+        log_msg += f" (dir: {dir_path})"
+    log_open_sec(log_msg)
+    try:
+        with open(path, "r") as fp:
             data = fp.read()
-
-        log_open_sec("Applying: " + entry)
         p = Patch(data)
         try:
             tree.apply(p)
-            extras.append(entry)
+            success = True
         except PatchApplyError:
-            pass
-        log_end_sec()
+            success = False
+    except Exception as e:
+        log(f"Error reading or applying patch {path}: {str(e)}")
+        success = False
+    log_end_sec()
+    return success
+
+def apply_local_patches(config, tree) -> List:
+    extras = []
+    for entry in config.get("local", "patches", fallback="").split(','):
+        if not entry:
+            continue
+
+        if os.path.isdir(entry):
+            # If entry is a directory, apply all .patch files in it
+            for filename in os.listdir(entry):
+                if filename.endswith(".patch"):
+                    patch_path = os.path.join(entry, filename)
+                    if _apply_local_patch(patch_path, tree, entry):
+                        extras.append(patch_path)
+        else:
+            # Regular file handling
+            if _apply_local_patch(entry, tree):
+                extras.append(entry)
 
     return extras
 
