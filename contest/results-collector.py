@@ -361,6 +361,13 @@ def apply_stability(fetcher, data, unstable):
             all_pass = functools.reduce(lambda x, y: x and y["result"].lower() == "pass", test["results"], all_pass)
             if all_pass:
                 test["result"] = "pass"
+        # Same logic for retries
+        all_pass = True
+        all_pass &= not test.get("crashes")
+        if test.get("retry", "pass").lower() != "pass":
+            all_pass = functools.reduce(lambda x, y: x and y.get("retry", "fail").lower() == "pass", test["results"], all_pass)
+            if all_pass:
+                test["retry"] = "pass"
         return test
 
     data["results"] = list(filter(filter_l1, data["results"]))
