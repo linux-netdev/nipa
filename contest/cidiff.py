@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 import sys
 import re
+import urllib.parse
 from datetime import datetime, timedelta
 
 html_template = """<!DOCTYPE html>
@@ -243,6 +244,16 @@ html_template = """<!DOCTYPE html>
             </div>
             <div class="section-content" id="commit-diff-content">{commit_diff}</div>
         </div>
+
+        <div class="section">
+            <div class="section-header">
+                <span>Test results</span>
+            </div>
+            <div>
+                <iframe src="https://netdev.bots.linux.dev/contest.html?branch={branch2_encoded}&pw-n=0&embed=1"
+                        width="100%" height="600px" frameborder="0"></iframe>
+            </div>
+        </div>
     </div>
 </body>
 </html>
@@ -291,6 +302,9 @@ def generate_html(args, branch1, branch2, base_diff_output, commit_diff_output,
     branch1 = branch_name_clear(branch1)
     branch2 = branch_name_clear(branch2)
     next_branch = generate_next_branch_name(branch1, branch2)
+
+    # URL encode branch2 for the contest results iframe
+    branch2_encoded = urllib.parse.quote(branch2)
 
     prev_file = f"{branch1}.html"
     next_file = f"{next_branch}.html" if next_branch else None
@@ -354,7 +368,8 @@ def generate_html(args, branch1, branch2, base_diff_output, commit_diff_output,
         base_diff=base_diff_output,
         commit_diff=processed_commit_diff,
         prev_button=prev_button,
-        next_button=next_button
+        next_button=next_button,
+        branch2_encoded=branch2_encoded
     )
 
     return html

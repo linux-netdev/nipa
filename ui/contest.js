@@ -262,9 +262,33 @@ function reload_data(event)
     });
 }
 
+function embedded_mode() {
+    $('#loading-fieldset').hide();
+    $('#sitemap').hide();
+
+    $('#open-full-page').show();
+
+    // Set up click handler for the "Open in full page" link
+    $('#open-full-page-link').on('click', function(e) {
+        e.preventDefault();
+
+        // Create a new URL without the embed parameter
+        const currentUrl = new URL(window.location.href);
+        currentUrl.searchParams.delete('embed');
+
+        // Open in a new tab
+        window.open(currentUrl.toString(), '_blank');
+    });
+}
+
 function do_it()
 {
     const urlParams = new URLSearchParams(window.location.search);
+
+    // embed=1 means we in an iframe in another page, hide navigation
+    if (urlParams.get("embed") === "1") {
+        embedded_mode();
+    }
 
     nipa_input_set_from_url("ld-pw");
     /* The filter is called "branch" the load selector is called "ld_branch"

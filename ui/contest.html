@@ -22,7 +22,7 @@
 <body onload="do_it();">
 <div id="sitemap"></div>
 <div class="row-small">
-    <fieldset>
+    <fieldset id="loading-fieldset">
         <legend>Loading:</legend>
         <label for="ld_branch">Single branch:</label>
         <br />
@@ -97,8 +97,11 @@
       </div>
     </fieldset>
     <div class="box">
+        <p id="open-full-page" style="display: none;">
+            <a href="#" id="open-full-page-link" class="nipa-button">Open full page</a>
+        </p>
         <p>
-            <a href="https://github.com/linux-netdev/nipa/wiki/How-to-run-netdev-selftests-CI-style">How to reproduce</a>
+            <a href="https://github.com/linux-netdev/nipa/wiki/How-to-run-netdev-selftests-CI-style" class="nipa-button">How to reproduce</a>
         </p>
     </div>
 </div>
