@@ -705,20 +705,18 @@ function load_result_table_one(data_raw, table, reported, avgs)
 		time.setAttribute("colspan", "3");
 	    }
 	} else {
-	    let res = row.insertCell(2);
 	    let br_pull = "";
 
 	    if (v.start)
 		remote.innerHTML = v.start.toLocaleString();
 	    else
 		remote.innerHTML = "unknown";
-	    remote.setAttribute("colspan", "2");
+	    remote.setAttribute("colspan", "3");
 	    if (v.pull_status != "okay")
 		br_pull = " (pull: " + v.pull_status + ")";
+	    a =	"<a href=\"static/nipa/branch_deltas/" + v.branch + ".html\">";
 	    branch.innerHTML = a + v.branch + "</a>" + br_pull;
 	    branch.setAttribute("colspan", "2");
-	    res.innerHTML = "<a href=\"static/nipa/branch_deltas/" + v.branch + ".html\">cidiff</a>";
-	    res.setAttribute("style", "text-align: right;");
 	}
     });
 
