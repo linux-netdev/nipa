@@ -64,6 +64,8 @@ function load_result_table(data_raw)
 	form = "&ld-cases=1";
 
     let rows = [];
+    let total_results = 0;
+    let filtered_results = 0;
 
     $.each(data_raw, function(i, v) {
 	if (rows.length >= 5000) {
@@ -71,19 +73,17 @@ function load_result_table(data_raw)
 	    return 0;
 	}
 
-	if (branch_filter &&
-	    branch_filter != v.branch)
-	    return 1;
-	if (exec_filter &&
-	    exec_filter != v.executor)
-	    return 1;
-	if (remote_filter &&
-	    remote_filter != v.remote)
-	    return 1;
+	let branch_matches = !branch_filter || branch_filter == v.branch;
+	let exec_matches = !exec_filter || exec_filter == v.executor;
+	let remote_matches = !remote_filter || remote_filter == v.remote;
 
 	$.each(v.results, function(j, r) {
-	    if (test_filter &&
-		r.test != test_filter)
+	    total_results++;
+
+	    if (!branch_matches || !exec_matches || !remote_matches)
+		return 1;
+
+	    if (test_filter && r.test != test_filter)
 		return 1;
 	    if (result_filter[r.result] == false)
 		return 1;
@@ -92,9 +92,23 @@ function load_result_table(data_raw)
 	    if (pw_n == false && nipa_pw_reported(v, r) == false)
 		return 1;
 
+	    filtered_results++;
 	    rows.push({"v": v, "r": r});
 	});
     });
+
+    // Display filtering information
+    let filter_info_elem = document.getElementById("filter-info");
+    if (total_results > 0) {
+	let filtered_out = total_results - filtered_results;
+	if (filtered_out > 0) {
+	    filter_info_elem.innerHTML = `${total_results} results<br />(${filtered_out} filtered out)`;
+	} else {
+	    filter_info_elem.innerHTML = `${total_results} results`;
+	}
+    } else {
+	filter_info_elem.innerHTML = "";
+    }
 
     // Trim the time, so that sort behavior matches what user sees
     for (const result of rows) {
