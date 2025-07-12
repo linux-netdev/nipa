@@ -5,13 +5,18 @@
 
 rt=0
 
-files=$(git show --pretty="" --name-only -- tools/testing/selftests*.sh)
+files=$(git show --pretty="" --name-only -- \
+	    tools/testing/selftests*.sh \
+	    tools/testing/selftests*.py \
+	    | grep -v "/lib/"
+     )
 if [ -z "$files" ]; then
 	echo "No net selftest shell script" >&$DESC_FD
 	exit $rt
 fi
 
 for file in $files; do
+	echo "Checking $file"
 	f=$(basename $file)
 	d=$(dirname $file)
 	if [ -f "${d}/Makefile" ] && ! grep -P "[\t| ]${f}" ${d}/Makefile; then
