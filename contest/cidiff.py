@@ -273,7 +273,7 @@ html_template = """<!DOCTYPE html>
                 <span>Test results</span>
             </div>
             <div>
-                <iframe src="https://netdev.bots.linux.dev/contest.html?branch={branch2_encoded}&pw-n=0&embed=1"
+                <iframe src="https://netdev.bots.linux.dev/contest.html?branch={branch2_encoded}&pass=0&pw-n=0&embed=1"
                         width="100%" height="600px" frameborder="0"></iframe>
             </div>
         </div>
