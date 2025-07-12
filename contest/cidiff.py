@@ -213,6 +213,22 @@ html_template = """<!DOCTYPE html>
 
             // Add click event listener to toggle button
             toggleButton.addEventListener('click', toggleUnchangedLines);
+
+            // Check if Next button link is dead and hide it if so
+            const nextUrl = '{next_url}';
+            const nextButton = document.getElementById('next-button');
+            if (nextUrl && nextButton) {{
+                fetch(nextUrl, {{ method: 'HEAD' }})
+                    .then(response => {{
+                        if (!response.ok) {{
+                            nextButton.style.display = 'none';
+                        }}
+                    }})
+                    .catch(() => {{
+                        // If fetch fails (e.g., network error, 404), hide the button
+                        nextButton.style.display = 'none';
+                    }});
+            }}
         }});
     </script>
 
@@ -230,8 +246,8 @@ html_template = """<!DOCTYPE html>
             <div class="section-header">
                 <span>Branches</span>
                 <div class="controls">
-                    {prev_button}
-                    {next_button}
+                    <button class="toggle-button" onclick="window.location.href='{prev_url}'">Previous</button>
+                    <button class="toggle-button" onclick="window.location.href='{next_url}'" id="next-button">Next</button>
                 </div>
             </div>
             <div class="section-content">   {branch2_html} (current)\n   {branch1_html} (comparison){compare_link}</div>
@@ -244,9 +260,9 @@ html_template = """<!DOCTYPE html>
 
         <div class="section">
             <div class="section-header">
-                <span>Tested patches</span>
+                <span>New patches</span>
                 <div class="controls">
-                    <button id="toggle-unchanged" class="toggle-button">Show commits present in both</button>
+                    <button id="toggle-unchanged" class="toggle-button">Show all patches</button>
                 </div>
             </div>
             <div class="section-content" id="commit-diff-content">{commit_diff}</div>
@@ -313,9 +329,6 @@ def generate_html(args, branch1, branch2, base_diff_output, commit_diff_output,
     # URL encode branch2 for the contest results iframe
     branch2_encoded = urllib.parse.quote(branch2)
 
-    prev_file = f"{branch1}.html"
-    next_file = f"{next_branch}.html" if next_branch else None
-
     # Process diff output to add HTML styling
     def process_diff(diff_text):
         if not diff_text:
@@ -360,10 +373,6 @@ def generate_html(args, branch1, branch2, base_diff_output, commit_diff_output,
         branch2_html = branch2
         compare_link = ""
 
-    # Create navigation buttons
-    prev_button = f'<button class="toggle-button" onclick="window.location.href=\'{prev_file}\'">Previous</button>'
-    next_button = f'<button class="toggle-button" onclick="window.location.href=\'{next_file}\'">Next</button>' if next_file else ''
-
     # Generate the HTML
     html = html_template.format(
         branch1=branch1,
@@ -374,8 +383,8 @@ def generate_html(args, branch1, branch2, base_diff_output, commit_diff_output,
         ancestor_info=processed_ancestor_info,
         base_diff=base_diff_output,
         commit_diff=processed_commit_diff,
-        prev_button=prev_button,
-        next_button=next_button,
+        prev_url=f"{branch1}.html",
+        next_url=f"{next_branch}.html" if next_branch else '',
         branch2_encoded=branch2_encoded
     )
 
