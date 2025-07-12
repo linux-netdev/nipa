@@ -81,8 +81,12 @@ class Tree:
     def git_am(self, patch):
         return self.git(["am", "-s", "--", patch])
 
-    def git_pull(self, pull_url):
+    def git_pull(self, pull_url, ff=None):
         cmd = ["pull", "--no-edit", "--signoff"]
+        if ff == True:
+            cmd.append('--ff-only')
+        elif ff == False:
+            cmd.append('--no-ff')
         cmd += pull_url.split()
         return self.git(cmd)
 
@@ -234,9 +238,9 @@ class Tree:
 
         return ret
 
-    def _pull_safe(self, pull_url, trust_rerere):
+    def _pull_safe(self, pull_url, trust_rerere, ff):
         try:
-            self.git_pull(pull_url)
+            self.git_pull(pull_url, ff=ff)
         except CMD.CmdError as e:
             try:
                 # If rerere fixed it, just commit
@@ -253,11 +257,11 @@ class Tree:
                 pass
             raise PullError(e) from e
 
-    def pull(self, pull_url, reset=True, trust_rerere=None):
+    def pull(self, pull_url, reset=True, trust_rerere=None, ff=None):
         core.log_open_sec("Pulling " + pull_url)
         try:
             if reset:
                 self.reset()
-            self._pull_safe(pull_url, trust_rerere)
+            self._pull_safe(pull_url, trust_rerere, ff)
         finally:
             core.log_end_sec()

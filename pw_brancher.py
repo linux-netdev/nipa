@@ -266,7 +266,7 @@ def create_new(pw, config, state, tree, tgt_remote) -> None:
         log_open_sec("Pulling in other trees")
         for url in pull_list.split(','):
             try:
-                tree.pull(url, reset=False)
+                tree.pull(url, reset=False, ff=False)
                 state["info"][branch_name]["base-pulls"][url] = "okay"
             except PullError:
                 try:
