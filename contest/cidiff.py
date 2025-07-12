@@ -215,8 +215,15 @@ html_template = """<!DOCTYPE html>
             toggleButton.addEventListener('click', toggleUnchangedLines);
         }});
     </script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+    <script src="/nipa.js"></script>
+    <script>
+        nipa_load_sitemap();
+    </script>
 </head>
 <body>
+    <div id="sitemap"></div>
     <div class="container">
         <h1>NIPA Branch {branch2}</h1>
         <div class="section">

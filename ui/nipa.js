@@ -168,7 +168,7 @@ function nipa_pw_reported(v, r)
 function nipa_load_sitemap()
 {
     $(document).ready(function() {
-	$("#sitemap").load("sitemap.html")
+	$("#sitemap").load("/sitemap.html")
     });
 }
 
