@@ -415,7 +415,7 @@ def get_commit_list(start_commit, end_commit):
     cmd = f"git log --format='%h#%s' {start_commit}..{end_commit}"
     commits = run_command(cmd)
     # Skip the first line, it's the net/main merge commit
-    return [x.split("#") for x in reversed(commits.split('\n')[1:])]
+    return [x.split("#", 1) for x in reversed(commits.split('\n')[1:])]
 
 def get_base_diff(base1, base2):
     """Get the diff between two base commits."""
