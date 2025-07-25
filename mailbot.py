@@ -324,7 +324,10 @@ class MlEmail:
         self._authorized = False
 
     def user_bot(self):
-        return self.msg.get('From') in auto_changes_requested
+        sender = self.msg.get('From')
+        # strip down bla+01234@email.com to bla@email.com, for syzbot
+        sender = re.sub(r"\+[a-zA-Z0-9_-]*@", "@", sender)
+        return sender in auto_changes_requested
 
     def auto_awaiting_upstream(self):
         # Try to operate only on the first message in the thread
