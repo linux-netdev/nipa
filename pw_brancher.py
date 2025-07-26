@@ -234,7 +234,7 @@ def generate_deltas(config, tree, name):
     # pub_url is for git, so it most likely ends with ".git"
     pub_url = config.get('target', 'public_url')[:-4]
     subprocess.run([cidiff, name, '-H', '-o', outfile, '-g', pub_url],
-                   cwd=tree.path, check=True)
+                   cwd=tree.path, check=False)
 
 
 def get_change_from_last(tree, branch_list) -> bool:
