@@ -1005,6 +1005,37 @@ function branches_loaded(data_raw)
     loaded_one();
 }
 
+function flakes_doit(data_raw)
+{
+    let flakes = document.getElementById("flakes");
+
+    data_raw.sort(function(a, b){
+	if (a["count"][0] != b["count"][0])
+	    return b["count"][0] - a["count"][0];
+	if (a["count"][1] != b["count"][1])
+	    return b["count"][1] - a["count"][1];
+	return 0;
+    })
+
+    $.each(data_raw, function(i, v) {
+	let row = flakes.insertRow();
+	let reported = nipa_pw_reported(v, v);
+	let ignored = "";
+
+	if (v["count"][0] < 3 && reported)
+	    return 1;
+	if (!reported)
+	    ignored = "yes";
+
+	row.insertCell(0).innerText = v["remote"];
+	row.insertCell(1).innerText = v["executor"];
+	row.insertCell(2).innerText = v["test"];
+	row.insertCell(3).innerText = v["count"][0];
+	row.insertCell(4).innerText = v["count"][1];
+	row.insertCell(5).innerText = ignored;
+    });
+}
+
 function do_it()
 {
     /*
@@ -1027,5 +1058,8 @@ function do_it()
     });
     $(document).ready(function() {
         $.get("static/nipa/branches-info.json", branches_loaded)
+    });
+    $(document).ready(function() {
+        $.get("query/flaky-tests", flakes_doit)
     });
 }
