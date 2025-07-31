@@ -1014,6 +1014,8 @@ function flakes_doit(data_raw)
 	    return b["count"][0] - a["count"][0];
 	if (a["count"][1] != b["count"][1])
 	    return b["count"][1] - a["count"][1];
+	if (a["count"][2] != b["count"][2])
+	    return b["count"][2] - a["count"][2];
 	return 0;
     })
 
@@ -1022,7 +1024,7 @@ function flakes_doit(data_raw)
 	let reported = nipa_pw_reported(v, v);
 	let ignored = "";
 
-	if (v["count"][0] < 3 && reported)
+	if (v["count"][0] + v["count"][1] + v["count"][2] < 4 && reported)
 	    return 1;
 	if (!reported)
 	    ignored = "yes";
@@ -1032,7 +1034,9 @@ function flakes_doit(data_raw)
 	row.insertCell(2).innerText = v["test"];
 	row.insertCell(3).innerText = v["count"][0];
 	row.insertCell(4).innerText = v["count"][1];
-	row.insertCell(5).innerText = ignored;
+	row.insertCell(5).innerText = v["count"][2];
+	row.insertCell(6).innerText = v["count"][3];
+	row.insertCell(7).innerText = ignored;
     });
 }
 

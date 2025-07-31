@@ -245,10 +245,11 @@ def flaky_tests():
 
     print(f"Query for flaky tests took: {str(datetime.datetime.now() - t)}")
 
-    target_date = datetime.datetime.now() - datetime.timedelta(days=14)
-    two_weeks = target_date.strftime("%Y-%m-%d--%H-%M")
-    target_date = datetime.datetime.now() - datetime.timedelta(days=28)
-    four_weeks = target_date.strftime("%Y-%m-%d--%H-%M")
+    weeks_ago = []
+    for weeks in range(1, 5):
+        target_date = datetime.datetime.now() - datetime.timedelta(weeks=weeks)
+        weeks_ago.append(target_date.strftime("%Y-%m-%d--%H-%M"))
+
     cnt = 0
     res = {}
     for row in rows:
@@ -258,13 +259,14 @@ def flaky_tests():
             res[key] = res.get(key, 0) + 1
         else:
             if key not in res:
-                res[key] = [0, 0]
-            if br_date >= two_weeks:
-                res[key][0] += 1
-            elif br_date >= four_weeks:
-                res[key][1] += 1
+                res[key] = [0, 0, 0, 0]
+
+            for i in range(len(weeks_ago)):
+                if br_date >= weeks_ago[i]:
+                    res[key][i] += 1
+                    break
             else:
-                break
+                break  # stop looking at rows, the records are sorted by date
         cnt += 1
     # JSON needs a simple array, not a dict
     data = []
