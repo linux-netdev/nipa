@@ -55,6 +55,7 @@ def extract_crash(outputs, prompt, get_filters):
             in_crash &= line[-2:] != '] '
             in_crash &= not line.startswith(prompt)
             if not in_crash:
+                last5 = [""] * 5
                 finger_prints.add(crash_finger_print(get_filters(),
                                                      crash_lines[start:]))
         else:
@@ -108,11 +109,9 @@ class TestCrashes(unittest.TestCase):
         lines, fingers = extract_crash(TestCrashes.refleak, "xx__->", lambda : None)
         self.assertGreater(len(lines), 50)
         self.assertEqual(fingers,
-                         {'dev_hard_start_xmit:__dev_queue_xmit:ip6_finish_output2:ip6_finish_output:netdev_get_by_index',
-                          '___sys_sendmsg:__sys_sendmsg:do_syscall_64:dst_init:dst_alloc',
-                          'dst_init:dst_alloc:ip6_dst_alloc:ip6_rt_pcpu_alloc:ip6_pol_route',
-                          '___sys_sendmsg:__sys_sendmsg:do_syscall_64:ipv6_add_dev:addrconf_notify',
-                          'dev_hard_start_xmit:__dev_queue_xmit:arp_solicit:neigh_probe:dst_init'})
+                         {'netdev_get_by_index:fib6_nh_init:nh_create_ipv6:nexthop_create:rtm_new_nexthop',
+                          'ipv6_add_dev:addrconf_notify:notifier_call_chain:register_netdevice:veth_newlink',
+                          'dst_init:dst_alloc:ip6_dst_alloc:ip6_rt_pcpu_alloc:ip6_pol_route'})
 
     def test_hung_task(self):
         self.assertTrue(has_crash(TestCrashes.hung_task))
