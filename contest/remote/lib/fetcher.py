@@ -85,12 +85,15 @@ class Fetcher:
 
         return self._url_path + '/' + file_name
 
-    def _run_test(self, binfo):
+    def _run_test(self, binfo, ref):
         self._result_set(binfo['branch'], None)
 
         start = datetime.datetime.now(datetime.UTC)
         run_id_cookie = str(int(start.timestamp() / 60) % 1000000)
-        rinfo = {'run-cookie': run_id_cookie}
+        rinfo = {
+            'run-cookie': run_id_cookie,
+            'branch-ref': ref,
+        }
         results = self._cb(binfo, rinfo, self._cbarg)
         end = datetime.datetime.now(datetime.UTC)
 
@@ -109,19 +112,23 @@ class Fetcher:
 
         self._result_set(binfo['branch'], url)
 
-    def _clean_old_branches(self, remote, current):
-        ret = subprocess.run('git branch',
-                             cwd=self._tree_path, shell=True,
+    def _find_branch(self, name):
+        ret = subprocess.run(['git', 'describe', 'main'],
+                             check=False, capture_output=True)
+        if ret.returncode == 0:
+            # git found a direct hit for the name, use as is
+            return name
+
+        # Try to find the branch in one of the remotes (will return remote/name)
+        ret = subprocess.run(['git', 'branch', '-r', '-l', '*/' + name],
+                             cwd=self._tree_path,
                              capture_output=True, check=True)
 
-        existing = set([x.strip() for x in ret.stdout.decode('utf-8').split('\n')])
-
-        for b in remote:
-            if b["branch"] in existing and b["branch"] != current:
-                print("Clean up old branch", b["branch"])
-                subprocess.run('git branch -D ' + b["branch"],
-                               cwd=self._tree_path, shell=True,
-                               check=True)
+        branches = ret.stdout.decode('utf-8').strip()
+        branches = [x.strip() for x in branches.split('\n')]
+        if len(branches) != 1:
+            print("Unexpected number of branches found:", branches)
+        return branches[0]
 
     def _run_once(self):
         r = requests.get(self._branches_url)
@@ -160,7 +167,8 @@ class Fetcher:
             print("HEAD is still locked! Sleeping..")
             time.sleep(0.2)
 
-        subprocess.run('git checkout ' + to_test["branch"],
+        ref = self._find_branch(to_test["branch"])
+        subprocess.run('git checkout --detach ' + ref,
                        cwd=self._tree_path, shell=True, check=True)
 
         if self._patches_path is not None:
@@ -169,8 +177,7 @@ class Fetcher:
                 subprocess.run('git apply -v {}'.format(realpath),
                                cwd=self._tree_path, shell=True)
 
-        self._clean_old_branches(branches, to_test["branch"])
-        self._run_test(to_test)
+        self._run_test(to_test, ref)
 
     def run(self):
         while self.life.next_poll():

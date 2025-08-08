@@ -151,7 +151,8 @@ def test_run(binfo, rinfo, cbarg, config, start):
     base = config.get('gh', 'base')
 
     subprocess.run('git checkout ' + base, cwd=tree_path, shell=True, check=True)
-    res = subprocess.run('git merge ' + binfo['branch'], cwd=tree_path, shell=True)
+    res = subprocess.run('git merge ' + rinfo['branch-ref'],
+                         cwd=tree_path, shell=True)
     if res.returncode != 0:
         # If rerere fixed it, just commit
         res = subprocess.run('git diff -s --exit-code', cwd=tree_path, shell=True)
