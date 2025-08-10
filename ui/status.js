@@ -1005,6 +1005,18 @@ function branches_loaded(data_raw)
     loaded_one();
 }
 
+function flakes_add_summary(table, name, data)
+{
+    let row = table.insertRow();
+    let cell = row.insertCell(0);
+    cell.innerHTML = name;
+    cell.setAttribute("colspan", "3");
+    cell.setAttribute("style", "text-align: right; font-style: italic;");
+    for (let n = 0; n < 4; n++)
+	row.insertCell(n + 1).innerHTML = "<span style=\"font-style: italic;\">" + data[n] + "</span>";
+    row.insertCell(5).innerText = "";
+}
+
 function flakes_doit(data_raw)
 {
     let flakes = document.getElementById("flakes");
@@ -1019,13 +1031,22 @@ function flakes_doit(data_raw)
 	return 0;
     })
 
+    let reminder = [0, 0, 0, 0];
+    let total = [0, 0, 0, 0];
+
     $.each(data_raw, function(i, v) {
 	let row = flakes.insertRow();
 	let reported = nipa_pw_reported(v, v);
 	let ignored = "";
 
-	if (v["count"][0] + v["count"][1] + v["count"][2] < 4 && reported)
+	for (let n = 0; n < 4; n++)
+	    total[n] += v["count"][n];
+
+	if (v["count"][0] + v["count"][1] + v["count"][2] < 4 && reported) {
+	    for (let n = 0; n < 4; n++)
+		reminder[n] += v["count"][n];
 	    return 1;
+	}
 	if (!reported)
 	    ignored = "yes";
 
@@ -1038,6 +1059,9 @@ function flakes_doit(data_raw)
 	row.insertCell(6).innerText = v["count"][3];
 	row.insertCell(7).innerText = ignored;
     });
+
+    flakes_add_summary(flakes, "reminder", reminder);
+    flakes_add_summary(flakes, "total", total);
 }
 
 function do_it()
