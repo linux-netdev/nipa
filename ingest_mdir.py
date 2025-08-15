@@ -29,8 +29,11 @@ results_dir = config.get('results', 'dir',
                          fallback=os.path.join(NIPA_DIR, "results"))
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--mdir', required=True,
-                    help='path to the directory with the patches')
+
+patch_arg = parser.add_mutually_exclusive_group(required=True)
+patch_arg.add_argument('--patch', help='path to the patch file')
+patch_arg.add_argument('--mdir', help='path to the directory with the patches')
+
 parser.add_argument('--tree', required=True, help='path to the tree to test on')
 parser.add_argument('--tree-name', default='unknown',
                     help='the tree name to expect')
@@ -40,7 +43,6 @@ parser.add_argument('--result-dir', default=results_dir,
                     help='the directory where results will be generated')
 args = parser.parse_args()
 
-args.mdir = os.path.abspath(args.mdir)
 args.tree = os.path.abspath(args.tree)
 
 log_init(config.get('log', 'type'), config.get('log', 'path'),
@@ -48,7 +50,12 @@ log_init(config.get('log', 'type'), config.get('log', 'path'),
 
 log_open_sec("Loading patches")
 try:
-    files = [os.path.join(args.mdir, f) for f in sorted(os.listdir(args.mdir))]
+    if args.mdir:
+        mdir = os.path.abspath(args.mdir)
+        files = [os.path.join(mdir, f) for f in sorted(os.listdir(mdir))]
+    else:
+        files = [os.path.abspath(args.patch)]
+
     series = Series()
     series.tree_selection_comment = "ingest_mdir"
     series.tree_mark_expected = False
