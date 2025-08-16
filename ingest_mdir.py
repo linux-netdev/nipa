@@ -46,58 +46,82 @@ parser.add_argument('--tree-branch', default='main',
                     help='the branch or commit to use as a base for applying patches')
 parser.add_argument('--result-dir', default=results_dir,
                     help='the directory where results will be generated')
-args = parser.parse_args()
 
-args.tree = os.path.abspath(args.tree)
 
-log_init(config.get('log', 'type'), config.get('log', 'path'),
-         force_single_thread=True)
+def run_tester(args, tree, series):
+    """ Run the tester, report results as they appear """
 
-log_open_sec("Loading patches")
-try:
-    if args.mdir:
-        mdir = os.path.abspath(args.mdir)
-        files = [os.path.join(mdir, f) for f in sorted(os.listdir(mdir))]
-    else:
-        files = [os.path.abspath(args.patch)]
+    try:
+        done = queue.Queue()
+        pending = queue.Queue()
+        tester = Tester(args.result_dir, tree, pending, done,
+                        config=config)
+        tester.start()
 
-    series = Series()
-    series.tree_selection_comment = "ingest_mdir"
-    series.tree_mark_expected = False
+        pending.put(series)
+        pending.put(None)
+    except:
+        tester.should_die = True
+    finally:
+        tester.join()
 
-    for f in files:
-        with open(f, 'r', encoding="utf-8") as fp:
-            data = fp.read()
-            if re.search(r"\[.* 0+/\d.*\]", data) and \
-               not re.search(r"\n@@ -\d", data):
-                series.set_cover_letter(data)
-            else:
-                series.add_patch(Patch(data))
-finally:
-    log_end_sec()
 
-tree = Tree(args.tree_name, args.tree_name, args.tree, branch=args.tree_branch)
-if not tree.check_applies(series):
-    print("Patch series does not apply cleanly to the tree")
-    os.sys.exit(1)
+def load_patches(args):
+    """ Load patches from specified location on disk """
 
-try:
-    done = queue.Queue()
-    pending = queue.Queue()
-    tester = Tester(args.result_dir, tree, pending, done,
-                    config=config)
-    tester.start()
+    log_open_sec("Loading patches")
+    try:
+        if args.mdir:
+            mdir = os.path.abspath(args.mdir)
+            files = [os.path.join(mdir, f) for f in sorted(os.listdir(mdir))]
+        else:
+            files = [os.path.abspath(args.patch)]
 
-    pending.put(series)
-    pending.put(None)
-except:
-    tester.should_die = True
-finally:
-    tester.join()
+        series = Series()
+        series.tree_selection_comment = "ingest_mdir"
+        series.tree_mark_expected = False
 
-# Summary hack
-os.system(f'for i in $(find {args.result_dir} -type f -name summary); do ' +
-          'dir=$(dirname "$i"); ' +
-          'head -n2 "$dir"/summary; ' +
-          'cat "$dir"/desc 2>/dev/null; done'
-)
+        for f in files:
+            with open(f, 'r', encoding="utf-8") as fp:
+                data = fp.read()
+                if re.search(r"\[.* 0+/\d.*\]", data) and \
+                   not re.search(r"\n@@ -\d", data):
+                    series.set_cover_letter(data)
+                else:
+                    series.add_patch(Patch(data))
+    finally:
+        log_end_sec()
+
+    return series
+
+
+def main():
+    """ Main function """
+
+    args = parser.parse_args()
+
+    args.tree = os.path.abspath(args.tree)
+
+    log_init(config.get('log', 'type'), config.get('log', 'path'),
+             force_single_thread=True)
+
+    series = load_patches(args)
+
+    tree = Tree(args.tree_name, args.tree_name, args.tree,
+                branch=args.tree_branch)
+    if not tree.check_applies(series):
+        print("Patch series does not apply cleanly to the tree")
+        os.sys.exit(1)
+
+    run_tester(args, tree, series)
+
+    # Summary hack
+    os.system(f'for i in $(find {args.result_dir} -type f -name summary); do ' +
+              'dir=$(dirname "$i"); ' +
+              'head -n2 "$dir"/summary; ' +
+              'cat "$dir"/desc 2>/dev/null; done'
+    )
+
+
+if __name__ == "__main__":
+    main()
