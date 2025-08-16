@@ -14,9 +14,9 @@ import configparser
 import os
 import re
 import queue
+import tempfile
 
 from core import cmd
-from core import NIPA_DIR
 from core import log_open_sec, log_end_sec, log_init
 from core import Patch
 from core import Series
@@ -28,12 +28,6 @@ config = configparser.ConfigParser()
 config.add_section('dirs')
 config.add_section('log')
 
-config.set('log', 'type', 'org')
-config.set('log', 'path', '.nipa.log')
-
-results_dir = config.get('results', 'dir',
-                         fallback=os.path.join(NIPA_DIR, "results"))
-
 parser = argparse.ArgumentParser()
 
 patch_arg = parser.add_mutually_exclusive_group(required=True)
@@ -42,7 +36,7 @@ patch_arg.add_argument('--mdir', help='path to the directory with the patches')
 
 parser.add_argument('--tree', required=True, help='path to the tree to test on')
 parser.add_argument('--tree-name', help='the tree name to expect')
-parser.add_argument('--result-dir', default=results_dir,
+parser.add_argument('--result-dir',
                     help='the directory where results will be generated')
 
 
@@ -100,7 +94,16 @@ def main():
 
     args.tree = os.path.abspath(args.tree)
 
-    log_init(config.get('log', 'type'), config.get('log', 'path'),
+    if args.result_dir is None:
+        args.result_dir = tempfile.mkdtemp()
+    print("Saving output and logs to:", args.result_dir)
+
+    config.set('log', 'type', 'org')
+    config.set('log', 'dir', args.result_dir)
+    config.set('log', 'path', "nipa.log")
+
+    log_init(config.get('log', 'type'),
+             os.path.join(args.result_dir, 'nipa.log'),
              force_single_thread=True)
 
     series = load_patches(args)
