@@ -35,9 +35,11 @@ class Tree:
     """The git tree class
 
     Git tree class which controls a git tree
+
+    current_branch: use whathever is currently checked out as branch
     """
     def __init__(self, name, pfx, fspath, remote=None, branch=None,
-                 wt_id=None, parent=None):
+                 wt_id=None, parent=None, current_branch=False):
         self.name = name
         self.pfx = pfx
         self.path = os.path.abspath(fspath)
@@ -49,6 +51,8 @@ class Tree:
         else:
             self.lock = multiprocessing.RLock()
 
+        if current_branch:
+            self.branch = self.current_branch()
         if remote and not branch:
             self.branch = remote + "/main"
 
@@ -80,6 +84,9 @@ class Tree:
 
     def git_am(self, patch):
         return self.git(["am", "-s", "--", patch])
+
+    def git_checkout(self, ref):
+        return self.git(["checkout", ref])
 
     def git_pull(self, pull_url, ff=None):
         cmd = ["pull", "--no-edit", "--signoff"]
@@ -132,6 +139,14 @@ class Tree:
                 raise TreeNotClean(f"Tree {self.name} is not clean")
         finally:
             core.log_end_sec()
+
+    def current_branch(self):
+        out = self.git(["symbolic-ref", "-q", "HEAD"])
+        if out:
+            out = out.strip()
+            if out.startswith('refs/heads/'):
+                out = out[11:]
+        return out
 
     def head_hash(self):
         return self.git(['rev-parse', 'HEAD']).strip()

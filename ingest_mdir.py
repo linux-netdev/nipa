@@ -15,6 +15,7 @@ import os
 import re
 import queue
 
+from core import cmd
 from core import NIPA_DIR
 from core import log_open_sec, log_end_sec, log_init
 from core import Patch
@@ -42,8 +43,6 @@ patch_arg.add_argument('--mdir', help='path to the directory with the patches')
 parser.add_argument('--tree', required=True, help='path to the tree to test on')
 parser.add_argument('--tree-name', default='unknown',
                     help='the tree name to expect')
-parser.add_argument('--tree-branch', default='main',
-                    help='the branch or commit to use as a base for applying patches')
 parser.add_argument('--result-dir', default=results_dir,
                     help='the directory where results will be generated')
 
@@ -107,13 +106,24 @@ def main():
 
     series = load_patches(args)
 
-    tree = Tree(args.tree_name, args.tree_name, args.tree,
-                branch=args.tree_branch)
+    try:
+        tree = Tree(args.tree_name, args.tree_name, args.tree,
+                    current_branch=True)
+    except cmd.CmdError:
+        print("Can't assertain tree state, is a valid branch checked out?")
+        raise
+    head = tree.head_hash()
+    tree.git_checkout(head)
+
     if not tree.check_applies(series):
         print("Patch series does not apply cleanly to the tree")
         os.sys.exit(1)
 
+    tree.git_reset(head, hard=True)
+
     run_tester(args, tree, series)
+    tree.git_checkout(tree.branch)
+    tree.git_reset(head, hard=True)
 
     # Summary hack
     os.system(f'for i in $(find {args.result_dir} -type f -name summary); do ' +
