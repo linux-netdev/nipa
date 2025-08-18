@@ -14,7 +14,9 @@ import configparser
 import os
 import re
 import queue
+import shutil
 import tempfile
+import time
 
 from core import cmd
 from core import log_open_sec, log_end_sec, log_init
@@ -22,6 +24,13 @@ from core import Patch
 from core import Series
 from core import Tree
 from core import Tester
+
+CONSOLE_WIDTH = None
+BOLD   = '\033[1m'
+RED    = '\033[31m'
+GREEN  = '\033[32m'
+YELLOW = '\033[33m'
+RESET  = '\033[0m'
 
 config = configparser.ConfigParser()
 
@@ -40,6 +49,20 @@ parser.add_argument('--result-dir',
                     help='the directory where results will be generated')
 
 
+def get_console_width():
+    """ Get console width to avoid line wraps where we can. """
+
+    global CONSOLE_WIDTH
+
+    if CONSOLE_WIDTH is None:
+        try:
+            terminal_size = shutil.get_terminal_size()
+            CONSOLE_WIDTH = terminal_size.columns
+        except OSError:
+            CONSOLE_WIDTH = 80
+    return CONSOLE_WIDTH
+
+
 def get_series_id(result_dir):
     """ Find an unused series ID. """
 
@@ -49,8 +72,133 @@ def get_series_id(result_dir):
     return i
 
 
+def print_summary_singleton(print_state, files, full_path, patch_id):
+    """
+    Print summaries, single patch mode.
+    Output differs if we have one patch vs many because tester will
+    run the same test on all the patches in sequence.
+    """
+
+    if len(print_state['seen']) == 1:
+        print()
+        print(BOLD + "Series level tests:")
+
+    if patch_id != print_state['last_patch']:
+        print_state['last_patch'] = patch_id
+        print(BOLD + "Patch level tests:")
+
+    test_name = os.path.basename(full_path)
+    with open(os.path.join(full_path, "retcode"), "r", encoding="utf-8") as fp:
+        retcode = int(fp.read())
+    desc = None
+    if "desc" in files:
+        with open(os.path.join(full_path, "desc"), "r", encoding="utf-8") as fp:
+            desc = fp.read().strip().replace('\n', ' ')
+
+    print(BOLD + f" {test_name:32}", end='')
+    if retcode == 0:
+        print(GREEN  + "OKAY   " + RESET, end='')
+    elif retcode == 250:
+        print(YELLOW + "WARNING" + RESET, end='')
+    else:
+        print(RED    + "FAIL   " + RESET + f"({retcode})", end='')
+
+    if desc:
+        if len(desc) > get_console_width() - 41:
+            print()
+        print("", desc, end='')
+    print('', flush=True)
+
+
+def print_summary_series(print_state, files, full_path, patch_id):
+    """ Print summaries, series mode (more than one patch). """
+
+    test_name = os.path.basename(full_path)
+    if test_name != print_state.get('last_test'):
+        print_state['last_test'] = test_name
+        print()
+        print(BOLD + test_name)
+
+    with open(os.path.join(full_path, "retcode"), "r", encoding="utf-8") as fp:
+        retcode = int(fp.read())
+    desc = None
+    if "desc" in files:
+        with open(os.path.join(full_path, "desc"), "r", encoding="utf-8") as fp:
+            desc = fp.read().strip().replace('\n', ' ')
+
+    if patch_id >= 0:
+        patch_str = f"Patch {patch_id + 1:<6}"
+    else:
+        patch_str = "Full series "
+
+    failed = False
+    print(BOLD + " " + patch_str, end='')
+    if retcode == 0:
+        print(GREEN  + "OKAY   " + RESET, end='')
+    elif retcode == 250:
+        print(YELLOW + "WARNING" + RESET, end='')
+    else:
+        print(RED    + "FAIL   " + RESET + f"({retcode})", end='')
+        failed = True
+
+    if failed or (desc and len(desc) > get_console_width() - 21):
+        print("\n", end=" ")
+    if desc:
+        print("", desc, end='')
+        if failed:
+            print("\n", end=" ")
+    if failed:
+        print(" Outputs:", full_path, end='')
+    print('', flush=True)
+
+
+def print_test_summary(args, series, print_state):
+    """
+    Report results based on files created by the tester in the filesystem.
+    Track which files we have already as this function should be called
+    periodically to check for new results, as the tester runs.
+    """
+
+    seen = print_state.get('seen', set())
+    print_state['seen'] = seen
+    print_state['last_patch'] = print_state.get('last_patch', -1)
+
+    for full_path, _, files in os.walk(os.path.join(args.result_dir,
+                                                    str(series.id))):
+        if full_path in seen:
+            continue
+        if "summary" not in files:
+            continue
+        seen.add(full_path)
+
+        rel_path = full_path[len(args.result_dir) + 1:].split('/')
+
+        patch_id = -1
+        if len(rel_path) == 3:
+            patch_id = int(rel_path[-2]) - 1
+
+        if len(series.patches) == 1:
+            print_summary_singleton(print_state, files, full_path, patch_id)
+        else:
+            print_summary_series(print_state, files, full_path, patch_id)
+
+
+def print_series_info(series):
+    """ Print list of patches """
+
+    if len(series.patches) > 2 and series.cover_letter is None:
+        print(BOLD + "No cover letter" + RESET)
+    elif series.cover_letter:
+        print(BOLD + series.title + RESET)
+
+    for p in series.patches:
+        print("  " + f"[{p.id}] " + p.title)
+
+
 def run_tester(args, tree, series):
     """ Run the tester, report results as they appear """
+
+    summary_seen = {}
 
     try:
         done = queue.Queue()
@@ -61,8 +209,15 @@ def run_tester(args, tree, series):
 
         pending.put(series)
         pending.put(None)
+
+        while done.empty():
+            print_test_summary(args, series, summary_seen)
+            time.sleep(0.2)
     except:
+        print("Error / Interrupt detected, asking runner to stop")
         tester.should_die = True
+        tester.join()
+        raise
     finally:
         tester.join()
 
@@ -134,6 +289,8 @@ def main():
             tree_name = "unknown"
             print("Tree name unknown")
 
+    print_series_info(series)
+
     try:
         tree = Tree(tree_name, tree_name, args.tree, current_branch=True)
     except cmd.CmdError:
@@ -151,13 +308,6 @@ def main():
     run_tester(args, tree, series)
     tree.git_checkout(tree.branch)
     tree.git_reset(head, hard=True)
-
-    # Summary hack
-    os.system(f'for i in $(find {args.result_dir}/{series.id} -type f -name summary); do ' +
-              'dir=$(dirname "$i"); ' +
-              'head -n2 "$dir"/summary; ' +
-              'cat "$dir"/desc 2>/dev/null; done'
-    )
 
 
 if __name__ == "__main__":
