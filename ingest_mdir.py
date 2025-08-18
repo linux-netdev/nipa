@@ -40,6 +40,15 @@ parser.add_argument('--result-dir',
                     help='the directory where results will be generated')
 
 
+def get_series_id(result_dir):
+    """ Find an unused series ID. """
+
+    i = 1
+    while os.path.exists(os.path.join(result_dir, str(i))):
+        i += 1
+    return i
+
+
 def run_tester(args, tree, series):
     """ Run the tester, report results as they appear """
 
@@ -61,6 +70,8 @@ def run_tester(args, tree, series):
 def load_patches(args):
     """ Load patches from specified location on disk """
 
+    series_id = get_series_id(args.result_dir)
+
     log_open_sec("Loading patches")
     try:
         if args.mdir:
@@ -69,7 +80,7 @@ def load_patches(args):
         else:
             files = [os.path.abspath(args.patch)]
 
-        series = Series()
+        series = Series(ident=series_id)
         series.tree_selection_comment = "ingest_mdir"
         series.tree_mark_expected = False
 
@@ -142,7 +153,7 @@ def main():
     tree.git_reset(head, hard=True)
 
     # Summary hack
-    os.system(f'for i in $(find {args.result_dir} -type f -name summary); do ' +
+    os.system(f'for i in $(find {args.result_dir}/{series.id} -type f -name summary); do ' +
               'dir=$(dirname "$i"); ' +
               'head -n2 "$dir"/summary; ' +
               'cat "$dir"/desc 2>/dev/null; done'
