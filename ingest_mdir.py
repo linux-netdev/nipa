@@ -47,6 +47,7 @@ parser.add_argument('--tree', required=True, help='path to the tree to test on')
 parser.add_argument('--tree-name', help='the tree name to expect')
 parser.add_argument('--result-dir',
                     help='the directory where results will be generated')
+parser.add_argument('--dbg-print-run', help='print results of previous run')
 
 
 def get_console_width():
@@ -152,7 +153,7 @@ def print_summary_series(print_state, files, full_path, patch_id):
     print('', flush=True)
 
 
-def print_test_summary(args, series, print_state):
+def print_test_summary(args, series, print_state, tests=None):
     """
     Report results based on files created by the tester in the filesystem.
     Track which files we have already as this function should be called
@@ -172,6 +173,10 @@ def print_test_summary(args, series, print_state):
         seen.add(full_path)
 
         rel_path = full_path[len(args.result_dir) + 1:].split('/')
+        test_name = os.path.basename(full_path)
+
+        if tests and test_name not in tests:
+            continue
 
         patch_id = -1
         if len(rel_path) == 3:
@@ -225,7 +230,10 @@ def run_tester(args, tree, series):
 def load_patches(args):
     """ Load patches from specified location on disk """
 
-    series_id = get_series_id(args.result_dir)
+    if args.dbg_print_run is None:
+        series_id = get_series_id(args.result_dir)
+    else:
+        series_id = int(args.dbg_print_run)
 
     log_open_sec("Loading patches")
     try:
@@ -290,6 +298,10 @@ def main():
             print("Tree name unknown")
 
     print_series_info(series)
+
+    if args.dbg_print_run:
+        print_test_summary(args, series, {}, tests={'ynl', 'build_clang'})
+        return
 
     try:
         tree = Tree(tree_name, tree_name, args.tree, current_branch=True)
