@@ -23,7 +23,12 @@ from core import Tree
 from core import Tester
 
 config = configparser.ConfigParser()
-config.read(['nipa.config', "tester.config"])
+
+config.add_section('dirs')
+config.add_section('log')
+
+config.set('log', 'type', 'org')
+config.set('log', 'path', '.nipa.log')
 
 results_dir = config.get('results', 'dir',
                          fallback=os.path.join(NIPA_DIR, "results"))
