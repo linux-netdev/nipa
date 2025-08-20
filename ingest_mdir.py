@@ -41,8 +41,7 @@ patch_arg.add_argument('--patch', help='path to the patch file')
 patch_arg.add_argument('--mdir', help='path to the directory with the patches')
 
 parser.add_argument('--tree', required=True, help='path to the tree to test on')
-parser.add_argument('--tree-name', default='unknown',
-                    help='the tree name to expect')
+parser.add_argument('--tree-name', help='the tree name to expect')
 parser.add_argument('--result-dir', default=results_dir,
                     help='the directory where results will be generated')
 
@@ -106,9 +105,23 @@ def main():
 
     series = load_patches(args)
 
+    tree_name = args.tree_name
+    if tree_name is None:
+        # Try to guess tree name from the patch subject, expecting subject
+        # to be something like [PATCH tree-name 2/N].
+        tags = re.search(
+            r'Subject: \[(?:PATCH|RFC) (?:v\d+ )?([a-zA-Z-]+)(?: v\d+)?(?: \d*\/\d*)?\]',
+            series.patches[0].raw_patch
+        )
+        if tags:
+            tree_name = tags.group(1).strip()
+            print("Tree name extracted from patches:", tree_name)
+        else:
+            tree_name = "unknown"
+            print("Tree name unknown")
+
     try:
-        tree = Tree(args.tree_name, args.tree_name, args.tree,
-                    current_branch=True)
+        tree = Tree(tree_name, tree_name, args.tree, current_branch=True)
     except cmd.CmdError:
         print("Can't assertain tree state, is a valid branch checked out?")
         raise
