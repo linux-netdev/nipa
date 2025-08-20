@@ -16,7 +16,7 @@ import re
 import queue
 
 from core import NIPA_DIR
-from core import log, log_open_sec, log_end_sec, log_init
+from core import log_open_sec, log_end_sec, log_init
 from core import Patch
 from core import Series
 from core import Tree
@@ -28,7 +28,6 @@ config.read(['nipa.config', "tester.config"])
 results_dir = config.get('results', 'dir',
                          fallback=os.path.join(NIPA_DIR, "results"))
 
-# TODO: use config
 parser = argparse.ArgumentParser()
 parser.add_argument('--mdir', required=True,
                     help='path to the directory with the patches')
@@ -55,7 +54,7 @@ try:
     series.tree_mark_expected = False
 
     for f in files:
-        with open(f, 'r') as fp:
+        with open(f, 'r', encoding="utf-8") as fp:
             data = fp.read()
             if re.search(r"\[.* 0+/\d.*\]", data) and \
                not re.search(r"\n@@ -\d", data):
