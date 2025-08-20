@@ -84,12 +84,12 @@ if not tree.check_applies(series):
 try:
     done = queue.Queue()
     pending = queue.Queue()
-    tester = Tester(args.result_dir, tree, pending, done)
+    tester = Tester(args.result_dir, tree, pending, done,
+                    config=config)
     tester.start()
 
     pending.put(series)
     pending.put(None)
-
 except:
     tester.should_die = True
 finally:

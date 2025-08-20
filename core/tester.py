@@ -49,7 +49,7 @@ def mark_done(result_dir, series):
 
 
 class Tester(threading.Thread):
-    def __init__(self, result_dir, tree, queue, done_queue):
+    def __init__(self, result_dir, tree, queue, done_queue, config=None):
         threading.Thread.__init__(self)
 
         self.tree = tree
@@ -57,7 +57,7 @@ class Tester(threading.Thread):
         self.done_queue = done_queue
         self.should_die = False
         self.result_dir = result_dir
-        self.config = None
+        self.config = config
         self.include = None
         self.exclude = None
 
@@ -65,8 +65,9 @@ class Tester(threading.Thread):
         self.patch_tests = []
 
     def run(self) -> None:
-        self.config = configparser.ConfigParser()
-        self.config.read(['nipa.config', 'pw.config', 'tester.config'])
+        if self.config is None:
+            self.config = configparser.ConfigParser()
+            self.config.read(['nipa.config', 'pw.config', 'tester.config'])
 
         log_dir = self.config.get('log', 'dir', fallback=core.NIPA_DIR)
         core.log_init(
