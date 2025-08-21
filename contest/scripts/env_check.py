@@ -62,6 +62,19 @@ def collect_system_state():
     return state
 
 
+def is_linkstate(a, b, path):
+    """System state key is related to carrier (whether link has come up, yet)"""
+
+    if path.startswith(".links."):
+        if path.endswith(".operstate"):
+            return True
+        if path.endswith(".flags"):
+            a = set(a)
+            b = set(b)
+            diff = a ^ b
+            return not (diff - {'NO-CARRIER', 'LOWER_UP'})
+    return False
+
 def compare_states(current, saved, path=""):
     """Compare current system state with saved state."""
 
@@ -79,7 +92,8 @@ def compare_states(current, saved, path=""):
         if current != saved:
             print(f"Saved {path}:", saved)
             print(f"Current {path}:", current)
-            ret = 1
+
+            ret |= not is_linkstate(current, saved, path)
 
     return ret
 
