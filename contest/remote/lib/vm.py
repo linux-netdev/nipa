@@ -149,8 +149,11 @@ class VM:
             self.cmd("export LD_LIBRARY_PATH=" + self.config.get('vm', 'ld_paths') + ':$LD_LIBRARY_PATH')
             self.drain_to_prompt()
 
-        if self.config.get('vm', 'setup', fallback=None):
-            self.cmd(self.config.get('vm', 'setup'))
+        setup_scripts = self.config.get('vm', 'setup', fallback='').split(',')
+        for setup in setup_scripts:
+            if not setup:
+                continue
+            self.cmd(setup)
             self.drain_to_prompt()
 
         exports = self.config.get('vm', 'exports', fallback=None)

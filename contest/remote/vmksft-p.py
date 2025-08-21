@@ -222,7 +222,20 @@ def _vm_thread(config, results_path, thr_id, hard_stop, in_queue, out_queue):
 
             print(f"INFO: thr-{thr_id} {prog} >> nested tests: {len(nested_tests)}")
 
-        if not is_retry and result == 'fail':
+        can_retry = not is_retry
+
+        post_check = config.get('ksft', 'post_check', fallback=None)
+        if post_check and not vm.fail_state:
+            vm.cmd(post_check)
+            vm.drain_to_prompt()
+            pc = vm.bash_prev_retcode()
+            if pc != 0:
+                vm.fail_state = "env-check-fail"
+                if result == 'pass':
+                    result = 'fail'
+                    can_retry = False  # Don't waste time, the test is buggy
+
+        if can_retry and result == 'fail':
             in_queue.put(outcome)
         else:
             out_queue.put(outcome)
@@ -232,7 +245,7 @@ def _vm_thread(config, results_path, thr_id, hard_stop, in_queue, out_queue):
                           "found": indicators, "vm_state": vm.fail_state})
 
         if vm.fail_state:
-            print(f"INFO: thr-{thr_id} VM kernel crashed, destroying it")
+            print(f"INFO: thr-{thr_id} VM {vm.fail_state}, destroying it")
             vm.stop()
             vm.dump_log(results_path + f'/vm-stop-thr{thr_id}-{vm_id}')
             vm = None
