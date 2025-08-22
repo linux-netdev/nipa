@@ -45,6 +45,7 @@ def _tree_name_should_be_local_files(raw_email):
         'include/',
         'rust/',
         'tools/',
+        'drivers/phy/',
         'drivers/vhost/',
     }
     required_files = {
@@ -65,7 +66,6 @@ def _tree_name_should_be_local_files(raw_email):
         'drivers/net/',
         'drivers/dsa/',
         'drivers/nfc/',
-        'drivers/phy/',
         'drivers/ptp/',
         'drivers/net/ethernet/',
         'kernel/bpf/',
