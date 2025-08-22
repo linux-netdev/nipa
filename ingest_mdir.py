@@ -36,6 +36,7 @@ config = configparser.ConfigParser()
 
 config.add_section('dirs')
 config.add_section('log')
+config.add_section('tests')
 
 parser = argparse.ArgumentParser()
 
@@ -47,6 +48,8 @@ parser.add_argument('--tree', required=True, help='path to the tree to test on')
 parser.add_argument('--tree-name', help='the tree name to expect')
 parser.add_argument('--result-dir',
                     help='the directory where results will be generated')
+parser.add_argument('-d', '--disable-test', nargs='+',
+                    help='disable test, can be specified multiple times')
 parser.add_argument('--dbg-print-run', help='print results of previous run')
 
 
@@ -296,6 +299,11 @@ def main():
         else:
             tree_name = "unknown"
             print("Tree name unknown")
+
+    # Default settings for networking trees:
+    if tree_name.startswith('net'):
+        if not args.disable_test:
+            config.set('tests', 'exclude', 'patch/signed')
 
     print_series_info(series)
 
