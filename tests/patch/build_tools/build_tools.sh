@@ -33,7 +33,7 @@ echo "Now at:"
 git log -1 --pretty='%h ("%s")' HEAD
 
 # These are either very slow or don't build
-export SKIP_TARGETS="bpf dt kvm landlock livepatch lsm sched_ext user_events mm powerpc filesystems/mount-notify ublk"
+export SKIP_TARGETS="bpf dt kvm landlock livepatch lsm sched_ext user_events mm powerpc filesystems/mount-notify ublk sgx nolibc nsfs"
 
 pr "Cleaning"
 make O=$output_dir $build_flags -C tools/testing/selftests/ clean
