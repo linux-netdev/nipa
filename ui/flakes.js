@@ -209,6 +209,55 @@ function remotes_loaded(data_raw)
     loaded_one();
 }
 
+function update_url_from_filters()
+{
+    const tn_needle = document.getElementById("tn-needle").value;
+    const min_flip = document.getElementById("min-flip").value;
+    const pw_n = document.getElementById("pw-n").checked;
+    const pw_y = document.getElementById("pw-y").checked;
+    const sort_streak = document.getElementById("sort-streak").checked;
+    const br_cnt = document.getElementById("br-cnt").value;
+    const br_pfx = document.getElementById("br-pfx").value;
+    const ld_remote = document.getElementById("ld-remote").value;
+    const ld_cases = document.getElementById("ld-cases").checked;
+
+    // Create new URL with current filters
+    const currentUrl = new URL(window.location.href);
+
+    // Clear existing filter parameters
+    const filterParams = ['tn-needle', 'min-flip', 'pw-n', 'pw-y', 'sort-flips',
+			  'sort-streak', 'br-cnt', 'br-pfx',
+			  'ld-remote', 'ld-cases'];
+    filterParams.forEach(param => currentUrl.searchParams.delete(param));
+
+    // Add current filter states to URL
+    if (tn_needle)
+	currentUrl.searchParams.set('tn-needle', tn_needle);
+    if (min_flip && min_flip !== '1')
+	currentUrl.searchParams.set('min-flip', min_flip);
+
+    if (!pw_n)
+	currentUrl.searchParams.set('pw-n', '0');
+    if (!pw_y)
+	currentUrl.searchParams.set('pw-y', '0');
+
+    if (sort_streak)
+	currentUrl.searchParams.set('sort-streak', '1');
+
+    if (br_cnt && br_cnt !== '100')
+	currentUrl.searchParams.set('br-cnt', br_cnt);
+    if (br_pfx)
+	currentUrl.searchParams.set('br-pfx', br_pfx);
+    if (ld_remote)
+	currentUrl.searchParams.set('ld-remote', ld_remote);
+
+    if (ld_cases)
+	currentUrl.searchParams.set('ld-cases', '1');
+
+    // Update the browser URL without reloading the page
+    window.history.pushState({}, '', currentUrl.toString());
+}
+
 function reload_data()
 {
     const format_l2 = document.getElementById("ld-cases");
@@ -237,6 +286,11 @@ function do_it()
     nipa_filters_enable(reload_data, "ld-pw");
     nipa_filters_enable(results_update, "fl-pw");
     nipa_input_set_from_url("ld-pw");
+
+    $('#update-url-button').on('click', function (e) {
+        e.preventDefault();
+        update_url_from_filters();
+    });
 
     /*
      * Please remember to keep these assets in sync with `scripts/ui_assets.sh`

@@ -276,6 +276,61 @@ function reload_data(event)
     });
 }
 
+function update_url_from_filters()
+{
+    const result_filter = {
+        "pass": document.getElementById("pass").checked,
+        "skip": document.getElementById("skip").checked,
+        "warn": document.getElementById("warn").checked,
+        "fail": document.getElementById("fail").checked
+    };
+    const branch_filter = document.getElementById("branch").value;
+    const exec_filter = document.getElementById("executor").value;
+    const remote_filter = document.getElementById("remote").value;
+    const test_filter = document.getElementById("test").value;
+    const pw_n = document.getElementById("pw-n").checked;
+    const pw_y = document.getElementById("pw-y").checked;
+    const ld_cases = document.getElementById("ld-cases").checked;
+
+    // Create new URL with current filters
+    const currentUrl = new URL(window.location.href);
+
+    // Clear existing filter parameters
+    const filterParams = ['pass', 'skip', 'warn', 'fail', 'branch', 'executor',
+			  'remote', 'test', 'pw-n', 'pw-y', 'ld-cases'];
+    filterParams.forEach(param => currentUrl.searchParams.delete(param));
+
+    // Add current filter states to URL
+    if (!result_filter.pass)
+	currentUrl.searchParams.set('pass', '0');
+    if (!result_filter.skip)
+	currentUrl.searchParams.set('skip', '0');
+    if (!result_filter.warn)
+	currentUrl.searchParams.set('warn', '0');
+    if (!result_filter.fail)
+	currentUrl.searchParams.set('fail', '0');
+
+    if (branch_filter)
+	currentUrl.searchParams.set('branch', branch_filter);
+    if (exec_filter)
+	currentUrl.searchParams.set('executor', exec_filter);
+    if (remote_filter)
+	currentUrl.searchParams.set('remote', remote_filter);
+    if (test_filter)
+	currentUrl.searchParams.set('test', test_filter);
+
+    if (!pw_n)
+	currentUrl.searchParams.set('pw-n', '0');
+    if (!pw_y)
+	currentUrl.searchParams.set('pw-y', '0');
+
+    if (ld_cases)
+	currentUrl.searchParams.set('ld-cases', '1');
+
+    // Update the browser URL without reloading the page
+    window.history.pushState({}, '', currentUrl.toString());
+}
+
 function embedded_mode() {
     $('#loading-fieldset').hide();
     $('#sitemap').hide();
@@ -312,6 +367,11 @@ function do_it()
 	document.getElementById("ld_branch").value = urlParams.get("branch");
 	document.getElementById("ld_cnt").value = 1;
     }
+
+    $('#update-url-button').on('click', function (e) {
+        e.preventDefault();
+        update_url_from_filters();
+    });
 
     nipa_sort_cb = results_update;
 
