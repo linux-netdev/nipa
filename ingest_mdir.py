@@ -76,6 +76,35 @@ def get_series_id(result_dir):
     return i
 
 
+def __print_summary_result(offset, files, full_path):
+    with open(os.path.join(full_path, "retcode"), "r", encoding="utf-8") as fp:
+        retcode = int(fp.read())
+    desc = None
+    if "desc" in files:
+        with open(os.path.join(full_path, "desc"), "r", encoding="utf-8") as fp:
+            desc = fp.read().strip().replace('\n', ' ')
+
+    failed = False
+
+    if retcode == 0:
+        print(GREEN  + "OKAY   " + RESET, end='')
+    elif retcode == 250:
+        print(YELLOW + "WARNING" + RESET, end='')
+    else:
+        print(RED    + "FAIL   " + RESET + f"({retcode})", end='')
+        failed = True
+
+    if failed or (desc and len(desc) + offset > get_console_width()):
+        print("\n", end=" ")
+    if desc:
+        print("", desc, end='')
+        if failed:
+            print("\n", end=" ")
+    if failed:
+        print(" Outputs:", full_path, end='')
+    print('', flush=True)
+
+
 def print_summary_singleton(print_state, files, full_path, patch_id):
     """
     Print summaries, single patch mode.
@@ -92,26 +121,9 @@ def print_summary_singleton(print_state, files, full_path, patch_id):
         print(BOLD + "Patch level tests:")
 
     test_name = os.path.basename(full_path)
-    with open(os.path.join(full_path, "retcode"), "r", encoding="utf-8") as fp:
-        retcode = int(fp.read())
-    desc = None
-    if "desc" in files:
-        with open(os.path.join(full_path, "desc"), "r", encoding="utf-8") as fp:
-            desc = fp.read().strip().replace('\n', ' ')
 
     print(BOLD + f" {test_name:32}", end='')
-    if retcode == 0:
-        print(GREEN  + "OKAY   " + RESET, end='')
-    elif retcode == 250:
-        print(YELLOW + "WARNING" + RESET, end='')
-    else:
-        print(RED    + "FAIL   " + RESET + f"({retcode})", end='')
-
-    if desc:
-        if len(desc) > get_console_width() - 41:
-            print()
-        print("", desc, end='')
-    print('', flush=True)
+    __print_summary_result(41, files, full_path)
 
 
 def print_summary_series(print_state, files, full_path, patch_id):
@@ -123,37 +135,13 @@ def print_summary_series(print_state, files, full_path, patch_id):
         print()
         print(BOLD + test_name)
 
-    with open(os.path.join(full_path, "retcode"), "r", encoding="utf-8") as fp:
-        retcode = int(fp.read())
-    desc = None
-    if "desc" in files:
-        with open(os.path.join(full_path, "desc"), "r", encoding="utf-8") as fp:
-            desc = fp.read().strip().replace('\n', ' ')
-
     if patch_id >= 0:
         patch_str = f"Patch {patch_id + 1:<6}"
     else:
         patch_str = "Full series "
 
-    failed = False
     print(BOLD + " " + patch_str, end='')
-    if retcode == 0:
-        print(GREEN  + "OKAY   " + RESET, end='')
-    elif retcode == 250:
-        print(YELLOW + "WARNING" + RESET, end='')
-    else:
-        print(RED    + "FAIL   " + RESET + f"({retcode})", end='')
-        failed = True
-
-    if failed or (desc and len(desc) > get_console_width() - 21):
-        print("\n", end=" ")
-    if desc:
-        print("", desc, end='')
-        if failed:
-            print("\n", end=" ")
-    if failed:
-        print(" Outputs:", full_path, end='')
-    print('', flush=True)
+    __print_summary_result(21, files, full_path)
 
 
 def print_test_summary(args, series, print_state, tests=None):
