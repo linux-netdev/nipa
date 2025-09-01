@@ -1042,7 +1042,7 @@ function flakes_doit(data_raw)
 	for (let n = 0; n < 4; n++)
 	    total[n] += v["count"][n];
 
-	if (v["count"][0] + v["count"][1] + v["count"][2] < 4 && reported) {
+	if (v["count"][0] + v["count"][1] + v["count"][2] < 3 && reported) {
 	    for (let n = 0; n < 4; n++)
 		reminder[n] += v["count"][n];
 	    return 1;
