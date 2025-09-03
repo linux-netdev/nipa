@@ -405,12 +405,13 @@ class VM:
         if self.fail_state:
             return
         if self.has_kmemleak:
+            # First scan, to identify possible leaks
+            self.cmd("echo scan > /sys/kernel/debug/kmemleak")
+            self.drain_to_prompt()
             # kmemleak needs objects to be at least MSECS_MIN_AGE (5000)
             # before it considers them to have been leaked
             sleep(5)
-            self.cmd("echo scan > /sys/kernel/debug/kmemleak && cat /sys/kernel/debug/kmemleak")
-            self.drain_to_prompt()
-            # Do it twice, kmemleak likes to hide the leak on the first attempt
+            # Second scan, to identify what has really leaked
             self.cmd("echo scan > /sys/kernel/debug/kmemleak && cat /sys/kernel/debug/kmemleak")
             self.drain_to_prompt()
 
