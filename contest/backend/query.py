@@ -252,23 +252,6 @@ def flaky_tests():
         month = True # Default to querying last month
         limit = flake_cnt  # Default limit
 
-    # Find branches with incomplete results, psql JSON helpers fail for them
-    t = datetime.datetime.now()
-    with psql.cursor() as cur:
-        query = """
-        SELECT branch
-        FROM results
-        WHERE json_normal NOT LIKE '%"results": [%'
-        GROUP BY branch;
-        """
-
-        cur.execute(query)
-        rows = cur.fetchall()
-        branches = ""
-        if rows:
-            branches = " AND branch != ".join([""] + [f"'{r[0]}'" for r in rows])
-    print(f"Query for in-prog execs took: {str(datetime.datetime.now() - t)}")
-
     t = datetime.datetime.now()
     with psql.cursor() as cur:
         # Query for tests where first try failed, retry passed, and no crash
@@ -279,7 +262,6 @@ def flaky_tests():
             WHERE x.result = 'fail'
                 AND x.retry = 'pass'
                 AND x.crashes IS NULL
-                {branches}
             ORDER BY branch_date DESC LIMIT {limit};
         """
 
