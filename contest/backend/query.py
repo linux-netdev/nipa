@@ -30,7 +30,7 @@ def hello():
 @app.route('/branches')
 def branches():
     with psql.cursor() as cur:
-        cur.execute(f"SELECT branch, t_date, base, url FROM branches ORDER BY t_date DESC LIMIT 40")
+        cur.execute("SELECT branch, t_date, base, url FROM branches ORDER BY t_date DESC LIMIT 40")
         rows = [{"branch": r[0], "date": r[1].isoformat() + "+00:00", "base": r[2], "url": r[3]} for r in cur.fetchall()]
         rows.reverse()
     return rows
@@ -100,7 +100,7 @@ def results():
         br_cnt = request.args.get('branches')
         try:
             br_cnt = int(br_cnt)
-        except:
+        except (TypeError, ValueError):
             br_cnt = None
         if not br_cnt:
             br_cnt = 10
@@ -151,7 +151,7 @@ def remotes():
     t1 = datetime.datetime.now()
 
     with psql.cursor() as cur:
-        cur.execute(f"SELECT remote FROM results GROUP BY remote LIMIT 50")
+        cur.execute("SELECT remote FROM results GROUP BY remote LIMIT 50")
         rows = [r[0] for r in cur.fetchall()]
 
     t2 = datetime.datetime.now()
@@ -167,9 +167,9 @@ def stability():
 
     where = ""
     if auto == "y" or auto == '1' or auto == 't':
-        where = "WHERE autoignore = true";
+        where = "WHERE autoignore = true"
     elif auto == "n" or auto == '0' or auto == 'f':
-        where = "WHERE autoignore = false";
+        where = "WHERE autoignore = false"
 
     with psql.cursor() as cur:
         cur.execute(f"SELECT * FROM stability {where}")
@@ -185,7 +185,7 @@ def stability():
 @app.route('/device-info')
 def dev_info():
     with psql.cursor() as cur:
-        cur.execute(f"SELECT * FROM devices_info")
+        cur.execute("SELECT * FROM devices_info")
 
         columns = [desc[0] for desc in cur.description]
         rows = cur.fetchall()
@@ -205,14 +205,14 @@ def flaky_tests():
     try:
         limit = int(limit)
         month = False
-    except:
+    except (TypeError, ValueError):
         month = True # Default to querying last month
         limit = flake_cnt  # Default limit
 
     # Find branches with incomplete results, psql JSON helpers fail for them
     t = datetime.datetime.now()
     with psql.cursor() as cur:
-        query = f"""
+        query = """
         SELECT branch
         FROM results
         WHERE json_normal NOT LIKE '%"results": [%'
