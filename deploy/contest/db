@@ -23,6 +23,9 @@ psql
  GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO "nipa";
  \q
 
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO "nipa-brancher";
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO "nipa-brancher";
+
 # Read-only users
 createuser flask
 psql
@@ -60,6 +63,15 @@ CREATE TABLE branches (
 
 CREATE INDEX by_branch ON results (branch DESC);
 CREATE INDEX by_branch_date ON results (branch_date DESC);
+
+CREATE TABLE results_pending (
+    id                  serial primary key,
+    branch              varchar(80),
+    remote              varchar(80),
+    executor            varchar(80),
+    branch_date         varchar(17),
+    t_start             timestamp
+);
 
 CREATE TABLE db_monitor (
     id                  serial primary key,

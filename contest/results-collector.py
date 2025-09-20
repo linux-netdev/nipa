@@ -27,6 +27,7 @@ combined=name-of-manifest.json
 db=db-name
 stability-name=table-name
 results-name=table-name
+wip-name=table-name
 branches-name=table-name
 """
 
@@ -66,6 +67,7 @@ class FetcherState:
 
         self.tbl_stb = self.config.get("db", "stability-name", fallback="stability")
         self.tbl_res = self.config.get("db", "results-name", fallback="results")
+        self.tbl_wip = self.config.get("db", "wip-name", fallback="results_pending")
         self.tbl_brn = self.config.get("db", "branches-name", fallback="branches")
 
         db_name = self.config.get("db", "db")
@@ -83,36 +85,39 @@ class FetcherState:
                            (run['branch'], remote["name"], run["executor"],)).decode('utf-8')
 
     def psql_has_wip(self, remote, run):
+        """ Check if there is an entry in the WIP/pending table for the run """
         with self.psql_conn.cursor() as cur:
-            cur.execute(f"SELECT branch FROM {self.tbl_res} " + self.psql_run_selector(cur, remote, run))
+            cur.execute(f"SELECT branch FROM {self.tbl_wip} " + self.psql_run_selector(cur, remote, run))
             rows = cur.fetchall()
         return rows and len(rows) > 0
 
-    def insert_result_psql(self, cur, data):
-        fields = "(branch, branch_date, remote, executor, t_start, t_end, json_normal, json_full)"
-        normal, full = self.psql_json_split(data)
-        arg = cur.mogrify("(%s,%s,%s,%s,%s,%s,%s,%s)",
-                          (data["branch"], data["branch"][-17:], data["remote"], data["executor"],
-                           data["start"], data["end"], normal, full))
-        cur.execute(f"INSERT INTO {self.tbl_res} {fields} VALUES " + arg.decode('utf-8'))
+    def psql_clear_wip(self, remote, run):
+        """ Delete entry in the WIP/pending table for the run """
+        with self.psql_conn.cursor() as cur:
+            cur.execute(f"DELETE FROM {self.tbl_wip} " + self.psql_run_selector(cur, remote, run))
 
-    def insert_wip(self, remote, run):
+    def psql_insert_wip(self, remote, run):
+        """
+        Add entry in the WIP/pending table for the run, if one doesn't exist
+        """
         if self.psql_has_wip(remote, run):
-            # no point, we have no interesting info to add
             return
 
         branch_info = self.get_branch(run["branch"])
-
-        data = run.copy()
-        data["remote"] = remote["name"]
         when = datetime.datetime.fromisoformat(branch_info['date'])
-        data["start"] = str(when)
-        when += datetime.timedelta(hours=2, minutes=58)
-        data["end"] = str(when)
-        data["results"] = None
 
         with self.psql_conn.cursor() as cur:
-            self.insert_result_psql(cur, data)
+            cur.execute(f"INSERT INTO {self.tbl_wip} (branch, remote, executor, branch_date, t_start) VALUES (%s, %s, %s, %s, %s)",
+                       (run["branch"], remote["name"], run["executor"], run["branch"][-17:], str(when)))
+
+    def insert_result_psql(self, data):
+        with self.psql_conn.cursor() as cur:
+            fields = "(branch, branch_date, remote, executor, t_start, t_end, json_normal, json_full)"
+            normal, full = self.psql_json_split(data)
+            arg = cur.mogrify("(%s,%s,%s,%s,%s,%s,%s,%s)",
+                              (data["branch"], data["branch"][-17:], data["remote"], data["executor"],
+                               data["start"], data["end"], normal, full))
+            cur.execute(f"INSERT INTO {self.tbl_res} {fields} VALUES " + arg.decode('utf-8'))
 
     def psql_json_split(self, data):
         # return "normal" and "full" as json string or None
@@ -253,16 +258,8 @@ class FetcherState:
         self.psql_insert_stability(data)
         self.psql_insert_device(data)
 
-        with self.psql_conn.cursor() as cur:
-            if not self.psql_has_wip(remote, run):
-                self.insert_result_psql(cur, data)
-            else:
-                normal, full = self.psql_json_split(data)
-                vals = cur.mogrify("SET t_start = %s, t_end = %s, json_normal = %s, json_full = %s",
-                                   (data["start"], data["end"], normal, full)).decode('utf-8')
-                selector = self.psql_run_selector(cur, remote, run)
-                q = f"UPDATE {self.tbl_res} " + vals + ' ' + selector
-                cur.execute(q)
+        self.psql_clear_wip(remote, run)
+        self.insert_result_psql(data)
 
 
 def write_json_atomic(path, data):
@@ -304,7 +301,7 @@ def fetch_remote(fetcher, remote, seen):
             continue
         if not run['url']:    # Executor has not finished, yet
             if run['branch'] not in remote_state['wip']:
-                fetcher.insert_wip(remote, run)
+                fetcher.psql_insert_wip(remote, run)
                 fetcher.fetched = True
             continue
 

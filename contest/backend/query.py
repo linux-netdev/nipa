@@ -43,9 +43,15 @@ def branches_to_rows(br_cnt, remote, br_pfx=None):
         # Slap the -2 in here as the first letter of the date, to avoid prefix of prefix matches
         pfx_flt = f"WHERE branch LIKE '{br_pfx}-2%' " if br_pfx else ""
 
-        q = f"SELECT branch,count(*),branch_date{remote_k} FROM results {pfx_flt} GROUP BY branch,branch_date{remote_k} ORDER BY branch_date DESC LIMIT {br_cnt}"
+        # Count from both results and results_pending tables
+        q_results = f"SELECT branch,count(*),branch_date{remote_k} FROM results {pfx_flt} GROUP BY branch,branch_date{remote_k} ORDER BY branch_date DESC LIMIT {br_cnt}"
+        q_pending = f"SELECT branch,count(*),branch_date{remote_k} FROM results_pending {pfx_flt} GROUP BY branch,branch_date{remote_k} ORDER BY branch_date DESC LIMIT {br_cnt}"
 
-        cur.execute(q)
+        cur.execute(q_results)
+        for r in cur.fetchall():
+            cnt += r[1]
+
+        cur.execute(q_pending)
         for r in cur.fetchall():
             cnt += r[1]
     return cnt
@@ -81,6 +87,7 @@ def results():
     log = ""
 
     form = request.args.get('format')
+    pending = request.args.get('pending') in {'1', 'y', 'yes', 'true'}
     remote = request.args.get('remote')
     if remote and re.match(r'^[\w_ -]+$', remote) is None:
         remote = None
@@ -123,9 +130,26 @@ def results():
     if not form or form == "normal":
         with psql.cursor() as cur:
             cur.execute(f"SELECT json_normal FROM results {where} ORDER BY branch_date DESC LIMIT {limit}")
-            rows = "[" + ",".join([r[0] for r in cur.fetchall()]) + "]"
+            all_rows = [r[0] for r in cur.fetchall()]
+
+            if pending:
+                # Get pending results from results_pending table
+                cur.execute(f"""
+                    SELECT json_build_object(
+                        'branch', branch,
+                        'remote', remote,
+                        'executor', executor,
+                        'start', (t_start AT TIME ZONE 'UTC')::text,
+                        'end', null,
+                        'results', null
+                    )::text
+                    FROM results_pending {where} ORDER BY branch_date DESC LIMIT {limit}
+                """)
+                all_rows += [r[0] for r in cur.fetchall()]
+            rows = "[" + ",".join(all_rows) + "]"
     elif form == "l2":
         with psql.cursor() as cur:
+            # Get completed results only, pending + l2 makes no sense
             cur.execute(f"SELECT json_normal, json_full FROM results {where} ORDER BY branch_date DESC LIMIT {limit}")
             rows = "["
             for r in cur.fetchall():

@@ -1082,7 +1082,7 @@ function do_it()
         $.get("static/nipa/branch-results.json", branch_res_doit)
     });
     $(document).ready(function() {
-        $.get("query/results?branches=10", results_loaded)
+        $.get("query/results?branches=10&pending=y", results_loaded)
     });
     $(document).ready(function() {
         $.get("static/nipa/branches-info.json", branches_loaded)
