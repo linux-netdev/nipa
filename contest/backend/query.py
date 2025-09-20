@@ -36,25 +36,38 @@ def branches():
     return rows
 
 
-def branches_to_rows(br_cnt, remote, br_pfx=None):
-    cnt = 0
+def get_oldest_branch_date(br_cnt, br_pfx=None):
+    """
+    Find the branch_date of the oldest branch that should be included
+    based on the requested number of branches.
+    Returns the cutoff date string or None if no limit should be applied.
+    """
     with psql.cursor() as cur:
-        remote_k = ",remote" if remote else ""
-        # Slap the -2 in here as the first letter of the date, to avoid prefix of prefix matches
+        # Slap the -2 in here as the first letter of the date,
+        # to avoid prefix of prefix matches
         pfx_flt = f"WHERE branch LIKE '{br_pfx}-2%' " if br_pfx else ""
 
-        # Count from both results and results_pending tables
-        q_results = f"SELECT branch,count(*),branch_date{remote_k} FROM results {pfx_flt} GROUP BY branch,branch_date{remote_k} ORDER BY branch_date DESC LIMIT {br_cnt}"
-        q_pending = f"SELECT branch,count(*),branch_date{remote_k} FROM results_pending {pfx_flt} GROUP BY branch,branch_date{remote_k} ORDER BY branch_date DESC LIMIT {br_cnt}"
+        order_limit = f"ORDER BY branch_date DESC LIMIT {br_cnt}"
 
-        cur.execute(q_results)
-        for r in cur.fetchall():
-            cnt += r[1]
+        # Get unique branch dates from both tables, ordered by date descending
+        # We use UNION to combine unique branch_dates from both tables
+        # Make sure to limit both sides to avoid a huge merge
+        query = f"""
+        (SELECT DISTINCT branch_date FROM results {pfx_flt} {order_limit})
+        UNION
+        (SELECT DISTINCT branch_date FROM results_pending {pfx_flt} {order_limit})
+        {order_limit}
+        """
 
-        cur.execute(q_pending)
-        for r in cur.fetchall():
-            cnt += r[1]
-    return cnt
+        cur.execute(query)
+        rows = cur.fetchall()
+
+        if len(rows) < br_cnt:
+            # DB doesn't have enough data, no need to limit
+            return None
+
+        # Return the oldest branch_date from our limit
+        return rows[-1][0]  # Last row is the oldest due to DESC order
 
 
 def result_as_l2(raw):
@@ -117,9 +130,15 @@ def results():
             # Slap the -2 in here as the first letter of the date, to avoid prefix of prefix matches
             where.append(f"branch LIKE '{br_pfx}-2%'")
 
-        limit = branches_to_rows(br_cnt, remote, br_pfx)
+        # Get the cutoff date for the requested number of branches
+        cutoff_date = get_oldest_branch_date(br_cnt, br_pfx)
+        if cutoff_date:
+            where.append(f"branch_date >= '{cutoff_date}'")
 
         t2 = datetime.datetime.now()
+
+        # Set a reasonable limit to prevent runaway queries
+        limit = 10000
 
     if remote:
         where.append(f"remote = '{remote}'")
