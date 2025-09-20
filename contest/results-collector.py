@@ -10,8 +10,6 @@ import os
 import psycopg2
 import requests
 import time
-import traceback
-import uuid
 
 
 """
@@ -226,7 +224,7 @@ class FetcherState:
             return
 
         with self.psql_conn.cursor() as cur:
-            cur.execute(f"SELECT info FROM devices_info WHERE " +
+            cur.execute("SELECT info FROM devices_info WHERE " +
                         cur.mogrify("remote = %s AND executor = %s",
                                     (data["remote"], data["executor"], )).decode('utf-8') +
                         "ORDER BY changed DESC LIMIT 1")
@@ -243,7 +241,7 @@ class FetcherState:
             return
 
         with self.psql_conn.cursor() as cur:
-            cur.execute(f"INSERT INTO devices_info (remote, executor, changed, info) " +
+            cur.execute("INSERT INTO devices_info (remote, executor, changed, info) " +
                         cur.mogrify("VALUES(%s, %s, %s, %s)",
                                     (data["remote"], data["executor"],
                                      data["start"], new_info)).decode('utf-8'))
