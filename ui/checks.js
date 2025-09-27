@@ -217,18 +217,19 @@ function load_outputs(data)
     var top_out = [];
     var top_out_cnt = {};
     $.each(data, function(i, v) {
-	if (v.result != "success") {
-	    if (top_out_cnt[v.description]) {
-		top_out_cnt[v.description]++;
-	    } else {
-		top_out.push(v);
-		top_out_cnt[v.description] = 1;
-	    }
+	if (v.result == "success")
+	    return 1;
+
+	if (!(v.description in top_out_cnt)) {
+	    top_out.push(v);
+	    top_out_cnt[v.description] = {true: 0, false: 0};
 	}
+
+	top_out_cnt[v.description][v.state == "accepted"]++;
     });
 
     top_out.sort(function(a, b) {
-	return top_out_cnt[b.description] - top_out_cnt[a.description];
+	return top_out_cnt[b.description][true] - top_out_cnt[a.description][true];
     });
 
     for (let i = 0; i < 20; i++) {
@@ -237,11 +238,13 @@ function load_outputs(data)
 	var row = table.insertRow();
 	var check = row.insertCell(0);
 	var output = row.insertCell(1);
-	var hits = row.insertCell(2);
+	var a_hits = row.insertCell(2);
+	var t_hits = row.insertCell(3);
 
-	check.innerHTML = v.check;
-	output.innerHTML = v.description;
-	hits.innerHTML = top_out_cnt[v.description];
+	check.innerText = v.check;
+	output.innerText = v.description;
+	a_hits.innerText = top_out_cnt[v.description][true];
+	t_hits.innerText = top_out_cnt[v.description][false];
     }
 }
 
