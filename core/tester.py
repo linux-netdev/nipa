@@ -100,6 +100,27 @@ class Tester(threading.Thread):
 
         core.log("Tester exiting")
 
+    def get_test_names(self, annotate=True) -> list[str]:
+        tests_dir = os.path.abspath(core.CORE_DIR + "../../tests")
+        location = self.config.get('dirs', 'tests', fallback=tests_dir)
+
+        self.include = [x.strip() for x in re.split(r'[,\n]', self.config.get('tests', 'include', fallback="")) if len(x)]
+        self.exclude = [x.strip() for x in re.split(r'[,\n]', self.config.get('tests', 'exclude', fallback="")) if len(x)]
+
+        tests = []
+        for name in ["series", "patch"]:
+            tests_subdir = os.path.join(location, name)
+            for td in os.listdir(tests_subdir):
+                test = f'{name}/{td}'
+                if not annotate:
+                    pass  # don't annotate
+                elif test in self.exclude or \
+                     (len(self.include) != 0 and test not in self.include):
+                    test += ' [excluded]'
+                tests.append(test)
+
+        return tests
+
     def load_tests(self, name):
         core.log_open_sec(name.capitalize() + " tests")
         tests_subdir = os.path.join(self.config.get('dirs', 'tests'), name)

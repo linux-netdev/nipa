@@ -15,6 +15,7 @@ import os
 import re
 import queue
 import shutil
+import sys
 import tempfile
 import time
 
@@ -48,8 +49,12 @@ parser.add_argument('--tree', required=True, help='path to the tree to test on')
 parser.add_argument('--tree-name', help='the tree name to expect')
 parser.add_argument('--result-dir',
                     help='the directory where results will be generated')
+parser.add_argument('--list-tests', action='store_true',
+                    help='print all available tests and exit')
 parser.add_argument('-d', '--disable-test', nargs='+',
                     help='disable test, can be specified multiple times')
+parser.add_argument('-t', '--test', nargs='+',
+                    help='run only specified tests. Note: full test name is needed, e.g. "patch/pylint" or "series/ynl" not just "pylint" or "ynl"')
 parser.add_argument('--dbg-print-run', help='print results of previous run')
 
 
@@ -252,12 +257,26 @@ def load_patches(args):
     return series
 
 
+def list_tests(args, config):
+    """ List all available tests and exit """
+
+    tester = Tester(args.result_dir, None, None, None, config=config)
+    print(' ', '\n  '.join(tester.get_test_names()))
+
+
 def main():
     """ Main function """
 
     args = parser.parse_args()
 
     args.tree = os.path.abspath(args.tree)
+
+    if args.test:
+        config.set('tests', 'include', ','.join(args.test))
+
+    if args.list_tests:
+        list_tests(args, config)
+        return
 
     if args.result_dir is None:
         args.result_dir = tempfile.mkdtemp()
