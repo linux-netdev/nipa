@@ -172,9 +172,21 @@ def add_remote_services(result, remote):
     result["remote"][remote["name"]] = data
 
 
+def get_metric_values(db_connection, source, category, name, limit=120):
+    """ Query metrics from the DB """
+    with db_connection.cursor() as cur:
+        cur.execute("""
+            SELECT ts, value
+            FROM metrics
+            WHERE source = %s AND category = %s AND name = %s
+            ORDER BY ts DESC
+            LIMIT %s
+        """, (source, category, name, limit))
+        return cur.fetchall()
+
+
 def add_db(result, cfg):
     db_name = cfg["db"]["name"]
-    tbl = cfg["db"]["table"]
 
     psql = psycopg2.connect(database=db_name)
     psql.autocommit = True
@@ -188,13 +200,35 @@ def add_db(result, cfg):
         for _, remote in result["remote"].items():
             remote_disk = remote["disk-use"]
 
-        arg = cur.mogrify("(NOW(),%s,%s,%s)", (size, result["disk-use"], remote_disk))
-        cur.execute(f"INSERT INTO {tbl}(ts, size, disk_pct, disk_pct_metal) VALUES" + arg.decode('utf-8'))
+        # Insert metrics data
+        metrics_data = [
+            ("system", "db", "size", size),
+            ("system", "disk", "util", result["disk-use"]),
+            ("system-metal", "disk", "util", remote_disk)
+        ]
 
-    with psql.cursor() as cur:
-        cur.execute(f"SELECT ts,size,disk_pct,disk_pct_metal FROM {tbl} ORDER BY id DESC LIMIT 40")
-        result["db"]["data"] = [ {'ts': t.isoformat(), 'size': s, 'disk': d, 'disk_remote': dr}
-                                 for t, s, d, dr in reversed(cur.fetchall()) ]
+        for source, category, name, value in metrics_data:
+            cur.execute(f"INSERT INTO metrics(ts, source, category, name, value) VALUES(NOW(), '{source}', '{category}', '{name}', %s)", (value,))
+
+    # Retrieve display data - query each metric individually
+    size_data = get_metric_values(psql, "system", "db", "size", limit=40)
+    disk_data = get_metric_values(psql, "system", "disk", "util", limit=40)
+    disk_remote_data = get_metric_values(psql, "system-metal", "disk", "util", limit=40)
+
+    # Since they're inserted with the same timestamp, we can just zip them together
+    result["db"]["data"] = [
+        {
+            'ts': ts.isoformat(),
+            'size': size,
+            'disk': disk,
+            'disk_remote': disk_remote
+        }
+        for (ts, size), (_, disk), (_, disk_remote) in zip(size_data, disk_data, disk_remote_data)
+    ]
+    # Reverse to get chronological order (oldest first)
+    result["db"]["data"].reverse()
+
+    psql.close()
 
 
 def main():

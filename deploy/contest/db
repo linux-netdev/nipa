@@ -73,12 +73,13 @@ CREATE TABLE results_pending (
     t_start             timestamp
 );
 
-CREATE TABLE db_monitor (
+CREATE TABLE metrics (
     id                  serial primary key,
     ts                  timestamp not null,
-    size                int not null check (size > 0),
-    disk_pct            REAL,
-    disk_pct_metal      REAL
+    source              varchar(40),
+    category            varchar(40),
+    name                varchar(40),
+    value               double precision
 );
 
 CREATE TABLE stability (
