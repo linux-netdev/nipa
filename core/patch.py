@@ -9,10 +9,8 @@ import re
 
 import core
 
-patch_id_gen = 0
 
-
-class Patch(object):
+class Patch:
     """Patch class
 
     Class representing a patch with references to postings etc.
@@ -29,6 +27,9 @@ class Patch(object):
     write_out(fp)
         Write the raw patch into the given file pointer.
     """
+
+    PATCH_ID_GEN = 0
+
     def __init__(self, raw_patch, ident=None, title="", series=None):
         self.raw_patch = raw_patch
         self.title = title
@@ -48,13 +49,13 @@ class Patch(object):
         core.log_open_sec("Patch init: " + self.title)
         core.log_end_sec()
 
-        global patch_id_gen
         if ident is not None:
             self.id = ident
         else:
-            patch_id_gen += 1
-            self.id = patch_id_gen
+            Patch.PATCH_ID_GEN += 1
+            self.id = Patch.PATCH_ID_GEN
 
     def write_out(self, fp):
+        """ Write patch contents to a file """
         fp.write(self.raw_patch.encode('utf-8'))
         fp.flush()
