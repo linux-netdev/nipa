@@ -214,6 +214,8 @@ def run_tester(args, tree, series):
         while done.empty():
             print_test_summary(args, series, summary_seen)
             time.sleep(0.2)
+        # Finish, print the last test's result
+        print_test_summary(args, series, summary_seen)
     except:
         print("Error / Interrupt detected, asking runner to stop")
         tester.should_die = True
