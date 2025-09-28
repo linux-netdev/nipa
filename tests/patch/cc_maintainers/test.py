@@ -2,16 +2,19 @@
 #
 # Copyright (c) 2020 Facebook
 
-from typing import Tuple
+"""
+Test if relevant maintainers were CCed
+"""
+
 import datetime
 import email
 import email.utils
-import subprocess
-import tempfile
+import json
 import os
 import re
-import json
-""" Test if relevant maintainers were CCed """
+import subprocess
+import tempfile
+from typing import Tuple
 
 emailpat = re.compile(r'([^ <"]*@[^ >"]*)')
 
@@ -39,6 +42,9 @@ pull_requesters = {'mkl@pengutronix.de', 'steffen.klassert@secunet.com',
 local_map = ["Vladimir Oltean <vladimir.oltean@nxp.com> <olteanv@gmail.com>",
              "Alexander Duyck <alexanderduyck@fb.com> <alexander.duyck@gmail.com>"]
 
+#
+# Maintainer auto-staleness checking
+#
 
 class StalenessEntry:
     def __init__(self, e, since_months):
@@ -132,14 +138,18 @@ def get_stale(sender_from, missing, out):
             ret.add(e)
     return ret
 
+#
+# Main
+#
 
 def cc_maintainers(tree, thing, result_dir) -> Tuple[int, str, str]:
+    """ Main test entry point """
     out = []
     raw_gm = []
     patch = thing
 
     if patch.series and patch.series.cover_pull:
-        return 0, f"Pull request co-post, skipping", ""
+        return 0, "Pull request co-post, skipping", ""
 
     msg = email.message_from_string(patch.raw_patch)
     addrs = msg.get_all('to', [])
