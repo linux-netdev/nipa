@@ -84,7 +84,7 @@ def check_new_files_gitignore(tree, new_files, log):
 
 
 def _check_file_fmt(tree, path, script, result_dir, ident):
-    cmd = [script, os.path.join(tree.path, path)]
+    cmd = [os.path.join(LOCAL_DIR, script), os.path.join(tree.path, path)]
 
     result = subprocess.run(cmd, cwd=LOCAL_DIR, capture_output=True,
                             text=True, check=False)
@@ -106,12 +106,13 @@ def check_file_formats(tree, file_list, log, result_dir):
             script = "validate_config_format.py"
             fmt = f"fmt-gitignore-{i}"
         elif path.endswith("/Makefile"):
-            script = "validate_Makefile_format.py"
+            script = "validate_makefile_format.py"
             fmt = f"fmt-makefile-{i}"
         else:
             log.append("format check ignoring " + path)
             continue
 
+        i += 1
         if _check_file_fmt(tree, path, script, result_dir, fmt):
             ret = ret_merge(ret, (1, "Bad format: " + path))
 
