@@ -9,6 +9,7 @@ import datetime
 import json
 import os
 import shutil
+import socket
 import time
 import queue
 from typing import Dict
@@ -81,6 +82,9 @@ class PwPoller:
         listmodname = config.get('list', 'module', fallback='netdev')
         self.list_module = import_module(listmodname)
 
+        self._local_sock = None
+        self._start_lock_sock(config)
+
     def init_state_from_disk(self) -> None:
         try:
             with open('poller.state', 'r') as f:
@@ -149,7 +153,7 @@ class PwPoller:
 
         return ret
 
-    def _process_series(self, pw_series) -> None:
+    def _process_series(self, pw_series, force_tree=None) -> None:
         s = PwSeries(self._pw, pw_series)
 
         log("Series info",
@@ -160,10 +164,16 @@ class PwPoller:
             log(p['name'], "")
         log_end_sec()
 
-        if not s['received_all']:
-            raise IncompleteSeries
+        if force_tree:
+            comment = f"Force tree {force_tree}"
+            s.tree_name = force_tree
+            s.tree_mark_expected = None
+            s.tree_marked = True
+        else:
+            comment = self.series_determine_tree(s)
+            if not s['received_all']:
+                raise IncompleteSeries
 
-        comment = self.series_determine_tree(s)
         s.need_async = self.list_module.series_needs_async(s)
         if s.need_async:
             comment += ', async'
@@ -178,11 +188,83 @@ class PwPoller:
             core.write_tree_selection_result(self.result_dir, s, comment)
             core.mark_done(self.result_dir, s)
 
-    def process_series(self, pw_series) -> None:
+    def process_series(self, pw_series, force_tree=None) -> None:
         log_open_sec(f"Checking series {pw_series['id']} with {pw_series['total']} patches")
         try:
-            self._process_series(pw_series)
+            self._process_series(pw_series, force_tree)
         finally:
+            log_end_sec()
+
+    def _start_lock_sock(self, config) -> None:
+        socket_path = config.get('poller', 'local_sock_path', fallback=None)
+        if not socket_path:
+            return
+
+        if os.path.exists(socket_path):
+            os.unlink(socket_path)
+
+        self._local_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self._local_sock.setblocking(False)
+        self._local_sock.bind(socket_path)
+        self._local_sock.listen(5)
+
+        log(f"Socket listener started on {socket_path}", "")
+
+    def _check_local_sock(self) -> None:
+        if not self._local_sock:
+            return
+
+        try:
+            conn, _ = self._local_sock.accept()
+        except BlockingIOError:
+            return
+
+        log_open_sec("Processing local socket connection")
+        try:
+            data = b""
+            while True:
+                chunk = conn.recv(4096)
+                data += chunk
+                if len(chunk) < 4096:
+                    break
+
+            if data:
+                data = data.decode("utf-8")
+                series_ids = []
+                items = data.split(";")
+                for item in items:
+                    item = item.strip()
+                    if not item:
+                        continue
+
+                    # We accept "series [tree]; series [tree]; ..."
+                    parts = item.rsplit(" ", 1)
+                    if len(parts) == 2:
+                        tree = parts[1].strip()
+                    else:
+                        tree = None
+                    try:
+                        s_id = int(parts[0].strip())
+                        series_ids.append((tree, s_id))
+                        log("Processing", series_ids[-1])
+                    except ValueError:
+                        log("Invalid number in tuple", item)
+                        continue
+
+                for tree, series_id in series_ids:
+                    try:
+                        pw_series = self._pw.get("series", series_id)
+                        self.process_series(pw_series, force_tree=tree)
+                        conn.sendall(f"OK: {series_id}\n".encode("utf-8"))
+                    except Exception as e:
+                        log("Error processing series", str(e))
+                        conn.sendall(f"ERROR: {series_id}: {e}\n".encode("utf-8"))
+            else:
+                conn.sendall(b"DONE\n")
+        except Exception as e:
+            log("Error processing socket request", str(e))
+        finally:
+            conn.close()
             log_end_sec()
 
     def run(self, life) -> None:
@@ -209,6 +291,8 @@ class PwPoller:
                         # didn't make it to the list fully, patchwork
                         # shouldn't have had this event at all though
                         pass
+
+                self._check_local_sock()
 
                 while not self._done_queue.empty():
                     s = self._done_queue.get()
