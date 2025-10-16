@@ -25,6 +25,11 @@ class Person:
                 name_email = name_email[idx + 1:-1]
             name = ''
             email = name_email
+        if '+' in email and email.find('+') < email.find('@'):
+            pidx = email.find('+')
+            didx = email.find('@')
+            email = email[:idx] + email[didx:]
+
         return name, email
 
     def __repr__(self):
