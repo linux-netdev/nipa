@@ -1,4 +1,5 @@
 {
-  "run": ["kdoc.sh"],
+  "pymod": "test",
+  "pyfunc": "kdoc",
   "pull-requests": true
 }
