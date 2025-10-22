@@ -2,7 +2,10 @@
 
 """ Test if kernel-doc generates new warnings """
 
+import collections
+import dataclasses
 import os
+import re
 import subprocess
 from typing import List, Optional, Tuple
 
@@ -15,7 +18,84 @@ def get_git_head(tree) -> str:
 
     return result.stdout.strip()
 
-def run_kernel_doc(tree, commitish, files):
+@dataclasses.dataclass(frozen=True, eq=True, order=True, init=True)
+class KdocWarning:
+    # The original warning message
+    message : str = dataclasses.field(repr=False, compare=False)
+    _ : dataclasses.KW_ONLY
+    # Kind of warning line, determined during init
+    kind : str = dataclasses.field(repr=True, compare=True)
+    # The file path, or None if unable to determine
+    file : Optional[str] = dataclasses.field(repr=True, compare=True)
+    # The line, or None if unable to determine
+    # Note: *not* part of comparison, or hash!
+    line : Optional[int] = dataclasses.field(repr=True, compare=False)
+    # The content of the warning (excluding kind, file, line)
+    content : str = dataclasses.field(repr=True, compare=True)
+
+    @classmethod
+    def from_text(self, line, extra=None):
+        message = line
+
+        if extra:
+            message += '\n' + extra
+
+        parser = re.compile(
+            r"""
+            ^                         # Start of string
+            (?P<kind>warning|error):  # Severity
+            \s+                       # Spacing
+            (?P<file>[/a-z0-9_.-]*):  # File path
+            (?P<line>[0-9]+)          # Line number
+            \s*                       # Spacing
+            (?P<content>.*)           # Warning content
+            $                         # End of string
+            """,
+            re.VERBOSE | re.IGNORECASE)
+
+        m = parser.match(line)
+        if m:
+            kind = m['kind']
+            file = m['file']
+            line = int(m['line'])
+            content = m['content']
+            if extra:
+                content += '\n' + extra
+        else:
+            kind = 'Unknown'
+            file = None
+            line = None
+            content = message
+
+        return KdocWarning(message, kind=kind, file=file, line=line,
+                           content=content)
+
+    def __str__(self):
+        return self.message
+
+def parse_warnings(lines) -> List[KdocWarning]:
+    skip = False
+    length = len(lines)
+
+    warnings = []
+
+    # Walk through lines and convert to warning objects
+    for i, line in enumerate(lines):
+        if skip:
+            skip = False
+            continue
+
+        if line.endswith(':') and i + 1 < length:
+            extra = lines[i + 1]
+            skip = True
+        else:
+            extra = None
+
+        warnings.append(KdocWarning.from_text(line, extra))
+
+    return warnings
+
+def run_kernel_doc(tree, commitish, files) -> List[KdocWarning]:
     """ Run ./scripts/kdoc on a given commit and capture its results. """
 
     cmd = ["git", "checkout", "-q", commitish]
@@ -25,7 +105,9 @@ def run_kernel_doc(tree, commitish, files):
     result = subprocess.run(cmd, cwd=tree.path, text=True, check=False,
                             stderr=subprocess.PIPE)
 
-    return result.stderr.strip().split('\n')
+    lines = result.stderr.strip().split('\n')
+
+    return parse_warnings(lines)
 
 def extract_files(patch):
     """Extract paths added or modified by the patch."""
@@ -80,13 +162,45 @@ def kdoc(tree, patch, result_dir) -> Tuple[int, str, str]:
 
         return ret, desc, "\n".join(log)
 
+    current_set = set(current_warnings)
+    incumbent_set = set(incumbent_warnings)
+
+    # This construction preserves ordering vs using set difference
+    new_warnings = [x for x in current_warnings if x not in incumbent_set]
+    rm_warnings = [x for x in incumbent_warnings if x not in current_set]
+
     incumbent_count = len(incumbent_warnings)
     current_count = len(current_warnings)
+    new_count = len(new_warnings)
+    rm_count = len(rm_warnings)
 
     desc = f'Errors and warnings before: {incumbent_count} This patch: {current_count}'
+    if new_count:
+        desc += f' New: {new_count}'
+    if rm_count:
+        desc += f' Removed: {rm_count}'
     log += ["", desc]
 
-    if current_count > incumbent_count:
+    if rm_count:
+        log += ["", "Warnings removed:"]
+        log.extend(map(str, rm_warnings))
+
+        file_breakdown = collections.Counter((x.file for x in rm_warnings))
+
+        log += ["Per-file breakdown:"]
+        for f, count in file_breakdown.items():
+            log += [f'{count:6} {f}']
+
+    if new_count:
         ret = 1
+
+        log += ["", "New warnings added:"]
+        log.extend(map(str, new_warnings))
+
+        file_breakdown = collections.Counter((x.file for x in new_warnings))
+
+        log += ["Per-file breakdown:"]
+        for f, count in file_breakdown.items():
+            log += [f'{count:6} {f}']
 
     return ret, desc, "\n".join(log)
