@@ -251,3 +251,12 @@ sudo dnf install python3-pyroute2.noarch
  ./configure --prefix=/usr
  make -j
  sudo make install
+
+ # traceroute
+ get tar ball from:
+ https://sourceforge.net/projects/traceroute/files/
+ untar
+ cd  ...
+ make
+ cp -v ./traceroute/traceroute ../fs/usr/bin/
+ cp -v ./traceroute/traceroute ../fs/usr/bin/traceroute6
