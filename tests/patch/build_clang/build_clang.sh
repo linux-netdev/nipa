@@ -3,7 +3,7 @@
 #
 # Copyright (C) 2019 Netronome Systems, Inc.
 
-cc=clang
+cc="ccache clang"
 output_dir=build_clang/
 ncpu=$(grep -c processor /proc/cpuinfo)
 build_flags="-Oline -j $ncpu W=1"
@@ -19,7 +19,7 @@ prep_config() {
 }
 
 echo "Using $build_flags redirect to $tmpfile_o and $tmpfile_n"
-echo "LLVM=1 cc=$cc"
+echo "LLVM=1 cc=\"$cc\""
 $cc --version | head -n1
 
 HEAD=$(git rev-parse HEAD)
@@ -35,7 +35,7 @@ else
     echo "Baseline building the tree"
 
     prep_config
-    make LLVM=1 O=$output_dir $build_flags
+    make LLVM=1 O=$output_dir CC="$cc" $build_flags
 fi
 
 # Check if new files were added, new files will cause mod re-linking
@@ -58,7 +58,7 @@ git checkout -q HEAD~
 echo "Building the tree before the patch"
 
 prep_config
-make LLVM=1 O=$output_dir $build_flags 2> >(tee $tmpfile_o >&2)
+make LLVM=1 O=$output_dir CC="$cc" $build_flags 2> >(tee $tmpfile_o >&2)
 incumbent=$(grep -i -c "\(warn\|error\)" $tmpfile_o)
 
 echo "Building the tree with the patch"
@@ -69,7 +69,7 @@ git checkout -q $HEAD
 touch $touch_relink
 
 prep_config
-make LLVM=1 O=$output_dir $build_flags 2> >(tee $tmpfile_n >&2) || rc=1
+make LLVM=1 O=$output_dir CC="$cc" $build_flags 2> >(tee $tmpfile_n >&2) || rc=1
 
 current=$(grep -i -c "\(warn\|error\)" $tmpfile_n)
 
