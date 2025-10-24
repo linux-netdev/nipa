@@ -7,6 +7,7 @@
 import multiprocessing
 import os
 import tempfile
+import time
 from typing import List
 
 import core
@@ -116,7 +117,14 @@ class Tree:
         return self.git(cmd)
 
     def git_fetch(self, remote):
-        return self.git(['fetch', remote])
+        for i in range(10):
+            try:
+                return self.git(['fetch', remote])
+            except CMD.CmdError as e:
+                core.log(f"Fetching failed (attempt {i + 1})", repr(e))
+                time.sleep(30)
+                if i >= 9:
+                    raise
 
     def git_reset(self, target, hard=False):
         cmd = ['reset', target]
