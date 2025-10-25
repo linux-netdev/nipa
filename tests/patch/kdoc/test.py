@@ -72,7 +72,7 @@ class KdocWarning:
     def __str__(self):
         return self.message
 
-def parse_warnings(lines) -> List[KdocWarning]:
+def parse_warnings(lines, logs) -> List[KdocWarning]:
     skip = False
     length = len(lines)
 
@@ -87,15 +87,23 @@ def parse_warnings(lines) -> List[KdocWarning]:
         if line.endswith(':') and i + 1 < length:
             extra = lines[i + 1]
             skip = True
+        elif not line.strip():
+            continue
         else:
+            logs += ["<parse fail>: " + line.strip()]
             extra = None
 
         warnings.append(KdocWarning.from_text(line, extra))
 
     return warnings
 
-def run_kernel_doc(tree, commitish, files) -> List[KdocWarning]:
+def run_kernel_doc(tree, commitish, files, logs) -> List[KdocWarning]:
     """ Run ./scripts/kdoc on a given commit and capture its results. """
+
+    logs += ["files: " + str(files)]
+
+    if not files:
+        return []
 
     cmd = ["git", "checkout", "-q", commitish]
     subprocess.run(cmd, cwd=tree.path, capture_output=False, check=True)
@@ -106,13 +114,13 @@ def run_kernel_doc(tree, commitish, files) -> List[KdocWarning]:
 
     lines = result.stderr.strip().split('\n')
 
-    return parse_warnings(lines)
+    return parse_warnings(lines, logs)
 
 def extract_files(patch):
     """Extract paths added or modified by the patch."""
 
-    all_files = set()
-    mod_files = set()
+    before_files = set()
+    after_files = set()
     lines = patch.raw_patch.split("\n")
 
     # Walk lines, skip last since it doesn't have next
@@ -124,19 +132,19 @@ def extract_files(patch):
 
         file_path = next_line[6:]
 
-        all_files.add(file_path)
+        if "/dev/null" not in line:
+            before_files.add(file_path)
+        if "/dev/null" not in next_line:
+            after_files.add(file_path)
 
-        if line != "--- /dev/null":
-            mod_files.add(file_path)
-
-    return list(mod_files), list(all_files)
+    return list(before_files), list(after_files)
 
 def kdoc(tree, patch, _result_dir) -> Tuple[int, str, str]:
     """ Main function / entry point """
 
-    mod_files, all_files = extract_files(patch)
+    before_files, after_files = extract_files(patch)
 
-    if not mod_files or not all_files:
+    if not before_files and not after_files:
         return 1, "Patch has no modified files?", ""
 
     ret = 0
@@ -146,12 +154,12 @@ def kdoc(tree, patch, _result_dir) -> Tuple[int, str, str]:
     head_commit = get_git_head(tree)
 
     try:
-        incumbent_warnings = run_kernel_doc(tree, "HEAD~", mod_files)
         log += ["Warnings before patch:"]
+        incumbent_warnings = run_kernel_doc(tree, "HEAD~", before_files, log)
         log.extend(map(str, incumbent_warnings))
 
-        current_warnings = run_kernel_doc(tree, head_commit, all_files)
         log += ["", "Current warnings:"]
+        current_warnings = run_kernel_doc(tree, head_commit, after_files, log)
         log.extend(map(str, current_warnings))
     except subprocess.CalledProcessError as e:
         desc = f'{e.cmd} failed with exit code {e.returncode}'
@@ -173,11 +181,14 @@ def kdoc(tree, patch, _result_dir) -> Tuple[int, str, str]:
     new_count = len(new_warnings)
     rm_count = len(rm_warnings)
 
-    desc = f'Errors and warnings before: {incumbent_count} This patch: {current_count}'
+    desc = f'Warnings before: {incumbent_count} after: {current_count}'
+    brac = []
     if new_count:
-        desc += f' New: {new_count}'
+        brac += [f'add: {new_count}']
     if rm_count:
-        desc += f' Removed: {rm_count}'
+        brac += [f'del: {rm_count}']
+    if brac:
+        desc += f' ({" ".join(brac)})'
     log += ["", desc]
 
     if rm_count:
