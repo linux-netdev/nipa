@@ -4,7 +4,6 @@
 
 import collections
 import dataclasses
-import os
 import re
 import subprocess
 from typing import List, Optional, Tuple
@@ -132,7 +131,7 @@ def extract_files(patch):
 
     return list(mod_files), list(all_files)
 
-def kdoc(tree, patch, result_dir) -> Tuple[int, str, str]:
+def kdoc(tree, patch, _result_dir) -> Tuple[int, str, str]:
     """ Main function / entry point """
 
     mod_files, all_files = extract_files(patch)
