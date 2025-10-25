@@ -27,6 +27,7 @@ from core import Tree
 from core import Tester
 
 CONSOLE_WIDTH = None
+NONINTERACTIVE = False
 BOLD   = '\033[1m'
 RED    = '\033[31m'
 GREEN  = '\033[32m'
@@ -55,6 +56,8 @@ parser.add_argument('-d', '--disable-test', nargs='+',
                     help='disable test, can be specified multiple times')
 parser.add_argument('-t', '--test', nargs='+',
                     help='run only specified tests. Note: full test name is needed, e.g. "patch/pylint" or "series/ynl" not just "pylint" or "ynl"')
+parser.add_argument('--noninteractive', action='store_true',
+                    help='Avoid printing terminal control characters to output which is not a terminal')
 parser.add_argument('--dbg-print-run', help='print results of previous run')
 
 
@@ -99,7 +102,9 @@ def __print_summary_result(offset, files, full_path):
         print(RED    + "FAIL   " + RESET + f"({retcode})", end='')
         failed = True
 
-    if failed or (desc and len(desc) + offset > get_console_width()):
+    wrap_on_width = not NONINTERACTIVE and \
+                    (desc and len(desc) + offset > get_console_width())
+    if failed or wrap_on_width:
         print("\n", end=" ")
     if desc:
         print("", desc, end='')
@@ -270,6 +275,16 @@ def main():
     """ Main function """
 
     args = parser.parse_args()
+
+    global NONINTERACTIVE
+    if args.noninteractive:
+        NONINTERACTIVE = True
+        global BOLD, RED, GREEN, YELLOW, RESET
+        BOLD = ''
+        RED = ''
+        GREEN = ''
+        YELLOW = ''
+        RESET = ''
 
     args.tree = os.path.abspath(args.tree)
 
