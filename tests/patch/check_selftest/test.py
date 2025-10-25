@@ -12,10 +12,12 @@ LOCAL_DIR = os.path.dirname(__file__)
 
 def ret_merge(ret, nret):
     """ merge results """
-    if ret[0] == 0 or nret[0] == 0:
+    if ret[0] == 0 and nret[0] == 0:
         val = 0
+    elif ret[0] == 1 or nret[0] == 1:
+        val = 1
     else:
-        val = min(ret[0], nret[0])
+        val = max(ret[0], nret[0])
 
     desc = ""
     if ret[1] and nret[1]:
@@ -41,12 +43,14 @@ def check_new_files_makefile(tree, new_files, log):
             continue
 
         makefile = os.path.dirname(path) + "/Makefile"
+        needle = os.path.basename(path)
 
-        cmd = ["git", "grep", "--exit-code", needle, "---", makefile]
-        result = subprocess.run(cmd, cwd=tree.path, check=False)
+        cmd = ["git", "grep", needle, "--", makefile]
+        result = subprocess.run(cmd, cwd=tree.path, capture_output=True,
+                                check=False)
         log.append(" ".join(cmd) + f":: {result.returncode}")
         if result.returncode:
-            ret_merge(ret, (1, path + " not found in Makefile"))
+            ret = ret_merge(ret, (1, path + " not found in Makefile"))
         cnt += 1
 
     if not ret[0] and cnt:
@@ -69,12 +73,14 @@ def check_new_files_gitignore(tree, new_files, log):
             continue
 
         target = os.path.dirname(path) + "/.gitignore"
+        needle = os.path.basename(path)
 
-        cmd = ["git", "grep", "--exit-code", needle, "---", target]
-        result = subprocess.run(cmd, cwd=tree.path, check=False)
+        cmd = ["git", "grep", needle, "--", target]
+        result = subprocess.run(cmd, cwd=tree.path, capture_output=True,
+                                check=False)
         log.append(" ".join(cmd) + f":: {result.returncode}")
         if result.returncode:
-            ret_merge(ret, (1, needle + " not found in .gitignore"))
+            ret = ret_merge(ret, (1, needle + " not found in .gitignore"))
         cnt += 1
 
     if not ret[0] and cnt:
