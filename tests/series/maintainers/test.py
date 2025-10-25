@@ -102,6 +102,11 @@ def check_maintainer_coverage(tree, new_files, out):
         pass_target = 3
 
     for file_path in new_files:
+        # The build files are sometimes outside of the directory covered
+        # by the new MAINTAINERS entry
+        if file_path.endswith(("/Makefile", "/Kconfig")):
+            continue
+
         out.append("\nChecking coverage for a new file: " + file_path)
 
         maintainer_info = get_maintainer_entry_for_file(tree, file_path)
