@@ -264,11 +264,16 @@ def load_patches(args):
     return series
 
 
-def list_tests(args, config):
-    """ List all available tests and exit """
+def validate_test_list(test_list, all_test_names, parser_instance, error_description):
+    """Check a list of test names against the set of all available tests."""
+    if test_list:
+        invalid_tests = [name for name in test_list if name not in all_test_names]
 
-    tester = Tester(args.result_dir, None, None, None, config=config)
-    print(' ', '\n  '.join(tester.get_test_names()))
+        if invalid_tests:
+            invalid_str = ', '.join(invalid_tests)
+            msg = f"the following {error_description} are invalid: {invalid_str}\n" \
+                  f"Run with --list-tests to see available tests."
+            parser_instance.error(msg)
 
 
 def main():
@@ -286,15 +291,28 @@ def main():
         YELLOW = ''
         RESET = ''
 
+    # Get all available test names for validation and --list-tests
+    # We can instantiate a temporary Tester just for this purpose.
+    tester_for_names = Tester(None, None, None, None, config=config)
+    all_test_names = set(tester_for_names.get_test_names())
+
+    # Handle --list-tests first (using the list we just fetched)
+    if args.list_tests:
+        print(' ', '\n  '.join(sorted(all_test_names)))
+        return
+
+    # Validate --test and --disable-test
+    validate_test_list(args.test, all_test_names, parser, "tests")
+    validate_test_list(args.disable_test, all_test_names, parser, "disabled tests")
+
+    # Set configs after validation
     if args.test:
         config.set('tests', 'include', ','.join(args.test))
 
-    # Handle --list-tests first, as it needs no other arguments
-    if args.list_tests:
-        list_tests(args, config)
-        return
+    if args.disable_test:
+        config.set('tests', 'exclude', ','.join(args.disable_test))
 
-    # If not listing tests, manually validate the required arguments
+    # If not listing tests, manually validate the other required arguments
     if not args.tree:
         parser.error("the following arguments are required: --tree")
 
