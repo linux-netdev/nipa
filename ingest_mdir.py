@@ -42,11 +42,11 @@ config.add_section('tests')
 
 parser = argparse.ArgumentParser()
 
-patch_arg = parser.add_mutually_exclusive_group(required=True)
+patch_arg = parser.add_mutually_exclusive_group()
 patch_arg.add_argument('--patch', help='path to the patch file')
 patch_arg.add_argument('--mdir', help='path to the directory with the patches')
 
-parser.add_argument('--tree', required=True, help='path to the tree to test on')
+parser.add_argument('--tree', help='path to the tree to test on')
 parser.add_argument('--tree-name', help='the tree name to expect')
 parser.add_argument('--result-dir',
                     help='the directory where results will be generated')
@@ -286,14 +286,22 @@ def main():
         YELLOW = ''
         RESET = ''
 
-    args.tree = os.path.abspath(args.tree)
-
     if args.test:
         config.set('tests', 'include', ','.join(args.test))
 
+    # Handle --list-tests first, as it needs no other arguments
     if args.list_tests:
         list_tests(args, config)
         return
+
+    # If not listing tests, manually validate the required arguments
+    if not args.tree:
+        parser.error("the following arguments are required: --tree")
+
+    if not args.patch and not args.mdir:
+        parser.error("one of the arguments --patch --mdir is required")
+
+    args.tree = os.path.abspath(args.tree)
 
     if args.result_dir is None:
         args.result_dir = tempfile.mkdtemp()
