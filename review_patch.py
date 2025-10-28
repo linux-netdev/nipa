@@ -41,6 +41,29 @@ def main():
     log("Series information", series)
     log_end_sec()
 
+    for patch in series["patches"]:
+        log_open_sec(f"Processing patch id {patch["id"]}")
+
+        page = requests.get(patch["url"]).json()
+
+        title = page["name"]
+        commit_msg = page["content"]
+        diff = page["diff"]
+
+        log_open_sec(f"Title")
+        log(title)
+        log_end_sec()
+
+        log_open_sec(f"Content")
+        log(commit_msg)
+        log_end_sec()
+
+        log_open_sec(f"Diff")
+        log(diff)
+        log_end_sec()
+
+        log_end_sec()
+
 
 if __name__ == "__main__":
     main()
