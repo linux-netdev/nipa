@@ -42,7 +42,7 @@ def main():
     log_end_sec()
 
     for patch in series["patches"]:
-        log_open_sec(f"Processing patch id {patch["id"]}")
+        log_open_sec(f'Processing patch id {patch["id"]}')
 
         page = requests.get(patch["url"]).json()
 
