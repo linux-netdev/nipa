@@ -31,6 +31,7 @@ class KdocWarning:
     line : Optional[int] = dataclasses.field(repr=True, compare=False)
     # The content of the warning (excluding kind, file, line)
     content : str = dataclasses.field(repr=True, compare=True)
+    parsed : bool = dataclasses.field(repr=True, compare=True)
 
     @classmethod
     def from_text(self, line, extra=None):
@@ -60,14 +61,12 @@ class KdocWarning:
             content = m['content']
             if extra:
                 content += '\n' + extra
-        else:
-            kind = 'Unknown'
-            file = None
-            line = None
-            content = message
 
-        return KdocWarning(message, kind=kind, file=file, line=line,
-                           content=content)
+            return KdocWarning(message, kind=kind, file=file, line=line,
+                               content=content, parsed=True)
+
+        return KdocWarning(message, kind='Unknown', file=None, line=None,
+                           content=line, parsed=False)
 
     def __str__(self):
         return self.message
@@ -80,20 +79,28 @@ def parse_warnings(lines, logs) -> List[KdocWarning]:
 
     # Walk through lines and convert to warning objects
     for i, line in enumerate(lines):
+        # Skip lines already merged into previous warning
         if skip:
             skip = False
             continue
 
+        # Ignore blank lines
+        if not line.strip():
+            continue
+
+        # Check if we should merge the next line with this warning
+        extra = None
         if line.endswith(':') and i + 1 < length:
             extra = lines[i + 1]
             skip = True
-        elif not line.strip():
-            continue
-        else:
-            logs += ["<parse fail>: " + line.strip()]
-            extra = None
 
-        warnings.append(KdocWarning.from_text(line, extra))
+        # Parse line into warning object
+        warning = KdocWarning.from_text(line, extra);
+
+        if not warning.parsed:
+            logs += [f'<parse fail>: {line.strip()}']
+
+        warnings.append(warning)
 
     return warnings
 
