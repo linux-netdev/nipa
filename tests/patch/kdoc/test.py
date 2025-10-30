@@ -30,7 +30,7 @@ class KdocWarning:
     # Note: *not* part of comparison, or hash!
     line : Optional[int] = dataclasses.field(repr=True, compare=False)
     # The content of the warning (excluding kind, file, line)
-    content : str = dataclasses.field(repr=True, compare=True)
+    content : Optional[str] = dataclasses.field(repr=True, compare=True)
     parsed : bool = dataclasses.field(repr=True, compare=True)
 
     @classmethod
@@ -65,6 +65,29 @@ class KdocWarning:
             return KdocWarning(message, kind=kind, file=file, line=line,
                                content=content, parsed=True)
 
+        # Check for line-number only warnings produced by certain buggy
+        # versions of kernel-doc. These will get treated as unparsed but
+        # all such warnings will compare identically to each other.
+        line_only_parser = re.compile(
+            r"""
+            ^                         # Start of string
+            (?P<kind>warning|error):  # Severity
+            \s+                       # Spacing
+            (?P<line>[0-9]+)          # Line number
+            $                         # End of string
+            """,
+            re.VERBOSE | re.IGNORECASE)
+
+        m = line_only_parser.match(line)
+        if m:
+            kind = m['kind']
+            line = m['line']
+
+            return KdocWarning(message, kind=kind, file=None, line=line,
+                               content=None, parsed=False)
+
+        # The warning text didn't match a known format. Such warnings will be
+        # counted to ensure that we don't increase this count over time.
         return KdocWarning(message, kind='Unknown', file=None, line=None,
                            content=line, parsed=False)
 
@@ -188,6 +211,10 @@ def kdoc(tree, patch, _result_dir) -> Tuple[int, str, str]:
     new_count = len(new_warnings)
     rm_count = len(rm_warnings)
 
+    # Count the number of warnings which we failed to parse
+    current_unparsed = len([x for x in current_warnings if not x.parsed])
+    incumbent_unparsed = len([x for x in incumbent_warnings if not x.parsed])
+
     desc = f'Warnings before: {incumbent_count} after: {current_count}'
     brac = []
     if new_count:
@@ -219,5 +246,9 @@ def kdoc(tree, patch, _result_dir) -> Tuple[int, str, str]:
         log += ["Per-file breakdown:"]
         for f, count in file_breakdown.items():
             log += [f'{count:6} {f}']
+
+    if current_unparsed > incumbent_unparsed:
+        ret = 1
+        log += ["", f'Number of parse failures increased from {incumbent_unparsed} to {current_unparsed}.']
 
     return ret, desc, "\n".join(log)
