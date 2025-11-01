@@ -143,6 +143,8 @@ def extract_files(patch):
             continue
         if 'tools/testing/selftests/' not in next_line:
             continue
+        if '/net/' not in next_line:
+            continue
 
         file_path = next_line[6:]
 
