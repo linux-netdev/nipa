@@ -11,14 +11,14 @@ def extract_key(raw):
     return k
 
 
-def check_one(a, b, line):
-    _a = extract_key(a)
-    _b = extract_key(b)
+def check_one(current, prev, line):
+    _current = extract_key(current)
+    _prev = extract_key(prev)
 
-    if _a >= _b:
+    if _current >= _prev:
         return None
 
-    return f"Lines {line}-{line+1} invalid order, {a} should be after {b}"
+    return f"Lines {line}-{line+1} invalid order, {current} should be before {prev}"
 
 
 def validate_config(file_path):
