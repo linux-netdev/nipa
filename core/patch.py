@@ -6,6 +6,7 @@
 # TODO: document
 
 import re
+from email import message_from_string
 
 import core
 
@@ -39,13 +40,14 @@ class Patch:
         # Whether the patch is first in the series, set by series.add_patch()
         self.first_in_series = None
 
-        subj = re.search(r'Subject: \[.*\](.*)', raw_patch)
-        if not subj:
-            subj = re.search(r'Subject: (.*)', raw_patch)
-        if subj:
-            if not self.title:
+        msg = message_from_string(raw_patch)
+        self.subject = msg['Subject'] or ""
+        if not self.title:
+            subj = re.search(r'\[.*\](.*)', self.subject)
+            if subj:
                 self.title = subj.group(1).strip()
-            self.subject = subj.group(0)[9:]
+            else:
+                self.title = self.subject
         core.log_open_sec("Patch init: " + self.title)
         core.log_end_sec()
 
