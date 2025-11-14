@@ -1,0 +1,3 @@
+{
+  "run": ["dtbs_check.sh"]
+}
