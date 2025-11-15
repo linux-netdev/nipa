@@ -21,14 +21,22 @@ emailpat = re.compile(r'([^ <"]*@[^ >"]*)')
 ignore_emails = {
     'linux-kernel@vger.kernel.org',  # Don't expect people to CC LKML on everything
     'nipa@patchwork.hopto.org',      # For new files NIPA will get marked as committer
-    'jeffrey.t.kirsher@intel.com'
+    'jeffrey.t.kirsher@intel.com',
+    'sln@onemain.com',
+    'rafalo@cadence.com',
+    'luoj@codeaurora.org',
+    'lokeshvutla@ti.com',
+    'grygorii.strashko@ti.com',
+    'davem@davemloft.net',
+    'raju.lakkaraju@microchip.com',
+    'arvid.brodin@alten.se'
 }
 
 # Maintainers who don't CC their co-employees
 maintainers = {
     'michael.chan@broadcom.com': ['@broadcom.com'],
     'huangguangbin2@huawei.com': ['@huawei.com', '@hisilicon.com'],
-    'anthony.l.nguyen@intel.com': ['@intel.com', '@lists.osuosl.org'],
+    'anthony.l.nguyen@intel.com': ['@intel.com', '@linux.intel.com', '@lists.osuosl.org'],
     'saeed@kernel.org': [
         '@nvidia.com', '@mellanox.com', 'leon@kernel.org', 'linux-rdma@vger.kernel.org'
     ]
@@ -40,6 +48,14 @@ pull_requesters = {'mkl@pengutronix.de', 'steffen.klassert@secunet.com',
                    'pablo@netfilter.org', 'fw@strlen.de'}
 
 local_map = ["Vladimir Oltean <vladimir.oltean@nxp.com> <olteanv@gmail.com>",
+             "Jiri Pirko <jiri@nvidia.com> <jiri@resnulli.us>",
+             "Ido Schimmel <idosch@nvidia.com> <idosch@mellanox.com>",
+             "Russell King <rmk+kernel@armlinux.org.uk> <linux@armlinux.org.uk>",
+             "John Fastabend <john.r.fastabend@intel.com> <john.fastabend@gmail.com>",
+             "Sergey Shtylyov <sergei.shtylyov@cogentembedded.com> <s.shtylyov@omp.ru>",
+             "Arseniy Krasnov <AVKrasnov@sberdevices.ru> <avkrasnov@salutedevices.com>",
+             "Francesco Ruggeri <fruggeri@arista.com> <fruggeri05@gmail.com>",
+             "Willem de Bruijn <willemdebruijn.kernel@gmail.com> <willemb@google.com>",
              "Alexander Duyck <alexanderduyck@fb.com> <alexander.duyck@gmail.com>"]
 
 #
@@ -175,7 +191,7 @@ def cc_maintainers(tree, thing, result_dir) -> Tuple[int, str, str]:
     ignored = set()
     with tempfile.NamedTemporaryFile() as fp:
         patch.write_out(fp)
-        command = ['./scripts/get_maintainer.pl', '--git-min-percent', '25', '--', fp.name]
+        command = ['./scripts/get_maintainer.pl', '--git-min-percent', '35', '--', fp.name]
         with subprocess.Popen(command, cwd=tree.path, stdout=subprocess.PIPE) as p:
             line = p.stdout.readline().decode('utf8', 'replace')
             while line:
