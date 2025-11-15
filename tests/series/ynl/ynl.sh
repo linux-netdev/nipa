@@ -40,33 +40,34 @@ fi
 ##################################################################
 echo " ====== 3/ Generate diffs for user codegen ======"
 
-mkdir $RESULTS_DIR/old-code
+TEMP_DIR=$(mktemp -d /tmp/ynl_build-tmp.XXXXXX)
+
+mkdir $TEMP_DIR/old-code
 git checkout -q $BRANCH_BASE
 make -C tools/net/ynl/generated/ distclean
 make -C tools/net/ynl/generated/ -j $ncpu
-cp tools/net/ynl/generated/*.[ch] $RESULTS_DIR/old-code/
+cp tools/net/ynl/generated/*.[ch] $TEMP_DIR/old-code/
 
-mkdir $RESULTS_DIR/new-code
+mkdir $TEMP_DIR/new-code
 git checkout -q $HEAD
 make -C tools/net/ynl/generated/ distclean
 make -C tools/net/ynl/generated/ -j $ncpu
-cp tools/net/ynl/generated/*.[ch] $RESULTS_DIR/new-code/
+cp tools/net/ynl/generated/*.[ch] $TEMP_DIR/new-code/
 
 git diff --no-index --stat \
-    $RESULTS_DIR/old-code/ $RESULTS_DIR/new-code/ > $RESULTS_DIR/diff-stat
+    $TEMP_DIR/old-code/ $TEMP_DIR/new-code/ > $RESULTS_DIR/diff-stat
 git diff --no-index \
-    $RESULTS_DIR/old-code/ $RESULTS_DIR/new-code/ > $RESULTS_DIR/diff
+    $TEMP_DIR/old-code/ $TEMP_DIR/new-code/ > $RESULTS_DIR/diff
 
 git diff --no-index --exit-code \
-    $RESULTS_DIR/old-code/ $RESULTS_DIR/new-code/ >> /dev/null
+    $TEMP_DIR/old-code/ $TEMP_DIR/new-code/ >> /dev/null
 if [ $? -eq 0 ]; then
   echo "no diff in generated;" >&$DESC_FD
 else
   echo "GEN HAS DIFF $(cat $RESULTS_DIR/diff-stat | tail -1);" >&$DESC_FD
 fi
 
-rm -rf $RESULTS_DIR/old-code/ $RESULTS_DIR/new-code/
-
+rm -rf $TEMP_DIR
 rm $tmpfile
 
 exit $rc
