@@ -52,8 +52,10 @@ def _tree_name_should_be_local_files(raw_email):
         'Documentation/devicetree/bindings/net/',
         'Documentation/netlink/',
         'Documentation/networking/',
+        'include/linux/firmware/broadcom/tee_bnxt_fw.h',
         'include/linux/netdevice.h',
         'include/linux/skbuff.h',
+        'include/linux/phy.h',
         'include/net/',
         'include/phy/',
         # lib/ is pretty broad but patch volume is low
@@ -62,6 +64,7 @@ def _tree_name_should_be_local_files(raw_email):
         'drivers/atm/',
         'drivers/bluetooth/',
         'drivers/dpll/',
+        'drivers/firmware/broadcom/tee_bnxt_fw.c',
         'drivers/isdn/',
         'drivers/net/',
         'drivers/dsa/',
@@ -71,6 +74,9 @@ def _tree_name_should_be_local_files(raw_email):
         'kernel/bpf/',
         'tools/net/',
         'tools/testing/selftests/net/',
+
+        'kernel/trace/bpf_trace.c',
+        'drivers/leds/trigger/ledtrig-netdev.c',
     }
     excluded_files = set()
     all_files = acceptable_files.union(required_files)
