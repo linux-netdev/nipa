@@ -171,6 +171,30 @@ def add_remote_services(result, remote):
     data = json.loads(r.content.decode('utf-8'))
     result["remote"][remote["name"]] = data
 
+    # Collect runners from remote for later merging
+    if "runners" in data:
+        if "_remote_runners" not in result:
+            result["_remote_runners"] = []
+        result["_remote_runners"].append((remote["name"], data["runners"]))
+
+
+def merge_runners(result):
+    """Merge remote runners into result, prefixing only if multiple sources exist"""
+    remote_runners = result.pop("_remote_runners", [])
+    if not remote_runners:
+        return
+
+    # Count sources: local + each remote that has runners
+    num_sources = (1 if result["runners"] else 0) + sum(1 for _, r in remote_runners if r)
+    need_prefix = num_sources > 1
+
+    if need_prefix and result["runners"]:
+        result["runners"] = {f"local-{k}": v for k, v in result["runners"].items()}
+
+    for remote_name, runners in remote_runners:
+        prefix = f"{remote_name}-" if need_prefix else ""
+        result["runners"].update({f"{prefix}{k}": v for k, v in runners.items()})
+
 
 def get_metric_values(db_connection, source, category, name, limit=120):
     """ Query metrics from the DB """
@@ -283,6 +307,9 @@ def main():
     if "remote" in cfg:
         for remote in cfg["remote"]:
             add_remote_services(result, remote)
+
+    # Merge runners from remotes (after all remotes are fetched)
+    merge_runners(result)
 
     add_disk_size(result, "/")
 
