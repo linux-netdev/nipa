@@ -197,7 +197,7 @@ def main():
              config.get('log', 'file', fallback=os.path.join(log_dir, "upload.org")),
              force_single_thread=True)
 
-    results_dir = config.get('results', 'dir', fallback=os.path.join(NIPA_DIR, "results"))
+    results_dir = config.get('dirs', 'results', fallback=os.path.join(NIPA_DIR, "results"))
 
     pw = Patchwork(config)
 
