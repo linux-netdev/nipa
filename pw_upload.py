@@ -147,7 +147,7 @@ class TestWatcher(object):
             return
 
         # Install the watch, to avoid race conditions with the check
-        wd = self.inotify.add_watch(path, inotify.flags.CREATE)
+        wd = self.inotify.add_watch(path, inotify.flags.CREATE | inotify.flags.MOVED_TO)
         self.wd2name[wd] = name
         log(f"New watch: {wd} => {name}", '')
 
