@@ -146,33 +146,27 @@ def run_kernel_doc(tree, commitish, files, logs) -> List[KdocWarning]:
 
     return parse_warnings(lines, logs)
 
-def extract_files(patch):
-    """Extract paths added or modified by the patch."""
+def extract_files(tree):
+    """Extract paths added or modified by the commit."""
 
-    before_files = set()
-    after_files = set()
-    lines = patch.raw_patch.split("\n")
+    # Get files that existed before (modified or deleted)
+    cmd = ["git", "diff", "--name-only", "--diff-filter=MD", "HEAD~.."]
+    result = subprocess.run(cmd, cwd=tree.path, capture_output=True,
+                            text=True, check=True)
+    before_files = [f for f in result.stdout.strip().split('\n') if f]
 
-    # Walk lines, skip last since it doesn't have next
-    for i, line in enumerate(lines[:-1]):
-        next_line = lines[i + 1]
+    # Get files that exist after (added or modified)
+    cmd = ["git", "diff", "--name-only", "--diff-filter=AM", "HEAD~.."]
+    result = subprocess.run(cmd, cwd=tree.path, capture_output=True,
+                            text=True, check=True)
+    after_files = [f for f in result.stdout.strip().split('\n') if f]
 
-        if not next_line.startswith("+++ b/"):
-            continue
+    return before_files, after_files
 
-        file_path = next_line[6:]
-
-        if "/dev/null" not in line:
-            before_files.add(file_path)
-        if "/dev/null" not in next_line:
-            after_files.add(file_path)
-
-    return list(before_files), list(after_files)
-
-def kdoc(tree, patch, _result_dir) -> Tuple[int, str, str]:
+def kdoc(tree, _patch, _result_dir) -> Tuple[int, str, str]:
     """ Main function / entry point """
 
-    before_files, after_files = extract_files(patch)
+    before_files, after_files = extract_files(tree)
 
     if not before_files and not after_files:
         return 1, "Patch has no modified files?", ""
