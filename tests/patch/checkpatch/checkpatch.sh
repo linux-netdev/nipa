@@ -15,7 +15,12 @@ BAD_REPORTED_BY_LINK
 
 tmpfile=$(mktemp)
 
-./scripts/checkpatch.pl --strict --max-line-length=80 --ignore=$IGNORED -g HEAD | tee $tmpfile
+./scripts/checkpatch.pl -g HEAD \
+			--strict \
+			--codespell \
+			--max-line-length=80 \
+			--ignore=$IGNORED \
+    | tee $tmpfile
 
 grep 'total: 0 errors, 0 warnings, 0 checks' $tmpfile
 ret=$?
