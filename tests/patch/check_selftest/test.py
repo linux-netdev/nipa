@@ -42,8 +42,8 @@ def check_new_files_makefile(tree, new_files, log):
             log.append("makefile inclusion check ignoring " + path)
             continue
 
+        needle = os.path.basename(needle)
         makefile = os.path.dirname(path) + "/Makefile"
-        needle = os.path.basename(path)
 
         cmd = ["git", "grep", needle, "--", makefile]
         result = subprocess.run(cmd, cwd=tree.path, capture_output=True,
@@ -72,8 +72,8 @@ def check_new_files_gitignore(tree, new_files, log):
             log.append("gitignore check ignoring " + path)
             continue
 
+        needle = os.path.basename(needle)
         target = os.path.dirname(path) + "/.gitignore"
-        needle = os.path.basename(path)
 
         cmd = ["git", "grep", needle, "--", target]
         result = subprocess.run(cmd, cwd=tree.path, capture_output=True,
