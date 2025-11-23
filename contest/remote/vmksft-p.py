@@ -291,26 +291,28 @@ def test(binfo, rinfo, cbarg):
 
     vm = VM(config)
 
+    build_ok = True
     kconfs = []
     for target in targets:
         conf = f"tools/testing/selftests/{target}/config"
         if os.path.exists(os.path.join(vm.tree_path, conf)):
             kconfs.append(conf)
-    if vm.build(kconfs) == False:
-        vm.dump_log(results_path + '/build')
+    build_ok &= vm.build(kconfs)
+
+    shutil.copy(os.path.join(config.get('local', 'tree_path'), '.config'),
+                results_path + '/config')
+    vm.tree_cmd("make headers")
+    ret = vm.tree_cmd(["make", "-C", "tools/testing/selftests/",
+                       "TARGETS=" + " ".join(targets)])
+    build_ok &= ret == 0
+    vm.dump_log(results_path + '/build')
+    if not build_ok:
         return [{
             'test': 'build',
             'group': grp_name,
             'result': 'fail',
             'link': link + '/build',
         }]
-
-    shutil.copy(os.path.join(config.get('local', 'tree_path'), '.config'),
-                results_path + '/config')
-    vm.tree_cmd("make headers")
-    for target in targets:
-        vm.tree_cmd(f"make -C tools/testing/selftests/{target}/")
-    vm.dump_log(results_path + '/build')
 
     progs = get_prog_list(vm, targets)
     progs.sort(reverse=True, key=lambda prog : cbarg.prev_runtime.get(prog, 0))
