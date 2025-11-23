@@ -74,7 +74,7 @@ git clone https://github.com/HewlettPackard/netperf.git
 cd netperf
 ./autogen.sh
 ./configure --disable-omni # fails build otherwise
-make install DESTDIR=/home/virtme/tools/fs prefix=/usr
+make install DESTDIR=$HOME/tools/fs prefix=/usr
 
 exit 0
 
@@ -115,20 +115,20 @@ git merge current/main -m "merge in current"
 
 ./configure
 make -j 40
-make install DESTDIR=/home/virtme/tools/fs prefix=/usr PREFIX=/usr
+make install DESTDIR=$HOME/tools/fs prefix=/usr PREFIX=/usr
 
 # msend / mreceive
 git clone https://github.com/troglobit/mtools.git
 cd mtools
 make
-make install DESTDIR=/home/virtme/tools/fs prefix=/usr PREFIX=/usr
+make install DESTDIR=$HOME/tools/fs prefix=/usr PREFIX=/usr
 
 # smcrouted
 git clone https://github.com/troglobit/smcroute.git
 cd smcroute
 ./autogen.sh
 ./configure
-make install DESTDIR=/home/virtme/tools/fs prefix=/usr PREFIX=/usr
+make install DESTDIR=$HOME/tools/fs prefix=/usr PREFIX=/usr
 # it looks for a socket in /usr/local/var/run
 sudo su
 mkdir -p /usr/local/var/
@@ -141,7 +141,7 @@ cd ndisc6/
 ./autogen.sh
 ./configure
 make -j
-make install DESTDIR=/home/virtme/tools/fs prefix=/usr PREFIX=/usr
+make install DESTDIR=$HOME/tools/fs prefix=/usr PREFIX=/usr
 # make sure the SUID bits don't stick
 find tools/fs/ -perm -4000
 fs=$(find tools/fs/ -perm -4000)
@@ -155,7 +155,7 @@ cd dropwatch/
 ./autogen.sh
 ./configure
 make -j
-make install DESTDIR=/home/virtme/tools/fs prefix=/usr PREFIX=/usr
+make install DESTDIR=$HOME/tools/fs prefix=/usr PREFIX=/usr
 
 # ethtool
 git clone https://git.kernel.org/pub/scm/network/ethtool/ethtool.git
@@ -163,12 +163,12 @@ cd ethtool
 ./autogen.sh
 ./configure
 make -j
-make install DESTDIR=/home/virtme/tools/fs prefix=/usr PREFIX=/usr
+make install DESTDIR=$HOME/tools/fs prefix=/usr PREFIX=/usr
 
 # psample
 git clone https://github.com/Mellanox/libpsample
 cd libpsample
-cmake -DCMAKE_INSTALL_PREFIX:PATH=/home/virtme/tools/fs/usr .
+cmake -DCMAKE_INSTALL_PREFIX:PATH=$HOME/tools/fs/usr .
 make -j
 make install
 
@@ -197,7 +197,7 @@ ln -s ping ping6
 git clone https://github.com/fgont/ipv6toolkit
 cd ipv6toolkit/
 make
-make install DESTDIR=/home/virtme/tools/fs PREFIX=/usr
+make install DESTDIR=$HOME/tools/fs PREFIX=/usr
 
 # for nf tests
 sudo dnf install conntrack iperf3 ipvsadm
@@ -206,28 +206,28 @@ git clone git://git.netfilter.org/libnftnl
 ./autogen.sh
 ./configure
 make -j 30
-make install DESTDIR=/home/virtme/tools/fs prefix=/usr PREFIX=/usr
+make install DESTDIR=$HOME/tools/fs prefix=/usr PREFIX=/usr
 
-libtool --finish /home/virtme/tools/fs/usr/lib
+libtool --finish $HOME/tools/fs/usr/lib
 sudo dnf install gmp gmp-devel
 
 git clone git://git.netfilter.org/nftables
-export PKG_CONFIG_PATH=/home/virtme/tools/fs:/home/virtme/tools/fs/usr:/home/virtme/tools/fs/usr/lib/pkgconfig/
+export PKG_CONFIG_PATH=$HOME/tools/fs:$HOME/tools/fs/usr:$HOME/tools/fs/usr/lib/pkgconfig/
 ./configure --with-json --with-xtables
 
 # Edit paths into the makefile
-# LIBNFTNL_CFLAGS = -I/usr/local/include -I/home/virtme/tools/fs/usr/include
-# LIBNFTNL_LIBS = -L/usr/local/lib -L/home/virtme/tools/fs/usr/lib -lnftnl
+# LIBNFTNL_CFLAGS = -I/usr/local/include -I$HOME/tools/fs/usr/include
+# LIBNFTNL_LIBS = -L/usr/local/lib -L$HOME/tools/fs/usr/lib -lnftnl
 
-make install DESTDIR=/home/virtme/tools/fs prefix=/usr PREFIX=/usr
+make install DESTDIR=$HOME/tools/fs prefix=/usr PREFIX=/usr
 # note that library LD_LIBRARY_PATH must have local libs before /lib64 !
 
 git clone git://git.netfilter.org/ebtables
 ./autogen.sh
-./configure --prefix=/ --exec-prefix=/home/virtme/tools/fs
+./configure --prefix=/ --exec-prefix=$HOME/tools/fs
 make -j 8
-make install DESTDIR=/home/virtme/tools/fs prefix=/usr PREFIX=/usr
-cd /home/virtme/tools/fs/usr/sbin/
+make install DESTDIR=$HOME/tools/fs prefix=/usr PREFIX=/usr
+cd $HOME/tools/fs/usr/sbin/
 ln -v ebtables-legacy ebtables
 
 sudo cp /etc/ethertypes /usr/local/etc/
@@ -248,7 +248,7 @@ sudo dnf install python3-pyroute2.noarch
 # uring (needs ZC)
  git clone https://github.com/axboe/liburing/
  cd liburing
- ./configure --prefix=/usr
+ ./configure --prefix=/usr --libdir=/usr/lib64
  make -j
  sudo make install
 
