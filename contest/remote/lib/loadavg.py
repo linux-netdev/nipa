@@ -31,5 +31,5 @@ def wait_loadavg(target, dirty_max=100, check_ival=30, stable_cnt=3):
         else:
             seen_stable = 0
 
-        print(f"Waiting for loadavg to decrease: CPU: {load} > {target} Dirty Mem: {dirty} > {dirty_max} MB ({seen_stable})")
+        print(f"Waiting for loadavg to decrease: CPU: {load:.1f} > {target} Dirty Mem: {dirty:.1f} > {dirty_max} MB ({seen_stable})")
         time.sleep(check_ival)
