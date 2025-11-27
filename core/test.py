@@ -71,6 +71,8 @@ class Test(object):
             fp.write("==========\n")
             if retcode == 0:
                 fp.write("%s - OKAY\n" % (self.name, ))
+            elif retcode == 111:
+                fp.write("%s - PENDING\n" % (self.name, ))
             elif retcode == 250:
                 fp.write("%s - WARNING\n" % (self.name, ))
             else:

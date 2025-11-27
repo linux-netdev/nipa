@@ -59,7 +59,7 @@ code_to_pw = {
     Codes.PENDING: PatchworkCheckState.PENDING,
     2: PatchworkCheckState.WARNING,
     3: PatchworkCheckState.WARNING,
-    4: PatchworkCheckState.FAIL,
+    4: PatchworkCheckState.PENDING,
 }
 
 

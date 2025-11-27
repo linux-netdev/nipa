@@ -42,6 +42,8 @@ class PwTestResult:
                 retcode = f.read()
                 if retcode == "0":
                     self.state = PatchworkCheckState.SUCCESS
+                elif retcode == "111":
+                    self.state = PatchworkCheckState.PENDING
                 elif retcode == "250":
                     self.state = PatchworkCheckState.WARNING
                 else:
