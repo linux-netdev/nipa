@@ -50,18 +50,6 @@ echo "Branch: $BRANCH ($branch_rev)"
 echo "Jobs: $JOBS"
 echo
 
-echo " === Waiting for loadavg to die down ==="
-while true; do
-    # Sleep first to make sure others get a chance to start
-    sleep 120
-
-    load=$(cat /proc/loadavg | sed -e 's/\([0-9.]\) .*/\1/;s/\.//;s/^0*//')
-    [ $load -lt 800 ] && break
-done
-
-echo "Starting at $(date)"
-echo
-
 IGNORED=(
     scripts/coccinelle/misc/minmax.cocci
     # secs_to_jiffies is broken in report mode
