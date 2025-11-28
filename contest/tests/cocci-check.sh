@@ -31,6 +31,9 @@ clean_up_output() {
     sed -i '/^EXN: Coccinelle_modules.Common.Timeout /d' $file
     sed -i '/An error occurred when attempting /d' $file
     sed -i '/mlx5_ifc.h:.* WARNING use flexible-array member instead/d' $file
+
+    # allow user to add local user "sed filters" without modifying the test
+    [ -f "$COCCI_EXTRA_CLEAN" ] && source COCCI_EXTRA_CLEAN
 }
 
 # Figure out the number of physical cores, save 8 or half for other stuff
