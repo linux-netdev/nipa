@@ -1,0 +1,14 @@
+{
+    "args": [
+	"/opt/nipa/air-submit.py",
+	"--no-wait",
+	"--url", "https://netdev-ai.bots.linux.dev",
+	"--token", "hunter2",
+	"--pw-series",
+	"--tree"
+    ],
+    "trees": {
+	"net" : "netdev/net",
+	"net-next" : "netdev/net-next"
+    }
+}
