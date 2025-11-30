@@ -1,0 +1,3 @@
+{
+  "run": ["dt_binding_check.sh"]
+}
