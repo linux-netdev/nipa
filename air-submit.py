@@ -84,7 +84,8 @@ def read_patch_files(patch_files: List[str]) -> List[str]:
 def submit_review(url: str, token: str, tree: str, branch: Optional[str],
                   patches: Optional[List[str]] = None,
                   patchwork_series_id: Optional[int] = None,
-                  chash: Optional[str] = None) -> str:
+                  chash: Optional[str] = None,
+                  model: Optional[str] = None) -> str:
     """Submit patches for review
 
     Args:
@@ -95,6 +96,7 @@ def submit_review(url: str, token: str, tree: str, branch: Optional[str],
         patches: List of patch contents (or None if using patchwork/hash)
         patchwork_series_id: Patchwork series ID (or None if using patches/hash)
         chash: Git hash or range (or None if using patches/patchwork)
+        model: Optional model name (sonnet, opus, haiku)
 
     Returns:
         Review ID
@@ -118,6 +120,9 @@ def submit_review(url: str, token: str, tree: str, branch: Optional[str],
 
     if branch:
         payload['branch'] = branch
+
+    if model:
+        payload['model'] = model
 
     try:
         response = requests.post(api_url, json=payload, timeout=30)
@@ -262,11 +267,13 @@ Configuration file:
     token = mytoken
     tree = netdev/net-next
     branch = main
+    model = sonnet
 
   Command-line arguments always override config file values.
   To unset a config value, pass an empty string:
     %(prog)s --token= --review-id abc-123-def  # Query without token
     %(prog)s --branch= 0001-fix.patch          # Submit without branch
+    %(prog)s --model= 0001-fix.patch           # Use default model
         """
     )
 
@@ -278,6 +285,8 @@ Configuration file:
                        help='Git tree name (e.g., netdev/net-next) [required for submission]')
     parser.add_argument('--branch',
                        help='Git branch name (optional)')
+    parser.add_argument('--model', choices=['sonnet', 'opus', 'haiku'],
+                       help='Claude model to use (optional)')
     parser.add_argument('--format', choices=['json', 'markup', 'inline'],
                        default='inline',
                        help='Review output format (default: inline)')
@@ -307,12 +316,16 @@ Configuration file:
             args.tree = config.get('air', 'tree')
         if args.branch is None and config.has_option('air', 'branch'):
             args.branch = config.get('air', 'branch')
+        if args.model is None and config.has_option('air', 'model'):
+            args.model = config.get('air', 'model')
 
     # Convert empty strings to None (allows unsetting config values)
     if args.token == '':
         args.token = None
     if args.branch == '':
         args.branch = None
+    if args.model == '':
+        args.model = None
 
     # Validate that we have URL
     if not args.url:
@@ -345,17 +358,20 @@ Configuration file:
             print(f"Submitting patchwork series {args.pw_series} to {args.tree}...")
             review_id = submit_review(args.url, args.token, args.tree,
                                       args.branch,
-                                      patchwork_series_id=args.pw_series)
+                                      patchwork_series_id=args.pw_series,
+                                      model=args.model)
         elif args.hash:
             print(f"Submitting git hash/range {args.hash} to {args.tree}...")
             review_id = submit_review(args.url, args.token, args.tree,
-                                      args.branch, chash=args.hash)
+                                      args.branch, chash=args.hash,
+                                      model=args.model)
         else:
             print(f"Reading {len(args.patches)} patch file(s)...")
             patches = read_patch_files(args.patches)
             print(f"Submitting to {args.tree}...")
             review_id = submit_review(args.url, args.token, args.tree,
-                                      args.branch, patches=patches)
+                                      args.branch, patches=patches,
+                                      model=args.model)
 
         print(f"Review ID: {review_id}")
 
