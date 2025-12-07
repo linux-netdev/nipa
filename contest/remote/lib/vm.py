@@ -182,6 +182,9 @@ class VM:
         if cwd:
             cmd += ["--cwd", cwd]
 
+        name = self.config.get('executor', 'name', fallback="virtme-ng")
+        cmd += ["--name", name + ",debug-threads=on"]
+
         opts = self.config.get('vm', 'virtme_opt', fallback="")
         cmd += opts.split(',') if opts else []
 
