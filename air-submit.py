@@ -285,8 +285,8 @@ Configuration file:
                        help='Git tree name (e.g., netdev/net-next) [required for submission]')
     parser.add_argument('--branch',
                        help='Git branch name (optional)')
-    parser.add_argument('--model', choices=['sonnet', 'opus', 'haiku'],
-                       help='Claude model to use (optional)')
+    parser.add_argument('--model',
+                       help='Claude model to use (e.g., sonnet, opus, haiku) [optional]')
     parser.add_argument('--format', choices=['json', 'markup', 'inline'],
                        default='inline',
                        help='Review output format (default: inline)')
