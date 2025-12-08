@@ -3,7 +3,6 @@
 
 import datetime
 import shutil
-import fcntl
 import os
 import re
 import queue
@@ -333,16 +332,21 @@ def test(binfo, rinfo, cbarg):
     # In case we have multiple tests kicking off on the same machine,
     # add optional wait to make sure others have finished building
     load_tgt = config.getfloat("cfg", "wait_loadavg", fallback=None)
+    load_ival = config.getfloat("cfg", "wait_loadavg_ival", fallback=30)
     thr_cnt = int(config.get("cfg", "thread_cnt"))
     delay = float(config.get("cfg", "thread_spawn_delay", fallback=0))
+
     for i in range(thr_cnt):
-        wait_loadavg(load_tgt)
+        # Lower the wait for subsequent VMs
+        if i == 1:
+            time.sleep(delay)
+            load_ival /= 2
+        wait_loadavg(load_tgt, check_ival=load_ival)
         print("INFO: starting VM", i)
         threads.append(threading.Thread(target=vm_thread,
                                         args=[config, results_path, i, hard_stop,
                                               in_queue, out_queue]))
         threads[i].start()
-        time.sleep(delay)
 
     for i in range(thr_cnt):
         threads[i].join()
