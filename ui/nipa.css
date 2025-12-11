@@ -124,3 +124,49 @@ tr:nth-child(even) {
         background-color: #1e3a5f;
     }
 }
+
+/* Sponsor footer */
+#sponsors-footer {
+    margin-top: 2em;
+    padding: 1em;
+    text-align: center;
+}
+
+#sponsors-footer hr {
+    border: none;
+    border-top: 1px solid #cccccc;
+    margin-bottom: 1em;
+}
+
+#sponsors-footer p {
+    margin-bottom: 1em;
+}
+
+.sponsor-sections {
+    display: flex;
+    justify-content: center;
+    gap: 4em;
+}
+
+.sponsor-logos {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 2em;
+}
+
+.sponsor-logos img {
+    height: 3em;
+}
+
+@media (prefers-color-scheme: dark) {
+    #sponsors-footer hr {
+        border-top-color: #444444;
+    }
+
+    .sponsor-logos {
+	background: white;
+	padding: 20px;
+    }
+}

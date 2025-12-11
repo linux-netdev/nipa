@@ -172,6 +172,14 @@ function nipa_load_sitemap()
     });
 }
 
+function nipa_load_sponsors()
+{
+    $(document).ready(function() {
+	$("body").append('<div id="sponsors"></div>');
+	$("#sponsors").load("/sponsors.html");
+    });
+}
+
 // ------------------
 
 var nipa_sort_cb = null;
