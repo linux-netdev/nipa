@@ -14,9 +14,9 @@ function load_tables()
     year_ago.setFullYear(year_ago.getFullYear() - 1);
 
     for (ste of stability) {
-	let tn = ste.test + ':' + ste.subtest;
+	let tn = ste.grp + ':' + ste.test + ':' + ste.subtest;
 	if (ste.subtest == null)
-	    tn = ste.test + ':';
+	    tn = ste.grp + ':' + ste.test + ':';
 	let rn = ste.remote + ste.executor;
 
 	if (!(tn in sta_db)) {
@@ -67,6 +67,7 @@ function load_tables()
 
     for (tbl of [sta_tb, sta_to]) {
 	const hdr = tbl.createTHead().insertRow();
+	hdr.insertCell().innerText = 'Group';
 	hdr.insertCell().innerText = 'Test';
 	hdr.insertCell().innerText = 'Subtest';
 	for (rn of Object.keys(display_names)) {
@@ -89,11 +90,12 @@ function load_tables()
 	    row = sta_to.insertRow();
 
 	row.insertCell(0).innerText = tn.split(':')[0];
-	let cell = row.insertCell(1);
-	if (tn.split(':').length == 2)
-	    cell.innerText = tn.split(':')[1];
+	row.insertCell(1).innerText = tn.split(':')[1];
+	let cell = row.insertCell(2);
+	if (tn.split(':').length == 3)
+	    cell.innerText = tn.split(':')[2];
 
-	let i = 2;
+	let i = 3;
 	for (rn of Object.keys(display_names)) {
 	    cell = row.insertCell(i++);
 	    if (rn in sta_db[tn]) {
