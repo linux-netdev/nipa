@@ -23,6 +23,8 @@ clean_up_output() {
 
     # modpost triggers this randomly on use of existing symbols
     sed -i '/arch\/x86\/boot.* warning: symbol .* was not declared. Should it be static?/d' $file
+    # sparse spews these for every MODULE_* info macro
+    sed -i '/error: bad constant expression/d' $file
 }
 
 echo "Using $build_flags redirect to $tmpfile_o and $tmpfile_n"
