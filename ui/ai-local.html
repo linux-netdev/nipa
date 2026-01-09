@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Running AI Reviews Locally</title>
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="stylesheet" href="nipa.css">
+    <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --bg-card: #ffffff;
+            --text-primary: #333;
+            --text-secondary: #555;
+            --text-muted: #666;
+            --border-color: #ddd;
+            --accent-primary: #0366d6;
+            --accent-hover: #0056b3;
+            --heading-color: #2c3e50;
+            --code-bg: #f5f5f5;
+            --code-border: #e1e4e8;
+            --code-text: #24292e;
+            --inline-code-bg: #eff1f3;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1c1c1c;
+            --bg-secondary: #282828;
+            --bg-card: #282828;
+            --text-primary: #b8b8b8;
+            --text-secondary: #999;
+            --text-muted: #888;
+            --border-color: #444;
+            --accent-primary: #58a6ff;
+            --accent-hover: #79b8ff;
+            --heading-color: #b8b8b8;
+            --code-bg: #161b22;
+            --code-border: #30363d;
+            --code-text: #c9d1d9;
+            --inline-code-bg: #343942;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 0 20px;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background-color 0.3s, color 0.3s;
+            line-height: 1.6;
+        }
+
+        .header-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: var(--heading-color);
+            border-bottom: 2px solid var(--accent-primary);
+            padding-bottom: 10px;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        h1 img {
+            width: 40px;
+            height: 40px;
+        }
+
+        h2 {
+            color: var(--heading-color);
+            margin-top: 40px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        h3 {
+            color: var(--heading-color);
+            margin-top: 25px;
+        }
+
+        .theme-toggle {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.3s;
+        }
+
+        .theme-toggle:hover {
+            background-color: var(--bg-secondary);
+            border-color: var(--accent-primary);
+        }
+
+        .intro {
+            background-color: var(--bg-secondary);
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+            border: 1px solid var(--border-color);
+        }
+
+        .intro p {
+            margin: 0;
+        }
+
+        a {
+            color: var(--accent-primary);
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        code {
+            font-family: 'Courier New', Consolas, monospace;
+            background-color: var(--inline-code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+
+        pre {
+            background-color: var(--code-bg);
+            border: 1px solid var(--code-border);
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            font-family: 'Courier New', Consolas, monospace;
+            font-size: 0.9em;
+            line-height: 1.5;
+            color: var(--code-text);
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+            font-size: inherit;
+        }
+
+        .note {
+            background-color: var(--bg-secondary);
+            border-left: 4px solid var(--accent-primary);
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 0 5px 5px 0;
+        }
+
+        .note-title {
+            font-weight: bold;
+            color: var(--accent-primary);
+            margin-bottom: 5px;
+        }
+
+        .model-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .model-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .model-list li:last-child {
+            border-bottom: none;
+        }
+
+        .model-name {
+            font-weight: bold;
+            color: var(--heading-color);
+        }
+
+        .prompt-box {
+            background-color: var(--code-bg);
+            border: 2px solid var(--accent-primary);
+            border-radius: 6px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .prompt-box h4 {
+            margin-top: 0;
+            color: var(--accent-primary);
+        }
+
+        .prompt-text {
+            white-space: pre-wrap;
+            font-family: 'Courier New', Consolas, monospace;
+            font-size: 0.9em;
+            line-height: 1.5;
+            color: var(--code-text);
+            background-color: var(--bg-primary);
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid var(--code-border);
+        }
+
+        .step {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+
+        .step-number {
+            display: inline-block;
+            width: 28px;
+            height: 28px;
+            background-color: var(--accent-primary);
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 28px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .step-title {
+            font-weight: bold;
+            font-size: 1.1em;
+            color: var(--heading-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="header-controls">
+        <h1>
+            <img src="/favicon.png" alt="NIPA AIR Logo">
+            Running AI Reviews Locally
+        </h1>
+        <button class="theme-toggle" onclick="toggleTheme()">
+            <span id="theme-icon">🌙</span> Toggle Theme
+        </button>
+    </div>
+
+    <h2>Review Prompts</h2>
+    <p>
+        The AI reviews on netdev (BPF and some other subsystems) use
+        LLM review prompts developed by Chris Mason:
+    </p>
+    <p style="font-size: 1.2em; margin: 20px 0;">
+        <a href="https://github.com/masoncl/review-prompts" target="_blank" rel="noopener noreferrer">
+            github.com/masoncl/review-prompts
+        </a>
+    </p>
+    <p>
+      Clone this repository to get the latest prompts, and ask your
+      favorite LLM to use them to review your code.
+    </p>
+    <p>
+      The exact prompt we use on netdev is:
+    </p>
+    <div class="prompt-text">Current directory is the root of a Linux Kernel git repository.
+Read the prompt from review-prompt/prompt.md.
+Using the prompt, do a deep dive regression analysis of the HEAD commit.
+Use commit range &lt;base&gt;..&lt;head&gt; for the false-positive-guide.md section.</div>
+
+    <p>
+      Where <code>&lt;base&gt;..&lt;head&gt;</code> should be replaced by a real
+      git commit hash range.
+    </p>
+
+    <h2>Output Format</h2>
+    <p>
+        The review-prompt instructs the LLM to write its findings to a file called
+        <code>review-inline.txt</code> in the repository root. This file contains
+        the regression analysis formatted for email replies.
+    </p>
+
+    <h2>MCP Tools</h2>
+    <p>
+      Chris has also developed a MCP integration which indexes commits and
+      the code to make the LLMs burn fewer tokens fetching context. (<code>semcode</code>)
+    </p>
+    <p>
+      See the README of the review prompt repo for more information.
+    </p>
+
+    <h2>Getting Help</h2>
+    <p>
+      This page is very rudimentary.
+      For any questions and comments please reply to a thread on the mailing list which brought you here and CC <code>Chris Mason &lt;clm@meta.com&gt;</code>.
+    </p>
+
+    <script>
+        // Theme management
+        function initTheme() {
+            const savedTheme = localStorage.getItem('air-theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const theme = savedTheme || (prefersDark ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', theme);
+            updateThemeIcon(theme);
+        }
+
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('air-theme', newTheme);
+            updateThemeIcon(newTheme);
+        }
+
+        function updateThemeIcon(theme) {
+            const icon = document.getElementById('theme-icon');
+            icon.textContent = theme === 'dark' ? '☀️' : '🌙';
+        }
+
+        // Initialize theme on page load
+        initTheme();
+    </script>
+</body>
+</html>
