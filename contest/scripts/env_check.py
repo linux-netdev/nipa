@@ -48,6 +48,7 @@ def collect_system_state():
 
     for iface in interfaces:
         ifname = iface['ifname']
+        ifindex = iface['ifindex']
 
         state["links"][ifname] = iface
 
@@ -58,6 +59,18 @@ def collect_system_state():
         if "rss-hash-key" in state["rss"][ifname]:
             del state["rss"][ifname]["rss-hash-key"]
         state["ntuple"][ifname] = run_cmd_text(f"ethtool -n {ifname}")
+
+        for op in ['dev-get', 'page-pool-get', 'queue-get', 'napi-get']:
+            state["netdev-" + op] = state.get("netdev-" + op, {})
+
+            if op in {'dev-get'}:
+                method = '--do'
+            else:
+                method = '--dump'
+
+            cmd = f'ynl --family netdev --output-json {method} {op} '
+            cmd += "--json '{" + f'"ifindex": {ifindex}' + "}'"
+            state["netdev-" + op][ifname] = run_cmd_json(cmd)
 
     return state
 
