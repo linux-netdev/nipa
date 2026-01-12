@@ -3,14 +3,15 @@
 import unicodedata
 import requests
 import subprocess
-from time import sleep
 import fcntl
 import json
 import os
 import psutil
 import re
+import select
 import shutil
 import signal
+import time
 from .crash import has_crash, extract_crash
 
 
@@ -301,7 +302,10 @@ class VM:
         total_wait = 0
         stdout = ""
         stderr = ""
+        last_read = time.monotonic()
         while True:
+            select.select([self.p.stdout, self.p.stderr], [], [], 0.1)
+
             read_some, out = self._read_pipe_nonblock(self.p.stdout)
             self.log_out += out
             stdout += out
@@ -309,6 +313,11 @@ class VM:
             read_some |= read_som2
             self.log_err += err
             stderr += err
+
+            now = time.monotonic()
+            elapsed = now - last_read
+            last_read = now
+            total_wait += elapsed
 
             if read_some:
                 if stdout.endswith(prompt):
@@ -322,12 +331,10 @@ class VM:
                 # logs elsewhere try to get a new prompt by sending a new line.
                 if prompt in out:
                     self.cmd('\n')
-                    sleep(0.25)
+                    time.sleep(0.25)
                 waited = 0
             else:
-                total_wait += 0.03
-                waited += 0.03
-                sleep(0.03)
+                waited += elapsed
 
             if total_wait > hard_stop:
                 self.log_err += f'\nHARD STOP ({hard_stop})\n'
@@ -413,7 +420,7 @@ class VM:
             self.drain_to_prompt()
             # kmemleak needs objects to be at least MSECS_MIN_AGE (5000)
             # before it considers them to have been leaked
-            sleep(5)
+            time.sleep(5)
             # Second scan, to identify what has really leaked
             self.cmd("echo scan > /sys/kernel/debug/kmemleak && cat /sys/kernel/debug/kmemleak")
             self.drain_to_prompt()
