@@ -1945,7 +1945,7 @@
                 // Private badge (only show for private reviews)
                 const visibilityBadge = review.is_public
                     ? ''
-                    : '<span class="visibility-badge visibility-private">🔒 Private</span>';
+                    : '<span class="visibility-badge visibility-private">🔒 Private</span>&nbsp;';
 
                 html += `
                     <li class="review-item status-${review.status}">
@@ -1955,13 +1955,12 @@
                                 <div style="display: flex; gap: 8px; align-items: center;">
                                     ${feedbackBadge}
                                     ${adminFeedbackBadge}
-                                    ${visibilityBadge}
                                     <span class="status-badge status-${review.status}">${review.status}</span>
                                 </div>
                             </div>
                             <div class="review-details">
                                 <div class="review-tree-info">
-                                    <strong>${review.tree}</strong> <span style="color: var(--text-muted);">(${review.patch_count} patches)</span>
+                                    ${visibilityBadge}<strong>${review.tree}</strong> <span style="color: var(--text-muted);">(${review.patch_count} patches)</span>
                                 </div>
                                 <div class="review-meta">
                                     <span class="submission-type">${submissionType}</span>
