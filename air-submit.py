@@ -202,6 +202,39 @@ def delete_review(url: str, token: str, review_id: str) -> bool:
         sys.exit(1)
 
 
+def set_feedback(url: str, token: Optional[str], review_id: str, feedback: str) -> bool:
+    """Set feedback for a review
+
+    Args:
+        url: AIR service URL
+        token: API token (optional for public reviews)
+        review_id: Review ID
+        feedback: Feedback value (emailed, false-positive, false-negative)
+
+    Returns:
+        True if successful
+    """
+    api_url = f"{url}/api/review/feedback"
+    data = {
+        'id': review_id,
+        'feedback': feedback,
+    }
+
+    if token:
+        data['token'] = token
+
+    try:
+        response = requests.post(api_url, json=data, timeout=30)
+        response.raise_for_status()
+        return response.json().get('success', False)
+    except requests.exceptions.RequestException as e:
+        print(f"Error setting feedback: {e}", file=sys.stderr)
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        print(f"Error parsing response: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 def format_status_line(status: dict) -> str:
     """Format one-line status summary with color
 
@@ -331,6 +364,8 @@ Configuration file:
                        help='Existing review ID to check (skip submission)')
     parser.add_argument('--delete', action='store_true',
                        help='Delete the specified review (requires --review-id and superuser token)')
+    parser.add_argument('--feedback', choices=['emailed', 'false-positive', 'false-negative'],
+                       help='Set feedback for a review (requires --review-id)')
     parser.add_argument('patches', nargs='*', metavar='PATCH_FILE',
                        help='Patch files to submit')
 
@@ -377,6 +412,20 @@ Configuration file:
             print(colorize(f"Review {args.review_id} deleted successfully", Colors.GREEN))
         else:
             print(colorize("Failed to delete review", Colors.RED), file=sys.stderr)
+            sys.exit(1)
+        return
+
+    # Handle --feedback operation
+    if args.feedback:
+        if not args.review_id:
+            parser.error('--feedback requires --review-id')
+
+        print(f"Setting feedback to '{args.feedback}' for review {args.review_id}...")
+        success = set_feedback(args.url, args.token, args.review_id, args.feedback)
+        if success:
+            print(colorize(f"Feedback set: {args.feedback}", Colors.GREEN))
+        else:
+            print(colorize("Failed to set feedback", Colors.RED), file=sys.stderr)
             sys.exit(1)
         return
 
