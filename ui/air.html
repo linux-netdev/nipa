@@ -1,0 +1,2099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NIPA AIR - AI Review Service</title>
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #f5f5f5;
+            --bg-secondary: white;
+            --bg-tertiary: #f8f9fa;
+            --bg-card: #ecf0f1;
+            --text-primary: #333;
+            --text-secondary: #555;
+            --text-muted: #7f8c8d;
+            --border-color: #ddd;
+            --accent-primary: #3498db;
+            --accent-primary-hover: #2980b9;
+            --heading-color: #2c3e50;
+            --heading-secondary: #34495e;
+            --disabled-bg: #bdc3c7;
+            --shadow: rgba(0,0,0,0.1);
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2d2d2d;
+            --bg-tertiary: #252525;
+            --bg-card: #404040;
+            --text-primary: #e0e0e0;
+            --text-secondary: #c0c0c0;
+            --text-muted: #999;
+            --border-color: #555;
+            --accent-primary: #4a9eff;
+            --accent-primary-hover: #6ab0ff;
+            --heading-color: #e0e0e0;
+            --heading-secondary: #d0d0d0;
+            --disabled-bg: #555;
+            --shadow: rgba(0,0,0,0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-primary);
+            background: var(--bg-primary);
+            padding: 20px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            box-shadow: 0 2px 4px var(--shadow);
+            padding: 30px;
+        }
+
+        .header-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .global-config {
+            background: var(--bg-card);
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 30px;
+            border: 1px solid var(--border-color);
+        }
+
+        .global-config h3 {
+            margin: 0 0 15px 0;
+            font-size: 16px;
+            color: var(--heading-secondary);
+            font-weight: 600;
+        }
+
+        .global-config .token-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .global-config .token-input {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .global-config .token-input label {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .global-config .token-input input {
+            width: 100%;
+        }
+
+        .global-config .token-checkbox {
+            padding-top: 20px;
+            white-space: nowrap;
+        }
+
+        .global-config .token-checkbox label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .theme-toggle {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .theme-toggle:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .token-minimized {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            display: none;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .token-minimized:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .token-minimized.active {
+            display: flex;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 5px;
+            border-bottom: 2px solid var(--border-color);
+            margin-top: 20px;
+            margin-bottom: 0;
+        }
+
+        .tab-button {
+            background: none;
+            border: none;
+            padding: 12px 24px;
+            cursor: pointer;
+            font-size: 15px;
+            color: var(--text-secondary);
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .tab-button:hover {
+            color: var(--text-primary);
+            background: var(--bg-tertiary);
+        }
+
+        .tab-button.active {
+            color: var(--accent-primary);
+            border-bottom-color: var(--accent-primary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .section.tab-content {
+            margin-top: 20px;
+        }
+
+        h1 {
+            color: var(--heading-color);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        h1 img {
+            width: 40px;
+            height: 40px;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            margin-bottom: 30px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .chart-container {
+            background: var(--bg-secondary);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px var(--shadow);
+            position: relative;
+            height: 400px;
+        }
+
+        h2 {
+            color: var(--heading-secondary);
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--accent-primary);
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-field {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-field.full-width {
+            grid-column: 1 / -1;
+        }
+
+        label {
+            font-weight: 500;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            min-width: 120px;
+        }
+
+        .form-field label {
+            margin-bottom: 0;
+        }
+
+        .form-field input[type="text"],
+        .form-field textarea,
+        .form-field select {
+            flex: 1;
+        }
+
+        input[type="text"],
+        textarea,
+        select,
+        input[type="file"] {
+            padding: 8px 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 14px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        input[type="file"] {
+            padding: 6px 10px;
+        }
+
+        textarea {
+            min-height: 80px;
+            font-family: monospace;
+        }
+
+        button {
+            background: var(--accent-primary);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+
+        button:hover {
+            background: var(--accent-primary-hover);
+        }
+
+        button:disabled {
+            background: var(--disabled-bg);
+            cursor: not-allowed;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .status-card {
+            background: var(--bg-card);
+            padding: 15px;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .status-card .label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .status-card .value {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--heading-color);
+        }
+
+        .review-list {
+            list-style: none;
+        }
+
+        .review-item {
+            background: var(--bg-tertiary);
+            margin-bottom: 6px;
+            border-radius: 4px;
+            border-left: 4px solid var(--accent-primary);
+            transition: background-color 0.2s;
+        }
+
+        .review-item a {
+            text-decoration: none;
+            color: inherit;
+            display: block;
+            padding: 10px 15px;
+        }
+
+        .review-item:hover {
+            background: var(--bg-card);
+        }
+
+        [data-theme="dark"] .review-item:hover {
+            background: #4a4a4a;
+        }
+
+        .review-item.status-done {
+            border-left-color: #27ae60;
+        }
+
+        .review-item.status-error {
+            border-left-color: #e74c3c;
+        }
+
+        .review-item.status-in-progress {
+            border-left-color: #f39c12;
+        }
+
+        .review-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .review-id {
+            font-family: monospace;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .review-details {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 15px;
+            align-items: center;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .review-tree-info {
+            font-weight: 600;
+        }
+
+        .review-meta {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            font-size: 12px;
+        }
+
+        .review-date {
+            font-size: 12px;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        .review-owner {
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .status-badge {
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .feedback-badge {
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .submission-type {
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            white-space: nowrap;
+        }
+
+        .token-owner {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .visibility-badge {
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .visibility-private {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        [data-theme="dark"] .visibility-private {
+            background: #4a1f1f;
+            color: #f48fb1;
+        }
+
+        [data-theme="dark"] .status-queued {
+            background: #1a3a5c;
+            color: #64b5f6;
+        }
+
+        [data-theme="dark"] .status-in-progress {
+            background: #4a3a1a;
+            color: #ffb74d;
+        }
+
+        [data-theme="dark"] .status-done {
+            background: #1a3a1a;
+            color: #81c784;
+        }
+
+        [data-theme="dark"] .status-error {
+            background: #4a1a1a;
+            color: #e57373;
+        }
+
+        [data-theme="dark"] .feedback-badge {
+            background: #1a3a5c;
+            color: #64b5f6;
+        }
+
+        .status-queued {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .status-in-progress {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
+        .status-done {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .status-error {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .message {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .message.error {
+            background: #ffebee;
+            color: #c62828;
+            border-left: 4px solid #c62828;
+        }
+
+        .message.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-left: 4px solid #2e7d32;
+        }
+
+        .result-container {
+            margin-top: 20px;
+        }
+
+        .query-result-box {
+            background: var(--bg-tertiary);
+            padding: 15px;
+            border-radius: 4px;
+        }
+
+        .query-result-box h3 {
+            margin-top: 20px;
+        }
+
+        .query-result-box details {
+            margin: 10px 0;
+        }
+
+        pre {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-muted);
+        }
+
+        .small {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header-controls">
+            <div>
+                <h1>
+                    <img src="/favicon.png" alt="NIPA AIR Logo">
+                    NIPA AIR
+                </h1>
+                <p class="subtitle">AI Review Service for Kernel Patches</p>
+            </div>
+            <div class="header-buttons">
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 14px;">
+                    <input type="checkbox" id="superuserMode">
+                    All users
+                </label>
+                <button class="token-minimized" id="tokenMinimized" onclick="showTokenConfig()">
+                    🔑 Token Configured
+                </button>
+                <button class="theme-toggle" onclick="toggleTheme()">
+                    <span id="themeIcon">🌙</span> Dark Mode
+                </button>
+            </div>
+        </div>
+
+        <!-- Global Configuration -->
+        <div class="global-config" id="globalConfig">
+            <h3>Configuration</h3>
+            <div class="token-row">
+                <div class="token-input">
+                    <label for="token">API Token *</label>
+                    <input type="text" id="token" placeholder="Your API token" required>
+                </div>
+                <div class="token-checkbox">
+                    <label>
+                        <input type="checkbox" id="saveToken" onchange="handleSaveTokenChange()">
+                        Save token in browser
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Service Status -->
+        <div class="section">
+            <h2>Service Status</h2>
+            <div class="status-grid" id="statusGrid">
+                <div class="loading">Loading status...</div>
+            </div>
+        </div>
+
+        <!-- Tabs Navigation -->
+        <div class="tabs">
+            <button class="tab-button active" onclick="switchTab('history')">Review History</button>
+            <button class="tab-button" onclick="switchTab('recent')">Recent Reviews</button>
+            <button class="tab-button" onclick="switchTab('query')">Query Review</button>
+            <button class="tab-button" onclick="switchTab('submit')">Submit Review</button>
+        </div>
+
+        <!-- Review History Tab -->
+        <div class="section tab-content active" id="tab-history">
+            <h3>Review Counts (6-hour buckets)</h3>
+            <div class="chart-container">
+                <canvas id="reviewChart"></canvas>
+            </div>
+            <h3 style="margin-top: 40px;">Daily Averages (by feedback status)</h3>
+            <div class="chart-container">
+                <canvas id="averagesChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Recent Reviews Tab -->
+        <div class="section tab-content" id="tab-recent">
+            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 14px;">
+                    <input type="checkbox" id="feedbackOnlyMode">
+                    With feedback only
+                </label>
+            </div>
+            <div id="reviewsList">
+                <div class="loading">Loading reviews...</div>
+            </div>
+        </div>
+
+        <!-- Query Review Tab -->
+        <div class="section tab-content" id="tab-query">
+            <div class="form-row">
+                <div class="form-field">
+                    <label for="queryReviewId">Review ID or Patchwork Series ID</label>
+                    <input type="text" id="queryReviewId" placeholder="UUID or integer">
+                </div>
+                <div class="form-field">
+                    <label for="format">Format</label>
+                    <select id="format">
+                        <option value="">Status only</option>
+                        <option value="json">JSON</option>
+                        <option value="markup">Markdown</option>
+                        <option value="inline">Inline</option>
+                    </select>
+                </div>
+            </div>
+            <button onclick="queryReview()">Query Review</button>
+            <div id="queryMessage"></div>
+            <div id="queryResult" class="result-container"></div>
+        </div>
+
+        <!-- Submit Review Tab -->
+        <div class="section tab-content" id="tab-submit">
+            <div class="form-row">
+                <div class="form-field">
+                    <label for="inputType">Input Type *</label>
+                    <select id="inputType">
+                        <option value="hash">Commit Hash/Range</option>
+                        <option value="patchwork">Patchwork Series ID</option>
+                        <option value="patches">Raw Patches</option>
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label for="tree">Tree *</label>
+                    <input type="text" id="tree" placeholder="e.g., netdev/net-next" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-field" id="hashGroup">
+                    <label for="hash">Hash/Range *</label>
+                    <input type="text" id="hash" placeholder="abc123 or abc123..def456">
+                </div>
+                <div class="form-field" id="patchworkGroup" style="display:none;">
+                    <label for="patchworkId">Series ID *</label>
+                    <input type="text" id="patchworkId" placeholder="12345">
+                </div>
+                <div class="form-field" id="branchGroup">
+                    <label for="branch">Branch</label>
+                    <input type="text" id="branch" placeholder="main, master, etc.">
+                </div>
+                <div class="form-field" id="modelGroup">
+                    <label for="model">Model (optional)</label>
+                    <input type="text" id="model" placeholder="e.g., sonnet, opus, haiku (leave empty for default)">
+                </div>
+            </div>
+            <div class="form-row" id="patchesGroup" style="display:none;">
+                <div class="form-field full-width">
+                    <label for="patchFile">Patch File *</label>
+                    <input type="file" id="patchFile" accept=".patch,.mbox,.eml,.txt">
+                </div>
+            </div>
+            <div class="form-row" id="patchesTextGroup" style="display:none;">
+                <div class="form-field full-width">
+                    <label for="patches">Or paste text</label>
+                    <textarea id="patches" placeholder="Paste patch content"></textarea>
+                </div>
+            </div>
+            <button id="submitBtn" onclick="submitReview()">Submit Review</button>
+            <div id="submitMessage"></div>
+        </div>
+
+    </div>
+
+    <script>
+        const API_BASE = '/api';
+
+        // Token management
+        function getToken() {
+            return document.getElementById('token').value;
+        }
+
+        // Tab management
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Remove active from all buttons
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+
+            // Activate selected button
+            event.target.classList.add('active');
+
+            // Update URL hash
+            window.location.hash = tabName;
+
+            // Auto-load content for certain tabs
+            if (tabName === 'recent') {
+                listReviews();
+            }
+        }
+
+        // Load tab from URL hash on page load
+        function loadTabFromHash() {
+            const hash = window.location.hash.substring(1); // Remove #
+            const validTabs = ['history', 'recent', 'query', 'submit'];
+
+            if (hash && validTabs.includes(hash)) {
+                // Find and click the corresponding tab button
+                const tabButtons = document.querySelectorAll('.tab-button');
+                tabButtons.forEach((btn, index) => {
+                    if (btn.textContent.toLowerCase().includes(hash) ||
+                        (hash === 'history' && index === 0) ||
+                        (hash === 'recent' && index === 1) ||
+                        (hash === 'query' && index === 2) ||
+                        (hash === 'submit' && index === 3)) {
+                        // Activate this tab
+                        document.querySelectorAll('.tab-content').forEach(tab => {
+                            tab.classList.remove('active');
+                        });
+                        document.querySelectorAll('.tab-button').forEach(b => {
+                            b.classList.remove('active');
+                        });
+
+                        btn.classList.add('active');
+                        document.getElementById(`tab-${hash}`).classList.add('active');
+
+                        // Auto-load content for certain tabs
+                        if (hash === 'recent') {
+                            listReviews();
+                        }
+                    }
+                });
+            }
+        }
+
+        function handleSaveTokenChange() {
+            const saveToken = document.getElementById('saveToken').checked;
+            const token = getToken();
+
+            if (saveToken && token) {
+                localStorage.setItem('apiToken', token);
+            } else {
+                localStorage.removeItem('apiToken');
+            }
+            updateTokenVisibility();
+        }
+
+        function showTokenConfig() {
+            // Show the full config section and focus the input
+            document.getElementById('globalConfig').style.display = 'block';
+            document.getElementById('tokenMinimized').classList.remove('active');
+            document.getElementById('token').focus();
+        }
+
+        function updateTokenVisibility() {
+            const savedToken = localStorage.getItem('apiToken');
+            if (savedToken) {
+                // Token is saved - show minimized version, hide full config
+                document.getElementById('globalConfig').style.display = 'none';
+                document.getElementById('tokenMinimized').classList.add('active');
+            } else {
+                // No token saved - show full config, hide minimized
+                document.getElementById('globalConfig').style.display = 'block';
+                document.getElementById('tokenMinimized').classList.remove('active');
+            }
+        }
+
+        // Load saved token on page load
+        function loadSavedToken() {
+            const savedToken = localStorage.getItem('apiToken');
+            if (savedToken) {
+                document.getElementById('token').value = savedToken;
+                document.getElementById('saveToken').checked = true;
+            }
+            updateTokenVisibility();
+        }
+
+        // Auto-save token when it changes (if checkbox is checked)
+        document.getElementById('token').addEventListener('input', function() {
+            if (document.getElementById('saveToken').checked) {
+                localStorage.setItem('apiToken', this.value);
+            }
+        });
+
+        // Hide config section when input loses focus (if token is saved)
+        document.getElementById('token').addEventListener('blur', function() {
+            const savedToken = localStorage.getItem('apiToken');
+            if (savedToken) {
+                updateTokenVisibility();
+            }
+        });
+
+        // Load service status on page load
+        loadSavedToken();
+
+        // Default to "All users" mode if no token configured
+        if (!getToken()) {
+            document.getElementById('superuserMode').checked = true;
+        }
+
+        loadTabFromHash();
+        loadStatus();
+        setInterval(loadStatus, 10000); // Refresh every 10 seconds
+
+        // Listen for hash changes (browser back/forward)
+        window.addEventListener('hashchange', loadTabFromHash);
+
+        // Initialize and update review chart
+        let reviewChart = null;
+        let averagesChart = null;
+        loadReviewChart();
+        loadAveragesChart();
+        setInterval(loadReviewChart, 30000); // Refresh every 30 seconds
+        setInterval(loadAveragesChart, 30000); // Refresh every 30 seconds
+
+        // Refresh chart and review list when filters change
+        document.getElementById('superuserMode').addEventListener('change', function() {
+            loadReviewChart();
+            loadAveragesChart();
+            listReviews();
+        });
+        document.getElementById('feedbackOnlyMode').addEventListener('change', function() {
+            listReviews();
+        });
+
+        async function loadReviewChart() {
+            const token = getToken();
+            const superuser = document.getElementById('superuserMode').checked;
+
+            try {
+                // Fetch review data - get more reviews to build time series
+                let url = `${API_BASE}/reviews?limit=200&filter_user=${superuser ? 'false' : 'true'}`;
+                if (token) {
+                    url += `&token=${token}`;
+                }
+
+                const response = await fetch(url);
+                const result = await response.json();
+
+                if (!response.ok || !result.reviews) {
+                    console.error('Failed to fetch reviews:', result);
+                    return;
+                }
+
+                console.log(`Fetched ${result.reviews.length} reviews for chart`);
+
+                // Check if any review has cost data (indicates superuser)
+                const hasCostData = result.reviews.some(r => r.cost_usd !== undefined);
+
+                // Group reviews by 6-hour time buckets and status
+                const dataByBucket = {};
+
+                result.reviews.forEach(review => {
+                    // Parse date and round to nearest 6-hour bucket
+                    const timestamp = parseUTCDate(review.date);
+                    const hours = timestamp.getHours();
+                    const bucketHour = Math.floor(hours / 6) * 6; // 0, 6, 12, or 18
+
+                    // Create bucket key (ISO format with hour set to bucket start)
+                    timestamp.setHours(bucketHour, 0, 0, 0);
+                    const bucketKey = timestamp.toISOString();
+
+                    if (!dataByBucket[bucketKey]) {
+                        dataByBucket[bucketKey] = {
+                            queued: 0,
+                            'in-progress': 0,
+                            done: 0,
+                            error: 0,
+                            cost: 0.0
+                        };
+                    }
+
+                    // Count by status
+                    const status = review.status;
+                    if (dataByBucket[bucketKey][status] !== undefined) {
+                        dataByBucket[bucketKey][status]++;
+                    } else {
+                        console.warn(`Unknown status: ${status} for review ${review.review_id}`);
+                    }
+
+                    // Sum cost if available (only for completed reviews)
+                    if (review.cost_usd && review.status === 'done') {
+                        dataByBucket[bucketKey].cost += review.cost_usd;
+                    }
+                });
+
+                console.log('Data by 6-hour bucket:', dataByBucket);
+
+                // Convert to sorted arrays, null for zero values (so lines aren't drawn)
+                const buckets = Object.keys(dataByBucket).sort();
+                const doneData = buckets.map(bucket => ({ x: bucket, y: dataByBucket[bucket].done || null }));
+                const errorData = buckets.map(bucket => ({ x: bucket, y: dataByBucket[bucket].error || null }));
+                const costData = buckets.map(bucket => ({ x: bucket, y: dataByBucket[bucket].cost || null }));
+
+                console.log('Chart data - Done:', doneData, 'Error:', errorData, 'Cost:', costData);
+
+                // Create or update chart
+                const ctx = document.getElementById('reviewChart');
+
+                if (reviewChart) {
+                    // Update existing chart
+                    reviewChart.data.datasets[0].data = doneData;
+                    reviewChart.data.datasets[1].data = errorData;
+
+                    // Update or add cost dataset
+                    if (hasCostData) {
+                        if (reviewChart.data.datasets.length > 2) {
+                            reviewChart.data.datasets[2].data = costData;
+                        } else {
+                            reviewChart.data.datasets.push({
+                                label: 'Cost ($)',
+                                data: costData,
+                                borderColor: '#ffc107',
+                                backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                                tension: 0.1,
+                                fill: false,
+                                spanGaps: false,
+                                yAxisID: 'y1'
+                            });
+                        }
+                        // Ensure secondary axis exists
+                        if (!reviewChart.options.scales.y1) {
+                            reviewChart.options.scales.y1 = {
+                                type: 'linear',
+                                position: 'right',
+                                beginAtZero: true,
+                                grid: {
+                                    drawOnChartArea: false
+                                },
+                                ticks: {
+                                    color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary'),
+                                    callback: function(value) {
+                                        return '$' + value.toFixed(2);
+                                    }
+                                }
+                            };
+                        }
+                    } else {
+                        // Remove cost dataset if present
+                        if (reviewChart.data.datasets.length > 2) {
+                            reviewChart.data.datasets.splice(2, 1);
+                        }
+                        // Remove secondary axis
+                        delete reviewChart.options.scales.y1;
+                    }
+
+                    reviewChart.update();
+                } else {
+                    // Create new chart
+                    const datasets = [
+                        {
+                            label: 'Completed',
+                            data: doneData,
+                            borderColor: '#28a745',
+                            backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                            tension: 0.1,
+                            fill: true,
+                            spanGaps: false,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Errors',
+                            data: errorData,
+                            borderColor: '#dc3545',
+                            backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                            tension: 0.1,
+                            fill: true,
+                            spanGaps: false,
+                            yAxisID: 'y'
+                        }
+                    ];
+
+                    // Add cost dataset if we have cost data
+                    if (hasCostData) {
+                        datasets.push({
+                            label: 'Cost ($)',
+                            data: costData,
+                            borderColor: '#ffc107',
+                            backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                            tension: 0.1,
+                            fill: false,
+                            spanGaps: false,
+                            yAxisID: 'y1'
+                        });
+                    }
+
+                    const scales = {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'hour',
+                                stepSize: 6,
+                                displayFormats: {
+                                    hour: 'MMM d HH:mm'
+                                }
+                            },
+                            grid: {
+                                color: getComputedStyle(document.documentElement).getPropertyValue('--border-color')
+                            },
+                            ticks: {
+                                color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary')
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            position: 'left',
+                            beginAtZero: true,
+                            grid: {
+                                color: getComputedStyle(document.documentElement).getPropertyValue('--border-color')
+                            },
+                            ticks: {
+                                color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary'),
+                                precision: 0
+                            }
+                        }
+                    };
+
+                    // Add secondary y-axis for cost if we have cost data
+                    if (hasCostData) {
+                        scales.y1 = {
+                            type: 'linear',
+                            position: 'right',
+                            beginAtZero: true,
+                            grid: {
+                                drawOnChartArea: false
+                            },
+                            ticks: {
+                                color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary'),
+                                callback: function(value) {
+                                    return '$' + value.toFixed(2);
+                                }
+                            }
+                        };
+                    }
+
+                    reviewChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            datasets: datasets
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: {
+                                mode: 'index',
+                                intersect: false,
+                            },
+                            plugins: {
+                                legend: {
+                                    position: 'top',
+                                    labels: {
+                                        color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary')
+                                    }
+                                },
+                                tooltip: {
+                                    mode: 'index',
+                                    intersect: false,
+                                    callbacks: {
+                                        label: function(context) {
+                                            let label = context.dataset.label || '';
+                                            if (label) {
+                                                label += ': ';
+                                            }
+                                            if (context.dataset.yAxisID === 'y1') {
+                                                label += '$' + context.parsed.y.toFixed(2);
+                                            } else {
+                                                label += context.parsed.y;
+                                            }
+                                            return label;
+                                        }
+                                    }
+                                }
+                            },
+                            scales: scales
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading review chart:', error);
+            }
+        }
+
+        async function loadAveragesChart() {
+            const token = getToken();
+            const superuser = document.getElementById('superuserMode').checked;
+
+            try {
+                // Fetch review data - get more reviews to build time series
+                let url = `${API_BASE}/reviews?limit=200&filter_user=${superuser ? 'false' : 'true'}`;
+                if (token) {
+                    url += `&token=${token}`;
+                }
+
+                const response = await fetch(url);
+                const result = await response.json();
+
+                if (!response.ok || !result.reviews) {
+                    console.error('Failed to fetch reviews:', result);
+                    return;
+                }
+
+                console.log(`Fetched ${result.reviews.length} reviews for averages chart`);
+
+                // Check if any review has cost data (indicates superuser)
+                const hasCostData = result.reviews.some(r => r.cost_usd !== undefined);
+
+                // Fetch full details for done reviews to check for feedback
+                const reviewsWithFeedback = await Promise.all(result.reviews.map(async (review) => {
+                    if (review.status === 'done') {
+                        try {
+                            let detailUrl = `${API_BASE}/review?id=${review.review_id}&format=inline`;
+                            if (token) {
+                                detailUrl += `&token=${token}`;
+                            }
+                            const detailResponse = await fetch(detailUrl);
+                            const detailData = await detailResponse.json();
+
+                            // Check if any patch has feedback
+                            if (detailData.review && Array.isArray(detailData.review)) {
+                                const hasFeedback = detailData.review.some(r => r !== null && r.trim() !== '');
+                                return { ...review, hasFeedback };
+                            }
+                        } catch (err) {
+                            console.error(`Error fetching details for review ${review.review_id}:`, err);
+                        }
+                    }
+                    return { ...review, hasFeedback: false };
+                }));
+
+                // Group reviews by day and calculate averages, separated by feedback status
+                const dataByDay = {};
+
+                reviewsWithFeedback.forEach(review => {
+                    // Only process completed reviews with timing data
+                    if (review.status !== 'done' || !review.duration_seconds || !review.patch_count || review.patch_count === 0) {
+                        return;
+                    }
+
+                    // Parse date and get day (midnight)
+                    const timestamp = parseUTCDate(review.date);
+                    timestamp.setHours(0, 0, 0, 0);
+                    const dayKey = timestamp.toISOString();
+
+                    if (!dataByDay[dayKey]) {
+                        dataByDay[dayKey] = {
+                            // With feedback
+                            totalTimeWithFeedback: 0,
+                            totalCostPerPatchWithFeedback: 0,
+                            countWithFeedback: 0,
+                            costCountWithFeedback: 0,
+                            // Without feedback
+                            totalTimeNoFeedback: 0,
+                            totalCostPerPatchNoFeedback: 0,
+                            countNoFeedback: 0,
+                            costCountNoFeedback: 0
+                        };
+                    }
+
+                    const hasFeedback = review.hasFeedback || false;
+
+                    if (hasFeedback) {
+                        // Reviews with feedback
+                        dataByDay[dayKey].totalTimeWithFeedback += review.duration_seconds;
+                        dataByDay[dayKey].countWithFeedback++;
+
+                        if (review.cost_usd) {
+                            const costPerPatch = review.cost_usd / review.patch_count;
+                            dataByDay[dayKey].totalCostPerPatchWithFeedback += costPerPatch;
+                            dataByDay[dayKey].costCountWithFeedback++;
+                        }
+                    } else {
+                        // Reviews without feedback
+                        dataByDay[dayKey].totalTimeNoFeedback += review.duration_seconds;
+                        dataByDay[dayKey].countNoFeedback++;
+
+                        if (review.cost_usd) {
+                            const costPerPatch = review.cost_usd / review.patch_count;
+                            dataByDay[dayKey].totalCostPerPatchNoFeedback += costPerPatch;
+                            dataByDay[dayKey].costCountNoFeedback++;
+                        }
+                    }
+                });
+
+                console.log('Data by day (with/without feedback):', dataByDay);
+
+                // Convert to sorted arrays with averages
+                const days = Object.keys(dataByDay).sort();
+
+                const avgTimeWithFeedback = days.map(day => {
+                    if (dataByDay[day].countWithFeedback === 0) return { x: day, y: null };
+                    const avg = dataByDay[day].totalTimeWithFeedback / dataByDay[day].countWithFeedback;
+                    return { x: day, y: avg || null };
+                });
+
+                const avgTimeNoFeedback = days.map(day => {
+                    if (dataByDay[day].countNoFeedback === 0) return { x: day, y: null };
+                    const avg = dataByDay[day].totalTimeNoFeedback / dataByDay[day].countNoFeedback;
+                    return { x: day, y: avg || null };
+                });
+
+                const avgCostWithFeedback = days.map(day => {
+                    if (dataByDay[day].costCountWithFeedback === 0) return { x: day, y: null };
+                    const avg = dataByDay[day].totalCostPerPatchWithFeedback / dataByDay[day].costCountWithFeedback;
+                    return { x: day, y: avg || null };
+                });
+
+                const avgCostNoFeedback = days.map(day => {
+                    if (dataByDay[day].costCountNoFeedback === 0) return { x: day, y: null };
+                    const avg = dataByDay[day].totalCostPerPatchNoFeedback / dataByDay[day].costCountNoFeedback;
+                    return { x: day, y: avg || null };
+                });
+
+                console.log('Chart data - Time (feedback):', avgTimeWithFeedback, 'Time (no feedback):', avgTimeNoFeedback);
+                console.log('Chart data - Cost (feedback):', avgCostWithFeedback, 'Cost (no feedback):', avgCostNoFeedback);
+
+                // Create or update chart
+                const ctx = document.getElementById('averagesChart');
+
+                if (averagesChart) {
+                    // Update existing chart - rebuild datasets
+                    averagesChart.data.datasets = [];
+
+                    // Time datasets
+                    averagesChart.data.datasets.push({
+                        label: 'Avg Time - With Feedback (seconds)',
+                        data: avgTimeWithFeedback,
+                        borderColor: '#007bff',
+                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                        tension: 0.1,
+                        fill: false,
+                        spanGaps: false,
+                        yAxisID: 'y'
+                    });
+
+                    averagesChart.data.datasets.push({
+                        label: 'Avg Time - No Feedback (seconds)',
+                        data: avgTimeNoFeedback,
+                        borderColor: '#007bff',
+                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                        tension: 0.1,
+                        fill: false,
+                        spanGaps: false,
+                        yAxisID: 'y',
+                        borderDash: [5, 5]
+                    });
+
+                    // Cost datasets if we have cost data
+                    if (hasCostData) {
+                        averagesChart.data.datasets.push({
+                            label: 'Avg Cost - With Feedback ($/patch)',
+                            data: avgCostWithFeedback,
+                            borderColor: '#ffc107',
+                            backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                            tension: 0.1,
+                            fill: false,
+                            spanGaps: false,
+                            yAxisID: 'y1'
+                        });
+
+                        averagesChart.data.datasets.push({
+                            label: 'Avg Cost - No Feedback ($/patch)',
+                            data: avgCostNoFeedback,
+                            borderColor: '#ffc107',
+                            backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                            tension: 0.1,
+                            fill: false,
+                            spanGaps: false,
+                            yAxisID: 'y1',
+                            borderDash: [5, 5]
+                        });
+
+                        // Ensure secondary axis exists
+                        if (!averagesChart.options.scales.y1) {
+                            averagesChart.options.scales.y1 = {
+                                type: 'linear',
+                                position: 'right',
+                                beginAtZero: true,
+                                grid: {
+                                    drawOnChartArea: false
+                                },
+                                ticks: {
+                                    color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary'),
+                                    callback: function(value) {
+                                        return '$' + value.toFixed(2);
+                                    }
+                                }
+                            };
+                        }
+                    } else {
+                        // Remove secondary axis
+                        delete averagesChart.options.scales.y1;
+                    }
+
+                    averagesChart.update();
+                } else {
+                    // Create new chart
+                    const datasets = [
+                        {
+                            label: 'Avg Time - With Feedback (seconds)',
+                            data: avgTimeWithFeedback,
+                            borderColor: '#007bff',
+                            backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                            tension: 0.1,
+                            fill: false,
+                            spanGaps: false,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Avg Time - No Feedback (seconds)',
+                            data: avgTimeNoFeedback,
+                            borderColor: '#007bff',
+                            backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                            tension: 0.1,
+                            fill: false,
+                            spanGaps: false,
+                            yAxisID: 'y',
+                            borderDash: [5, 5]
+                        }
+                    ];
+
+                    // Add cost datasets if we have cost data
+                    if (hasCostData) {
+                        datasets.push({
+                            label: 'Avg Cost - With Feedback ($/patch)',
+                            data: avgCostWithFeedback,
+                            borderColor: '#ffc107',
+                            backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                            tension: 0.1,
+                            fill: false,
+                            spanGaps: false,
+                            yAxisID: 'y1'
+                        });
+
+                        datasets.push({
+                            label: 'Avg Cost - No Feedback ($/patch)',
+                            data: avgCostNoFeedback,
+                            borderColor: '#ffc107',
+                            backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                            tension: 0.1,
+                            fill: false,
+                            spanGaps: false,
+                            yAxisID: 'y1',
+                            borderDash: [5, 5]
+                        });
+                    }
+
+                    const scales = {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'day',
+                                displayFormats: {
+                                    day: 'MMM d'
+                                }
+                            },
+                            grid: {
+                                color: getComputedStyle(document.documentElement).getPropertyValue('--border-color')
+                            },
+                            ticks: {
+                                color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary')
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            position: 'left',
+                            beginAtZero: true,
+                            grid: {
+                                color: getComputedStyle(document.documentElement).getPropertyValue('--border-color')
+                            },
+                            ticks: {
+                                color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary'),
+                                callback: function(value) {
+                                    return Math.round(value) + 's';
+                                }
+                            }
+                        }
+                    };
+
+                    // Add secondary y-axis for cost if we have cost data
+                    if (hasCostData) {
+                        scales.y1 = {
+                            type: 'linear',
+                            position: 'right',
+                            beginAtZero: true,
+                            grid: {
+                                drawOnChartArea: false
+                            },
+                            ticks: {
+                                color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary'),
+                                callback: function(value) {
+                                    return '$' + value.toFixed(2);
+                                }
+                            }
+                        };
+                    }
+
+                    averagesChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            datasets: datasets
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: {
+                                mode: 'index',
+                                intersect: false,
+                            },
+                            plugins: {
+                                legend: {
+                                    position: 'top',
+                                    labels: {
+                                        color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary')
+                                    }
+                                },
+                                tooltip: {
+                                    mode: 'index',
+                                    intersect: false,
+                                    callbacks: {
+                                        label: function(context) {
+                                            let label = context.dataset.label || '';
+                                            if (label) {
+                                                label += ': ';
+                                            }
+                                            if (context.dataset.yAxisID === 'y1') {
+                                                label += '$' + context.parsed.y.toFixed(2);
+                                            } else {
+                                                label += Math.round(context.parsed.y) + 's';
+                                            }
+                                            return label;
+                                        }
+                                    }
+                                }
+                            },
+                            scales: scales
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading averages chart:', error);
+            }
+        }
+
+        // Input type switcher
+        document.getElementById('inputType').addEventListener('change', function() {
+            const type = this.value;
+
+            // Hide all input-specific fields
+            document.getElementById('hashGroup').style.display = 'none';
+            document.getElementById('patchworkGroup').style.display = 'none';
+            document.getElementById('patchesGroup').style.display = 'none';
+            document.getElementById('patchesTextGroup').style.display = 'none';
+
+            // Show the relevant one
+            if (type === 'hash') {
+                document.getElementById('hashGroup').style.display = 'flex';
+            } else if (type === 'patchwork') {
+                document.getElementById('patchworkGroup').style.display = 'flex';
+            } else if (type === 'patches') {
+                document.getElementById('patchesGroup').style.display = 'grid';
+                document.getElementById('patchesTextGroup').style.display = 'grid';
+            }
+        });
+
+        async function loadStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/status`);
+                const data = await response.json();
+
+                const grid = document.getElementById('statusGrid');
+
+                // Determine if we have cost data
+                const hasCost = data.total_cost_usd !== undefined;
+
+                // Adjust grid to fit all boxes on one line
+                if (hasCost) {
+                    grid.style.gridTemplateColumns = 'repeat(6, 1fr)';
+                } else {
+                    grid.style.gridTemplateColumns = 'repeat(5, 1fr)';
+                }
+
+                // Build status cards HTML
+                let statusHTML = `
+                    <div class="status-card">
+                        <div class="label">Queue Size</div>
+                        <div class="value">${data.queue_size}</div>
+                    </div>
+                    <div class="status-card">
+                        <div class="label">Queued</div>
+                        <div class="value">${data.review_counts.queued}</div>
+                    </div>
+                    <div class="status-card">
+                        <div class="label">In Progress</div>
+                        <div class="value">${data.review_counts['in-progress']}</div>
+                    </div>
+                    <div class="status-card">
+                        <div class="label">Completed</div>
+                        <div class="value">${data.review_counts.done}</div>
+                    </div>
+                    <div class="status-card">
+                        <div class="label">Errors</div>
+                        <div class="value">${data.review_counts.error}</div>
+                    </div>
+                `;
+
+                // Add cost card if cost data is present (indicates superuser)
+                if (hasCost) {
+                    statusHTML += `
+                    <div class="status-card">
+                        <div class="label">Total Cost</div>
+                        <div class="value">$${data.total_cost_usd.toFixed(2)}</div>
+                    </div>
+                    `;
+                }
+
+                grid.innerHTML = statusHTML;
+            } catch (error) {
+                console.error('Error loading status:', error);
+            }
+        }
+
+        async function submitReview() {
+            const token = getToken();
+            const tree = document.getElementById('tree').value;
+            const branch = document.getElementById('branch').value;
+            const inputType = document.getElementById('inputType').value;
+
+            if (!token || !tree) {
+                showMessage('submitMessage', 'Please fill in all required fields (check API Token at top)', 'error');
+                return;
+            }
+
+            const data = { token, tree };
+            if (branch) data.branch = branch;
+
+            // Add model if specified
+            const model = document.getElementById('model').value;
+            if (model) data.model = model;
+
+            // Add input based on type
+            if (inputType === 'hash') {
+                const hash = document.getElementById('hash').value;
+                if (!hash) {
+                    showMessage('submitMessage', 'Please enter a commit hash or range', 'error');
+                    return;
+                }
+                data.hash = hash;
+            } else if (inputType === 'patchwork') {
+                const pwId = document.getElementById('patchworkId').value;
+                if (!pwId) {
+                    showMessage('submitMessage', 'Please enter a patchwork series ID', 'error');
+                    return;
+                }
+                data.patchwork_series_id = parseInt(pwId);
+            } else if (inputType === 'patches') {
+                const patchFile = document.getElementById('patchFile').files[0];
+                const patchText = document.getElementById('patches').value;
+
+                if (!patchFile && !patchText) {
+                    showMessage('submitMessage', 'Please upload a patch file or paste patch content', 'error');
+                    return;
+                }
+
+                if (patchFile) {
+                    // Read file content
+                    const fileContent = await readFileAsText(patchFile);
+                    data.patches = [fileContent];
+                } else {
+                    // Use pasted text
+                    data.patches = [patchText];
+                }
+            }
+
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+
+            try {
+                const response = await fetch(`${API_BASE}/review`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showMessage('submitMessage',
+                        `Review submitted successfully! Review ID: ${result.review_id}`,
+                        'success');
+                    // Auto-fill query form
+                    document.getElementById('queryReviewId').value = result.review_id;
+                } else {
+                    showMessage('submitMessage', `Error: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showMessage('submitMessage', `Error: ${error.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function queryReview() {
+            const input = document.getElementById('queryReviewId').value.trim();
+            const token = getToken();
+            const format = document.getElementById('format').value;
+
+            if (!input) {
+                showMessage('queryMessage', 'Please enter a Review ID or Patchwork Series ID', 'error');
+                return;
+            }
+
+            if (!token) {
+                showMessage('queryMessage', 'Please ensure API token is set at top', 'error');
+                return;
+            }
+
+            try {
+                let url = `${API_BASE}/review?token=${token}`;
+
+                // Auto-detect: if input is a plain integer, treat as Patchwork series ID
+                // Otherwise, treat as review ID (UUID)
+                if (/^\d+$/.test(input)) {
+                    // Plain integer - Patchwork series ID
+                    url += `&pw_series_id=${input}`;
+                } else {
+                    // UUID or other format - Review ID
+                    url += `&id=${encodeURIComponent(input)}`;
+                }
+
+                if (format) {
+                    url += `&format=${format}`;
+                }
+
+                const response = await fetch(url);
+                const result = await response.json();
+
+                if (response.ok) {
+                    displayReviewResult(result);
+                    document.getElementById('queryMessage').innerHTML = '';
+                } else {
+                    showMessage('queryMessage', `Error: ${result.error}`, 'error');
+                    document.getElementById('queryResult').innerHTML = '';
+                }
+            } catch (error) {
+                showMessage('queryMessage', `Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function listReviews() {
+            const token = getToken();
+            const superuser = document.getElementById('superuserMode').checked;
+            const feedbackOnly = document.getElementById('feedbackOnlyMode').checked;
+
+            try {
+                // Show loading
+                document.getElementById('reviewsList').innerHTML = '<p class="small">Loading reviews...</p>';
+
+                let url = `${API_BASE}/reviews?limit=50&filter_user=${superuser ? 'false' : 'true'}`;
+                if (token) {
+                    url += `&token=${token}`;
+                }
+
+                const response = await fetch(url);
+                const result = await response.json();
+
+                if (response.ok) {
+                    // Fetch full details for done reviews to check for feedback
+                    const reviewsWithFeedback = await Promise.all(result.reviews.map(async (review) => {
+                        if (review.status === 'done') {
+                            try {
+                                let detailUrl = `${API_BASE}/review?id=${review.review_id}&format=inline`;
+                                if (token) {
+                                    detailUrl += `&token=${token}`;
+                                }
+                                const detailResponse = await fetch(detailUrl);
+                                const detailData = await detailResponse.json();
+
+                                // Check if any patch has feedback
+                                const hasFeedback = detailData.review && detailData.review.some(r => r && r.trim());
+                                return { ...review, hasFeedback };
+                            } catch (e) {
+                                return { ...review, hasFeedback: false };
+                            }
+                        }
+                        return { ...review, hasFeedback: false };
+                    }));
+
+                    // Filter if needed
+                    const filteredReviews = feedbackOnly
+                        ? reviewsWithFeedback.filter(r => r.hasFeedback)
+                        : reviewsWithFeedback;
+
+                    displayReviewsList(filteredReviews, token);
+                } else {
+                    document.getElementById('reviewsList').innerHTML =
+                        `<div class="message error">Error: ${result.error}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('reviewsList').innerHTML =
+                    `<div class="message error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Parse UTC date string and convert to local time
+        function parseUTCDate(utcDateString) {
+            if (!utcDateString) return null;
+            // Backend stores dates in UTC without 'Z' suffix
+            // Add 'Z' to explicitly mark as UTC for proper parsing
+            const date = new Date(utcDateString + 'Z');
+            return date;
+        }
+
+        // Format UTC date string to localized string
+        function formatUTCDate(utcDateString) {
+            const date = parseUTCDate(utcDateString);
+            return date ? date.toLocaleString() : 'N/A';
+        }
+
+        function formatDuration(seconds) {
+            if (seconds < 60) {
+                return `${Math.round(seconds)}s`;
+            } else if (seconds < 3600) {
+                const mins = Math.floor(seconds / 60);
+                const secs = Math.round(seconds % 60);
+                return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
+            } else {
+                const hours = Math.floor(seconds / 3600);
+                const mins = Math.floor((seconds % 3600) / 60);
+                return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+            }
+        }
+
+        function displayReviewResult(data) {
+            const container = document.getElementById('queryResult');
+            let html = '<div class="query-result-box">';
+
+            html += `<p><strong>Review ID:</strong> <span class="review-id">${data.review_id}</span></p>`;
+            html += `<p><strong>Status:</strong> <span class="status-badge status-${data.status}">${data.status}</span></p>`;
+            html += `<p><strong>Tree:</strong> ${data.tree}</p>`;
+
+            if (data.model) {
+                html += `<p><strong>Model:</strong> ${data.model}</p>`;
+            }
+
+            // Show patch source information
+            if (data.patchwork_series_id) {
+                const pwUrl = `https://patchwork.kernel.org/project/netdevbpf/list/?series=${data.patchwork_series_id}`;
+                html += `<p><strong>Patchwork Series:</strong> <a href="${pwUrl}" target="_blank" rel="noopener noreferrer">${data.patchwork_series_id}</a></p>`;
+            } else if (data.hash) {
+                html += `<p><strong>Hash/Range:</strong> <code>${data.hash}</code></p>`;
+            } else {
+                html += `<p><strong>Source:</strong> Uploaded patches</p>`;
+            }
+
+            html += `<p><strong>Date:</strong> ${formatUTCDate(data.date)}</p>`;
+
+            // Calculate and display timing information
+            if (data.start) {
+                const queueTime = (parseUTCDate(data.start) - parseUTCDate(data.date)) / 1000; // seconds
+                if (queueTime >= 10) {
+                    html += `<p><strong>Queue time:</strong> ${formatDuration(queueTime)}</p>`;
+                }
+
+                // Setup time (git operations, applying patches, etc.)
+                if (data['start-llm']) {
+                    const setupTime = (parseUTCDate(data['start-llm']) - parseUTCDate(data.start)) / 1000;
+                    if (setupTime >= 1) {
+                        html += `<p><strong>Setup time:</strong> ${formatDuration(setupTime)}</p>`;
+                    }
+                }
+            }
+
+            // LLM time
+            if (data['start-llm'] && data.end) {
+                const llmTime = (parseUTCDate(data.end) - parseUTCDate(data['start-llm'])) / 1000;
+                html += `<p><strong>LLM time:</strong> ${formatDuration(llmTime)}</p>`;
+            }
+
+            // Total processing time (if complete but no LLM start recorded)
+            if (data.start && data.end && !data['start-llm']) {
+                const processingTime = (parseUTCDate(data.end) - parseUTCDate(data.start)) / 1000;
+                html += `<p><strong>Processing time:</strong> ${formatDuration(processingTime)}</p>`;
+            }
+
+            if (data['queue-len'] !== undefined) {
+                html += `<p><strong>Queue Position:</strong> ${data['queue-len']} patches ahead</p>`;
+            }
+
+            if (data.message) {
+                html += `<div class="message error"><strong>Message:</strong> ${data.message}</div>`;
+            }
+
+            if (data.review) {
+                html += '<h3>Review Results</h3>';
+                data.review.forEach((review, i) => {
+                    if (review === null) {
+                        html += `<p><strong>Patch ${i+1}:</strong> No feedback</p>`;
+                    } else {
+                        html += `<details><summary><strong>Patch ${i+1}</strong></summary>`;
+                        html += `<pre>${escapeHtml(review)}</pre></details>`;
+                    }
+                });
+            }
+
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function displayReviewsList(reviews, token = null) {
+            const container = document.getElementById('reviewsList');
+
+            if (reviews.length === 0) {
+                container.innerHTML = '<p class="small">No reviews found</p>';
+                return;
+            }
+
+            // Use provided token, or try to get current token
+            if (!token) {
+                token = getToken();
+            }
+
+            let html = '<ul class="review-list">';
+            reviews.forEach(review => {
+                const feedbackBadge = review.hasFeedback
+                    ? '<span class="feedback-badge">📝 Has feedback</span>'
+                    : '';
+
+                // Admin feedback badge (from API, only visible to superusers)
+                let adminFeedbackBadge = '';
+                if (review.feedback) {
+                    const feedbackLabels = {
+                        'emailed': '📧 Emailed',
+                        'false-positive': '❌ False Positive',
+                        'false-negative': '⚠️ False Negative'
+                    };
+                    adminFeedbackBadge = `<span class="feedback-badge">${feedbackLabels[review.feedback] || review.feedback}</span>`;
+                }
+
+                // Determine submission type
+                let submissionType = '';
+                if (review.patchwork_series_id) {
+                    const pwUrl = `https://patchwork.kernel.org/project/netdevbpf/list/?series=${review.patchwork_series_id}`;
+                    submissionType = `Patchwork: <span onclick="event.stopPropagation(); event.preventDefault(); window.open('${pwUrl}', '_blank');" style="cursor: pointer; text-decoration: underline;">${review.patchwork_series_id}</span>`;
+                } else if (review.hash) {
+                    submissionType = `Hash: ${review.hash.substring(0, 12)}`;
+                } else {
+                    submissionType = `Patch files`;
+                }
+
+                // Token owner
+                const tokenOwner = review.token_owner
+                    ? `👤 ${review.token_owner}`
+                    : '';
+
+                // Cost (only for superusers)
+                const cost = review.cost_usd
+                    ? `<span style="color: var(--text-muted); font-size: 11px;">$${review.cost_usd.toFixed(2)}</span>`
+                    : '';
+
+                // Model
+                const model = review.model
+                    ? `<span style="color: var(--text-muted); font-size: 11px;">🤖 ${review.model}</span>`
+                    : '';
+
+                // Duration (for completed/error reviews)
+                const duration = review.duration_seconds
+                    ? `<span style="color: var(--text-muted); font-size: 11px;">⏱️ ${formatDuration(review.duration_seconds)}</span>`
+                    : '';
+
+                // Private badge (only show for private reviews)
+                const visibilityBadge = review.is_public
+                    ? ''
+                    : '<span class="visibility-badge visibility-private">🔒 Private</span>';
+
+                html += `
+                    <li class="review-item status-${review.status}">
+                        <a href="ai-review.html?id=${review.review_id}">
+                            <div class="review-header">
+                                <span class="review-id">${review.review_id}</span>
+                                <div style="display: flex; gap: 8px; align-items: center;">
+                                    ${feedbackBadge}
+                                    ${adminFeedbackBadge}
+                                    ${visibilityBadge}
+                                    <span class="status-badge status-${review.status}">${review.status}</span>
+                                </div>
+                            </div>
+                            <div class="review-details">
+                                <div class="review-tree-info">
+                                    <strong>${review.tree}</strong> <span style="color: var(--text-muted);">(${review.patch_count} patches)</span>
+                                </div>
+                                <div class="review-meta">
+                                    <span class="submission-type">${submissionType}</span>
+                                    ${tokenOwner ? `<span class="token-owner">${tokenOwner}</span>` : ''}
+                                    ${model}
+                                    ${duration}
+                                    ${cost}
+                                </div>
+                                <div class="review-date">
+                                    ${formatUTCDate(review.date)}
+                                </div>
+                            </div>
+                        </a>
+                    </li>
+                `;
+            });
+            html += '</ul>';
+
+            container.innerHTML = html;
+        }
+
+        function showMessage(elementId, message, type) {
+            const el = document.getElementById(elementId);
+            el.innerHTML = `<div class="message ${type}">${message}</div>`;
+            setTimeout(() => {
+                if (type === 'success') el.innerHTML = '';
+            }, 5000);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Helper to read file as text
+        function readFileAsText(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(e);
+                reader.readAsText(file);
+            });
+        }
+
+        // Dark mode toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+
+            // Update button text and icon
+            updateThemeButton(newTheme);
+
+            // Update chart colors if chart exists
+            updateChartColors();
+        }
+
+        function updateChartColors() {
+            const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-primary');
+            const borderColor = getComputedStyle(document.documentElement).getPropertyValue('--border-color');
+
+            if (reviewChart) {
+                // Update legend colors
+                reviewChart.options.plugins.legend.labels.color = textColor;
+
+                // Update axis colors
+                reviewChart.options.scales.x.grid.color = borderColor;
+                reviewChart.options.scales.x.ticks.color = textColor;
+                reviewChart.options.scales.y.grid.color = borderColor;
+                reviewChart.options.scales.y.ticks.color = textColor;
+
+                reviewChart.update();
+            }
+
+            if (averagesChart) {
+                // Update legend colors
+                averagesChart.options.plugins.legend.labels.color = textColor;
+
+                // Update axis colors
+                averagesChart.options.scales.x.grid.color = borderColor;
+                averagesChart.options.scales.x.ticks.color = textColor;
+                averagesChart.options.scales.y.grid.color = borderColor;
+                averagesChart.options.scales.y.ticks.color = textColor;
+
+                // Update y1 axis if it exists
+                if (averagesChart.options.scales.y1) {
+                    averagesChart.options.scales.y1.ticks.color = textColor;
+                }
+
+                averagesChart.update();
+            }
+        }
+
+        function updateThemeButton(theme) {
+            const icon = document.getElementById('themeIcon');
+            const button = document.querySelector('.theme-toggle');
+            if (theme === 'dark') {
+                icon.textContent = '☀️';
+                button.childNodes[1].textContent = ' Light Mode';
+            } else {
+                icon.textContent = '🌙';
+                button.childNodes[1].textContent = ' Dark Mode';
+            }
+        }
+
+        // Load theme on page load
+        (function() {
+            // Check if user has a saved preference, otherwise use system preference
+            let savedTheme = localStorage.getItem('theme');
+
+            if (!savedTheme) {
+                // Check system preference
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                savedTheme = prefersDark ? 'dark' : 'light';
+            }
+
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            updateThemeButton(savedTheme);
+
+            // Listen for system theme changes (only if user hasn't set a preference)
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+                if (!localStorage.getItem('theme')) {
+                    const newTheme = e.matches ? 'dark' : 'light';
+                    document.documentElement.setAttribute('data-theme', newTheme);
+                    updateThemeButton(newTheme);
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

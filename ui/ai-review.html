@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Review Results</title>
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="stylesheet" href="nipa.css">
+    <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --bg-card: #ffffff;
+            --text-primary: #333;
+            --text-secondary: #555;
+            --text-muted: #666;
+            --border-color: #ddd;
+            --accent-primary: #0366d6;
+            --accent-hover: #0056b3;
+            --heading-color: #2c3e50;
+            --status-queued-bg: #ffc107;
+            --status-queued-text: #000;
+            --status-progress-bg: #17a2b8;
+            --status-progress-text: #fff;
+            --status-done-bg: #28a745;
+            --status-done-text: #fff;
+            --status-error-bg: #dc3545;
+            --status-error-text: #fff;
+            --error-bg: #f8d7da;
+            --error-text: #721c24;
+            --error-border: #f5c6cb;
+            --patch-header-bg: #34495e;
+            --patch-header-text: #ffffff;
+            --review-text-bg: #f5f5f5;
+            --review-text-color: #333;
+            --no-review-color: #28a745;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1c1c1c;
+            --bg-secondary: #282828;
+            --bg-card: #282828;
+            --text-primary: #b8b8b8;
+            --text-secondary: #999;
+            --text-muted: #888;
+            --border-color: #444;
+            --accent-primary: #2c5282;
+            --accent-hover: #2b4c7e;
+            --heading-color: #b8b8b8;
+            --status-queued-bg: #b8860b;
+            --status-queued-text: #fff;
+            --status-progress-bg: #0d6efd;
+            --status-progress-text: #fff;
+            --status-done-bg: #198754;
+            --status-done-text: #fff;
+            --status-error-bg: #dc3545;
+            --status-error-text: #fff;
+            --error-bg: #5a1f1f;
+            --error-text: #ffb3b3;
+            --error-border: #8b3a3a;
+            --patch-header-bg: #2c3e50;
+            --patch-header-text: #ffffff;
+            --review-text-bg: #1c1c1c;
+            --review-text-color: #b8b8b8;
+            --no-review-color: #4caf50;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 0 20px;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .header-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: var(--heading-color);
+            border-bottom: 2px solid var(--accent-primary);
+            padding-bottom: 10px;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        h1 img {
+            width: 40px;
+            height: 40px;
+        }
+
+        .theme-toggle {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.3s;
+        }
+
+        .theme-toggle:hover {
+            background-color: var(--bg-secondary);
+            border-color: var(--accent-primary);
+        }
+
+        .review-header {
+            background-color: var(--bg-secondary);
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .review-header h2 {
+            margin-top: 0;
+            color: var(--heading-color);
+        }
+
+        .review-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .review-info-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .review-info-item label {
+            font-weight: bold;
+            color: var(--text-secondary);
+            font-size: 0.9em;
+            margin-bottom: 3px;
+        }
+
+        .review-info-item span {
+            color: var(--text-primary);
+        }
+
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+
+        .status-queued {
+            background-color: var(--status-queued-bg);
+            color: var(--status-queued-text);
+        }
+        .status-in-progress {
+            background-color: var(--status-progress-bg);
+            color: var(--status-progress-text);
+        }
+        .status-done {
+            background-color: var(--status-done-bg);
+            color: var(--status-done-text);
+        }
+        .status-error {
+            background-color: var(--status-error-bg);
+            color: var(--status-error-text);
+        }
+
+        .error-message {
+            background-color: var(--error-bg);
+            color: var(--error-text);
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border: 1px solid var(--error-border);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.2em;
+            color: var(--text-muted);
+        }
+
+        .patch-review {
+            margin-bottom: 40px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .patch-header {
+            background-color: var(--patch-header-bg);
+            color: var(--patch-header-text);
+            padding: 15px 20px;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .patch-content {
+            padding: 20px;
+            background-color: var(--bg-card);
+        }
+
+        .review-text {
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            line-height: 1.6;
+            background-color: var(--review-text-bg);
+            color: var(--review-text-color);
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            border: 1px solid var(--border-color);
+        }
+
+        .no-review {
+            color: var(--no-review-color);
+            font-style: italic;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .format-selector {
+            margin-bottom: 20px;
+            text-align: right;
+        }
+
+        .format-selector label {
+            margin-right: 10px;
+            font-weight: bold;
+            color: var(--text-secondary);
+        }
+
+        .format-selector select {
+            padding: 5px 10px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        .patch-navigation {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 20px;
+            background-color: var(--bg-secondary);
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .patch-nav-item {
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .patch-nav-item.has-comments {
+            background-color: var(--accent-primary);
+            color: #ffffff;
+        }
+
+        .patch-nav-item.no-comments {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .patch-nav-item:hover {
+            opacity: 0.8;
+            transform: translateY(-2px);
+        }
+
+        .patch-header {
+            background-color: var(--patch-header-bg);
+            color: var(--patch-header-text);
+            padding: 15px 20px;
+            font-weight: bold;
+            font-size: 1.1em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .patch-header .no-comments-inline {
+            color: var(--no-review-color);
+            font-size: 0.9em;
+            font-weight: normal;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="header-controls">
+        <h1>
+            <img src="/favicon.png" alt="NIPA AIR Logo">
+            AI Review Results
+        </h1>
+        <button class="theme-toggle" onclick="toggleTheme()">
+            <span id="theme-icon">🌙</span> Toggle Theme
+        </button>
+    </div>
+
+    <div id="loading" class="loading">Loading review...</div>
+    <div id="error" class="error-message" style="display: none;"></div>
+
+    <div id="review-container" style="display: none;">
+        <div class="review-header">
+            <h2>Review Information <span style="font-family: monospace; font-size: 0.75em; font-weight: normal; color: var(--text-muted);">ID: <span id="review-id"></span></span></h2>
+            <div class="review-info">
+                <div class="review-info-item">
+                    <label>Status:</label>
+                    <span id="review-status"></span>
+                </div>
+                <div class="review-info-item">
+                    <label>Tree:</label>
+                    <span id="review-tree"></span>
+                </div>
+                <div class="review-info-item">
+                    <label>Branch:</label>
+                    <span id="review-branch"></span>
+                </div>
+                <div class="review-info-item" id="model-info" style="display: none;">
+                    <label>Model:</label>
+                    <span id="review-model"></span>
+                </div>
+                <div class="review-info-item">
+                    <label>Submitted:</label>
+                    <span id="review-date"></span>
+                </div>
+                <div class="review-info-item">
+                    <label>Patches:</label>
+                    <span id="review-patches"></span>
+                </div>
+                <div class="review-info-item" id="patchwork-info" style="display: none;">
+                    <label>Patchwork Series:</label>
+                    <span id="review-pw-series"></span>
+                </div>
+                <div class="review-info-item" id="hash-info" style="display: none;">
+                    <label>Commit Hash:</label>
+                    <span id="review-hash"></span>
+                </div>
+                <div class="review-info-item" id="cost-info" style="display: none;">
+                    <label>Cost:</label>
+                    <span id="review-cost"></span>
+                </div>
+                <div class="review-info-item" id="duration-info" style="display: none;">
+                    <label>Duration:</label>
+                    <span id="review-duration"></span>
+                </div>
+                <div class="review-info-item" id="feedback-info" style="display: none;">
+                    <label>Feedback:</label>
+                    <span id="review-feedback"></span>
+                </div>
+            </div>
+            <div id="progress-info" style="margin-top: 15px; display: none;">
+                <label style="font-weight: bold; color: var(--text-secondary);">Progress:</label>
+                <span id="review-progress" style="color: var(--text-primary);"></span>
+            </div>
+        </div>
+
+        <div id="message-container" style="display: none;">
+            <div class="error-message" id="review-message"></div>
+        </div>
+
+        <div id="patch-navigation" class="patch-navigation" style="display: none;"></div>
+
+        <div class="format-selector" id="format-selector" style="display: none;">
+            <label for="format">Review Format:</label>
+            <select id="format" onchange="changeFormat()">
+                <option value="inline">Review</option>
+                <option value="markup">Full output</option>
+            </select>
+        </div>
+
+        <div id="reviews-container"></div>
+    </div>
+
+    <script>
+        // Theme management
+        function initTheme() {
+            const savedTheme = localStorage.getItem('air-theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const theme = savedTheme || (prefersDark ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', theme);
+            updateThemeIcon(theme);
+        }
+
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('air-theme', newTheme);
+            updateThemeIcon(newTheme);
+        }
+
+        function updateThemeIcon(theme) {
+            const icon = document.getElementById('theme-icon');
+            icon.textContent = theme === 'dark' ? '☀️' : '🌙';
+        }
+
+        // Initialize theme on page load
+        initTheme();
+
+        // Get URL parameters
+        function getUrlParam(name) {
+            const params = new URLSearchParams(window.location.search);
+            return params.get(name);
+        }
+
+        const reviewId = getUrlParam('id');
+        let token = getUrlParam('token');
+
+        // If no token in URL, try localStorage
+        if (!token) {
+            token = localStorage.getItem('apiToken');
+        }
+
+        let currentFormat = 'inline';  // Default to inline/Review format
+        let inlineReviews = [];  // Store inline reviews for navigation coloring
+        let refreshInterval = null;  // Interval for auto-refreshing in-progress reviews
+
+        if (!reviewId) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').textContent = 'No review ID provided in URL. Please use ?id=<review-id>';
+            document.getElementById('error').style.display = 'block';
+        } else {
+            loadReview();
+        }
+
+        function loadReview(format = null) {
+            let url = `/api/review?id=${encodeURIComponent(reviewId)}`;
+            if (token) {
+                url += `&token=${encodeURIComponent(token)}`;
+            }
+            // If no token, the API will check if review is public_read enabled
+            if (format) {
+                url += `&format=${format}`;
+            }
+
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        // Try to parse error message from response body
+                        return response.json().then(data => {
+                            throw new Error(data.error || `HTTP ${response.status}: ${response.statusText}`);
+                        }).catch(jsonError => {
+                            // If JSON parsing fails, use the original error
+                            if (jsonError.message && !jsonError.message.includes('JSON'))
+                                throw jsonError;
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (format) {
+                        // Just update the reviews
+                        displayReviews(data.review || []);
+                    } else {
+                        // Display full review info
+                        displayReviewInfo(data);
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('error').textContent = `Error loading review: ${error.message}`;
+                    document.getElementById('error').style.display = 'block';
+                });
+        }
+
+        function displayReviewInfo(data) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('review-container').style.display = 'block';
+
+            // Basic info
+            document.getElementById('review-id').textContent = data.review_id;
+            document.getElementById('review-tree').textContent = data.tree || 'N/A';
+            document.getElementById('review-branch').textContent = data.branch || 'default';
+            document.getElementById('review-date').textContent = formatDate(data.date);
+
+            // Status
+            const statusSpan = document.getElementById('review-status');
+            statusSpan.innerHTML = `<span class="status status-${data.status}">${data.status}</span>`;
+
+            // Patch count
+            const patchCount = data.patch_count || 0;
+            const completedCount = data.completed_patches || 0;
+            document.getElementById('review-patches').textContent = patchCount;
+
+            // Progress info for in-progress reviews
+            if (data.status === 'in-progress' && patchCount > 0) {
+                document.getElementById('progress-info').style.display = 'block';
+                document.getElementById('review-progress').textContent = `${completedCount} / ${patchCount} completed`;
+            }
+
+            // Model
+            if (data.model) {
+                document.getElementById('model-info').style.display = 'block';
+                document.getElementById('review-model').textContent = data.model;
+            }
+
+            // Patchwork series ID
+            if (data.patchwork_series_id) {
+                document.getElementById('patchwork-info').style.display = 'block';
+                const pwUrl = `https://patchwork.kernel.org/project/netdevbpf/list/?series=${data.patchwork_series_id}`;
+                document.getElementById('review-pw-series').innerHTML = `<a href="${pwUrl}" target="_blank" rel="noopener noreferrer">${data.patchwork_series_id}</a>`;
+            }
+
+            // Hash
+            if (data.hash) {
+                document.getElementById('hash-info').style.display = 'block';
+                document.getElementById('review-hash').textContent = data.hash;
+            }
+
+            // Cost (only shown for superusers)
+            if (data.cost_usd) {
+                document.getElementById('cost-info').style.display = 'block';
+                document.getElementById('review-cost').textContent = `$${data.cost_usd.toFixed(2)}`;
+            }
+
+            // Duration (for completed/error reviews)
+            if (data.start && data.end) {
+                const startDate = new Date(data.start + 'Z');
+                const endDate = new Date(data.end + 'Z');
+                const durationSeconds = (endDate - startDate) / 1000;
+                document.getElementById('duration-info').style.display = 'block';
+                document.getElementById('review-duration').textContent = formatDuration(durationSeconds);
+            }
+
+            // Feedback (only shown for superusers)
+            if (data.feedback) {
+                const feedbackLabels = {
+                    'emailed': '📧 Emailed',
+                    'false-positive': '❌ False Positive',
+                    'false-negative': '⚠️ False Negative'
+                };
+                document.getElementById('feedback-info').style.display = 'block';
+                document.getElementById('review-feedback').textContent = feedbackLabels[data.feedback] || data.feedback;
+            }
+
+            // Message (error or warning)
+            if (data.message) {
+                document.getElementById('message-container').style.display = 'block';
+                document.getElementById('review-message').textContent = data.message;
+            }
+
+            // Queue position for queued reviews
+            if (data.status === 'queued' && data['queue-len'] !== undefined) {
+                document.getElementById('progress-info').style.display = 'block';
+                document.getElementById('review-progress').textContent = `${data['queue-len']} patches ahead in queue`;
+            }
+
+            // Auto-refresh logic for in-progress reviews
+            if (data.status === 'in-progress') {
+                // Clear any existing interval
+                if (refreshInterval) {
+                    clearInterval(refreshInterval);
+                }
+                // Set up 15-second auto-refresh
+                refreshInterval = setInterval(() => {
+                    loadReview();
+                }, 15000);
+            } else {
+                // Clear interval if status is no longer in-progress
+                if (refreshInterval) {
+                    clearInterval(refreshInterval);
+                    refreshInterval = null;
+                }
+            }
+
+            // Load reviews if status is done
+            if (data.status === 'done' || (data.status === 'error' && patchCount > 0)) {
+                document.getElementById('format-selector').style.display = 'block';
+                // Set the dropdown to match currentFormat
+                document.getElementById('format').value = currentFormat;
+                // First load inline format to determine which patches have comments
+                loadInlineForNavigation().then(() => {
+                    // Then load the current format for display
+                    loadReview(currentFormat);
+                });
+            }
+        }
+
+        function loadInlineForNavigation() {
+            // Load inline format to determine navigation colors
+            let url = `/api/review?id=${encodeURIComponent(reviewId)}`;
+            if (token) {
+                url += `&token=${encodeURIComponent(token)}`;
+            }
+            url += '&format=inline';
+
+            return fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    inlineReviews = data.review || [];
+                })
+                .catch(error => {
+                    console.error('Error loading inline reviews for navigation:', error);
+                    inlineReviews = [];
+                });
+        }
+
+        function displayReviews(reviews) {
+            const container = document.getElementById('reviews-container');
+            const navContainer = document.getElementById('patch-navigation');
+            container.innerHTML = '';
+            navContainer.innerHTML = '';
+
+            if (!reviews || reviews.length === 0) {
+                container.innerHTML = '<p style="text-align: center; padding: 40px;">No reviews available yet.</p>';
+                navContainer.style.display = 'none';
+                return;
+            }
+
+            // Show navigation
+            navContainer.style.display = 'flex';
+
+            reviews.forEach((review, index) => {
+                // Use inline reviews to determine if patch has comments (for navigation coloring)
+                const inlineReview = inlineReviews[index];
+                const hasCommentsInline = inlineReview !== null && inlineReview !== '';
+
+                // Current review determines display
+                const hasComments = review !== null && review !== '';
+                const patchId = `patch-${index}`;
+
+                // Create navigation item - color based on inline format
+                const navItem = document.createElement('a');
+                navItem.className = `patch-nav-item ${hasCommentsInline ? 'has-comments' : 'no-comments'}`;
+                navItem.textContent = `${index + 1}`;
+                navItem.href = `#${patchId}`;
+                navItem.title = hasCommentsInline ? `Patch ${index + 1}: Has review comments` : `Patch ${index + 1}: No comments`;
+                navContainer.appendChild(navItem);
+
+                // Create patch review section
+                const patchDiv = document.createElement('div');
+                patchDiv.className = 'patch-review';
+                patchDiv.id = patchId;
+
+                const headerDiv = document.createElement('div');
+                headerDiv.className = 'patch-header';
+
+                const headerTitle = document.createElement('span');
+                headerTitle.textContent = `Patch ${index + 1}`;
+                headerDiv.appendChild(headerTitle);
+
+                // Show "No review comments" based on inline format
+                if (!hasCommentsInline) {
+                    const noCommentsSpan = document.createElement('span');
+                    noCommentsSpan.className = 'no-comments-inline';
+                    noCommentsSpan.textContent = 'No review comments';
+                    headerDiv.appendChild(noCommentsSpan);
+                }
+
+                patchDiv.appendChild(headerDiv);
+
+                // Only add content div if there are comments in current format
+                if (hasComments) {
+                    const contentDiv = document.createElement('div');
+                    contentDiv.className = 'patch-content';
+
+                    const reviewDiv = document.createElement('div');
+                    reviewDiv.className = 'review-text';
+                    reviewDiv.textContent = review;
+                    contentDiv.appendChild(reviewDiv);
+
+                    patchDiv.appendChild(contentDiv);
+                }
+
+                container.appendChild(patchDiv);
+            });
+        }
+
+        function changeFormat() {
+            const formatSelect = document.getElementById('format');
+            currentFormat = formatSelect.value;
+            loadReview(currentFormat);
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            // Backend stores dates in UTC without 'Z' suffix
+            // Add 'Z' to explicitly mark as UTC for proper parsing
+            const date = new Date(dateString + 'Z');
+            return date.toLocaleString();
+        }
+
+        function formatDuration(seconds) {
+            if (seconds < 60) {
+                return `${Math.round(seconds)}s`;
+            } else if (seconds < 3600) {
+                const mins = Math.floor(seconds / 60);
+                const secs = Math.round(seconds % 60);
+                return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
+            } else {
+                const hours = Math.floor(seconds / 3600);
+                const mins = Math.floor((seconds % 3600) / 60);
+                return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+            }
+        }
+    </script>
+</body>
+</html>
