@@ -302,9 +302,10 @@ class VM:
         total_wait = 0
         stdout = ""
         stderr = ""
+        prompt_seen = False
         last_read = time.monotonic()
         while True:
-            select.select([self.p.stdout, self.p.stderr], [], [], 0.1)
+            readable, _, _ = select.select([self.p.stdout, self.p.stderr], [], [], 0.2)
 
             read_some, out = self._read_pipe_nonblock(self.p.stdout)
             self.log_out += out
@@ -319,9 +320,9 @@ class VM:
             last_read = now
             total_wait += elapsed
 
-            if read_some:
-                if stdout.endswith(prompt):
-                    break
+            if read_some and stdout.endswith(prompt):
+                prompt_seen = True
+            elif read_some:
                 if self.fail_state == "oops" and _dump_after is None and dump_after > 300:
                     dump_after = 300
                     self.log_out += '\nDETECTED CRASH, lowering timeout\n'
@@ -333,6 +334,10 @@ class VM:
                     self.cmd('\n')
                     time.sleep(0.25)
                 waited = 0
+            elif prompt_seen and not read_some and not readable:
+                # No data read - if we saw the prompt and select() timed out,
+                # the pipe is quiescent, safe to return
+                break
             else:
                 waited += elapsed
 
