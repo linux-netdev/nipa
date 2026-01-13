@@ -28,6 +28,9 @@ sudo dnf install git libmnl-devel
 sudo dnf install elfutils-devel elfutils-libs elfutils-libelf elfutils-libelf-devel
 sudo dnf install iptables
 
+# for nfbpf_compile
+sudo dnf install iptables-utils.x86_64
+
 # NIPA setup
 git clone https://github.com/kuba-moo/nipa.git
 sudo mv nipa/ /opt/
