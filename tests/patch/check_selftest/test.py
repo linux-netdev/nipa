@@ -36,7 +36,7 @@ def check_new_files_makefile(tree, new_files, log):
     for path in new_files:
         if path.endswith(('.sh', '.py')):
             needle = path
-        elif path.endswith(('.c')):
+        elif path.endswith(('.c')) and not path.endswith(('.bpf.c')):
             needle = path.split('.')[0]
         else:
             log.append("makefile inclusion check ignoring " + path)
@@ -66,7 +66,7 @@ def check_new_files_gitignore(tree, new_files, log):
     cnt = 0
 
     for path in new_files:
-        if path.endswith(('.c')):
+        if path.endswith(('.c')) and not path.endswith(('.bpf.c')):
             needle = path.split('.')[0]
         else:
             log.append("gitignore check ignoring " + path)
