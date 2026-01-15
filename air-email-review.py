@@ -160,7 +160,7 @@ def format_email(review_text: str, patch_info: Dict, from_addr: str,
     # Build email body
     body_lines = [
         "This is an AI-generated review of your patch. The human sending this",
-        "email has considered the AI review valid, or at least pausible.",
+        "email has considered the AI review valid, or at least plausible.",
     ]
 
     # Add optional header lines after the intro (interpret \n as newlines)
