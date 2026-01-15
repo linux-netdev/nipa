@@ -173,35 +173,6 @@ def get_review_status(url: str, token: Optional[str], review_id: str,
         sys.exit(1)
 
 
-def delete_review(url: str, token: str, review_id: str) -> bool:
-    """Delete a review (superuser only)
-
-    Args:
-        url: AIR service URL
-        token: API token (must be superuser)
-        review_id: Review ID to delete
-
-    Returns:
-        True if successful
-    """
-    api_url = f"{url}/api/review"
-    params = {
-        'id': review_id,
-        'token': token,
-    }
-
-    try:
-        response = requests.delete(api_url, params=params, timeout=30)
-        response.raise_for_status()
-        return response.json().get('success', False)
-    except requests.exceptions.RequestException as e:
-        print(f"Error deleting review: {e}", file=sys.stderr)
-        sys.exit(1)
-    except json.JSONDecodeError as e:
-        print(f"Error parsing response: {e}", file=sys.stderr)
-        sys.exit(1)
-
-
 def set_feedback(url: str, token: Optional[str], review_id: str, feedback: str) -> bool:
     """Set feedback for a review
 
@@ -362,8 +333,6 @@ Configuration file:
                        help='Git commit hash or range (e.g., abc123 or abc123..def456)')
     parser.add_argument('--review-id', metavar='ID',
                        help='Existing review ID to check (skip submission)')
-    parser.add_argument('--delete', action='store_true',
-                       help='Delete the specified review (requires --review-id and superuser token)')
     parser.add_argument('--feedback', choices=['emailed', 'false-positive', 'false-negative'],
                        help='Set feedback for a review (requires --review-id)')
     parser.add_argument('patches', nargs='*', metavar='PATCH_FILE',
@@ -398,22 +367,6 @@ Configuration file:
         parser.error('--url is required (either via command-line or ~/.air.conf)')
 
     args.url = args.url.rstrip('/')
-
-    # Handle --delete operation
-    if args.delete:
-        if not args.review_id:
-            parser.error('--delete requires --review-id')
-        if not args.token:
-            parser.error('--delete requires --token (must be superuser)')
-
-        print(f"Deleting review {args.review_id}...")
-        success = delete_review(args.url, args.token, args.review_id)
-        if success:
-            print(colorize(f"Review {args.review_id} deleted successfully", Colors.GREEN))
-        else:
-            print(colorize("Failed to delete review", Colors.RED), file=sys.stderr)
-            sys.exit(1)
-        return
 
     # Handle --feedback operation
     if args.feedback:
