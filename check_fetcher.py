@@ -7,9 +7,7 @@ import json
 import os
 
 from core import NIPA_DIR
-from core import Maintainers, Person
-from core import log, log_open_sec, log_end_sec, log_init
-from core import Tree
+from core import log_init
 from pw import Patchwork
 
 
@@ -116,7 +114,9 @@ def main():
         json.dump(new_db, fp)
 
     now = datetime.datetime.now()
-    with open(tgt_json + now.strftime("-%m-%Y"), "w") as fp:
+    hdir = config.get('dirs', 'history', fallback=rdir)
+    hpath = os.path.join(hdir, "checks" + now.strftime("-%m-%Y") + ".json")
+    with open(hpath, "w") as fp:
         json.dump(new_db, fp)
 
 
