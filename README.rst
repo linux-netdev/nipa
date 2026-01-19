@@ -9,10 +9,6 @@ This project is a simple CI/build bot for patchwork.
 Patchwork is a web interface for patches posted to mailing lists,
 and can also handle test results being reported against said patches.
 
-Currently this project only includes simple checks and build testing,
-all Linux kernel-centric. Patches are not tested against existing
-kernel selftests.
-
 Please see `the wiki <https://github.com/linux-netdev/nipa/wiki>`_
 for how to interact with NIPA.
 
@@ -59,6 +55,22 @@ Note that we need to check out the linux tree to a branch that matches the base
 on which we intend the patches to be applied. NIPA does not know what to reset
 the tree to, it will just try to apply the patches to whatever branch is
 currently checked out in the `$linux` repo.
+
+Setup
+-----
+
+TODO: please open a PR and add package installation and prep needed to run NIPA on your distro of choice.
+
+selftests
+---------
+
+When testing purely selftest patch sets it's useful to skip building the kernel,
+which takes a long time::
+
+  --disable-test patch/build_32bit \
+                 patch/build_allmodconfig_warn \
+		 patch/build_clang \
+		 patch/build_clang_rust
 
 Structure
 =========
