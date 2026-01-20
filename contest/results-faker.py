@@ -81,7 +81,7 @@ def main() -> None:
         if br["url"].startswith('https://github.com') and tail > 0:
             br_url = br["url"][:tail] + "/commits/" + br["url"][tail + 5:]
         else:
-            br_url = "https://netdev.bots.linux.dev/static/nipa/branches.json"
+            br_url = "https://netdev.bots.linux.dev/contest/branches.json"
 
         run["results"] = [
             {"test": "branch-created", "group": "---", "result": "pass", "link": br_url}

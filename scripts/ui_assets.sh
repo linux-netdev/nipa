@@ -15,10 +15,10 @@ set -eu
 PROD=https://netdev.bots.linux.dev
 LOCAL=./ui
 ASSETS=(
-  "static/nipa/checks.json"
-  "static/nipa/systemd.json"
-  "static/nipa/branch-results.json"
-  "static/nipa/branches-info.json"
+  "checks.json"
+  "status.json"
+  "contest/branch-results.json"
+  "contest/branches-info.json"
   "contest/filters.json"
   "contest/all-results.json"
 )

@@ -714,7 +714,7 @@ function load_result_table_one(data_raw, table, reported, avgs)
 	    remote.setAttribute("colspan", "3");
 	    if (v.pull_status != "okay")
 		br_pull = " (pull: " + v.pull_status + ")";
-	    a =	"<a href=\"static/nipa/branch_deltas/" + v.branch + ".html\">";
+	    a =	"<a href=\"branch_deltas/" + v.branch + ".html\">";
 	    branch.innerHTML = a + v.branch + "</a>" + br_pull;
 	    branch.setAttribute("colspan", "2");
 	}
