@@ -1070,22 +1070,22 @@ function do_it()
      * Please remember to keep these assets in sync with `scripts/ui_assets.sh`
      */
     $(document).ready(function() {
-        $.get("static/nipa/checks.json", run_it)
+        $.get("checks.json", run_it)
     });
     $(document).ready(function() {
-        $.get("static/nipa/systemd.json", status_system)
+        $.get("status.json", status_system)
     });
     $(document).ready(function() {
         $.get("contest/filters.json", filters_doit)
     });
     $(document).ready(function() {
-        $.get("static/nipa/branch-results.json", branch_res_doit)
+        $.get("contest/branch-results.json", branch_res_doit)
     });
     $(document).ready(function() {
         $.get("query/results?branches=10&pending=y", results_loaded)
     });
     $(document).ready(function() {
-        $.get("static/nipa/branches-info.json", branches_loaded)
+        $.get("contest/branches-info.json", branches_loaded)
     });
     $(document).ready(function() {
         $.get("query/flaky-tests", flakes_doit)

@@ -469,8 +469,7 @@ def main() -> None:
             print('Generating combined')
             results = build_combined(fetcher, remote_db)
 
-            combined = os.path.join(fetcher.config.get('output', 'dir'),
-                                    fetcher.config.get('output', 'combined'))
+            combined = os.path.join(fetcher.config.get('output', 'combined'))
             write_json_atomic(combined, results)
 
         time.sleep(int(fetcher.config.get('cfg', 'refresh')))
