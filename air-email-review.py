@@ -340,12 +340,16 @@ def extract_recipients(patch_info_list: List[Dict]) -> Tuple[List[str], List[str
         headers = patch_info.get('headers', {})
         if isinstance(headers, dict):
             # Parse To header
-            to_header = headers.get('To', '')
+            to_header = headers.get('to', '') or \
+                        headers.get('To', '') or \
+                        headers.get('TO', '')
             for addr in parse_email_list(to_header):
                 cc_set.add(addr)
 
-            # Parse Cc header
-            cc_header = headers.get('Cc', '')
+            # Parse Cc header (API may return 'Cc' or 'CC')
+            cc_header = headers.get('cc', '') or \
+                        headers.get('Cc', '') or \
+                        headers.get('CC', '')
             for addr in parse_email_list(cc_header):
                 cc_set.add(addr)
 
