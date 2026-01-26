@@ -16,6 +16,9 @@ def test_series(tree, thing, result_dir) -> Tuple[int, str]:
     # Read in the config, cache it between executions
     global LOCAL_CONF, LOCAL_CONF_MTIME
 
+    if len(thing.patches) > 24:
+        return 250, "Series too long, not submitting"
+
     config_path = os.path.join(LOCAL_DIR, "config.json")
     if not os.path.exists(config_path):
         return 250, "Config file not found"
