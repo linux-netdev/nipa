@@ -16,6 +16,9 @@ prep_config() {
   ./scripts/config --file $output_dir/.config -d werror
   ./scripts/config --file $output_dir/.config -d drm_werror
   ./scripts/config --file $output_dir/.config -d kvm_werror
+  # As of v6.19-rc6 there seems to be an issue with GCC+sparse+Rust on net.
+  # Don't bother, build_clang has it covered (and works fine).
+  ./scripts/config --file $output_dir/.config -d rust
 }
 
 clean_up_output() {
