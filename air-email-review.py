@@ -10,6 +10,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import textwrap
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import requests
@@ -146,7 +147,8 @@ def format_email(review_text: str, patch_info: Dict, from_addr: str,
                  to_addrs: List[str], cc_addrs: List[str],
                  header: Optional[str] = None,
                  footer: Optional[str] = None,
-                 pw_bot: Optional[str] = None) -> str:
+                 pw_bot: Optional[str] = None,
+                 say: Optional[str] = None) -> str:
     """Format review as an email message"""
     # Extract subject from the patch
     original_subject = patch_info.get('name', 'patch')
@@ -158,10 +160,13 @@ def format_email(review_text: str, patch_info: Dict, from_addr: str,
         subject = f"Re: {original_subject}"
 
     # Build email body
-    body_lines = [
-        "This is an AI-generated review of your patch. The human sending this",
-        "email has considered the AI review valid, or at least plausible.",
-    ]
+    if say:
+        say = f'says "{say}"'
+    else:
+        say = 'has considered the AI review valid, or at least plausible.'
+
+    intro = f'This is an AI-generated review of your patch. The human sending this email {say}'
+    body_lines = textwrap.wrap(intro, width=68)
 
     # Add optional header lines after the intro (interpret \n as newlines)
     if header:
@@ -440,6 +445,8 @@ Configuration file:
                         help='Footer text to add to emails (added after "-- " separator)')
     parser.add_argument('--header',
                         help='Header text to add after the intro line')
+    parser.add_argument('--say',
+                        help='Override the default "considered the AI review valid" text with custom message')
     parser.add_argument('--to', action='append', dest='extra_to', default=[],
                         help='Additional To addresses (can be repeated)')
     parser.add_argument('--cc', action='append', dest='extra_cc', default=[],
@@ -477,6 +484,8 @@ Configuration file:
             args.footer = config.get('air-email-review', 'footer')
         if args.header is None and config.has_option('air-email-review', 'header'):
             args.header = config.get('air-email-review', 'header')
+        if args.say is None and config.has_option('air-email-review', 'say'):
+            args.say = config.get('air-email-review', 'say')
 
     if config.has_section('patchwork'):
         if args.patchwork_url is None and config.has_option('patchwork', 'url'):
@@ -493,6 +502,8 @@ Configuration file:
         args.footer = None
     if args.header == '':
         args.header = None
+    if args.say == '':
+        args.say = None
 
     # Check required settings
     if not args.air_url:
@@ -613,7 +624,7 @@ Configuration file:
             pw_bot_arg = args.pw_bot if not first_email_sent else None
             email_content = format_email(
                 review_text, patch_info, args.from_addr, to_addrs, cc_addrs,
-                args.header, args.footer, pw_bot_arg
+                args.header, args.footer, pw_bot_arg, args.say
             )
             first_email_sent = True
 
