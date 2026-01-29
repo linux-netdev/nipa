@@ -12,6 +12,29 @@ LOCAL_CONF = None
 LOCAL_CONF_MTIME = None
 
 
+def _write_output(output_dir, cmd, exit_code=None,
+                  stdout=None, stderr=None, exception=None):
+    """Write sanitized command output to the outputs file."""
+    # Extract the token before building output
+    token_idx = cmd.index("--token") + 1
+    token = cmd[token_idx]
+
+    # Build the output string
+    output = f"Command: {' '.join(cmd)}\n"
+    if exit_code is not None:
+        output += f"Exit code: {exit_code}\n"
+        output += f"\n--- STDOUT ---\n{stdout}"
+        output += f"\n--- STDERR ---\n{stderr}"
+    if exception is not None:
+        output += f"Exception: {exception}\n"
+
+    # Sanitize and write
+    output = output.replace(token, "$TOKEN")
+    stdout_path = os.path.join(output_dir, "outputs")
+    with open(stdout_path, "w", encoding="utf-8") as f:
+        f.write(output)
+
+
 def test_series(tree, thing, result_dir) -> Tuple[int, str]:
     # Read in the config, cache it between executions
     global LOCAL_CONF, LOCAL_CONF_MTIME
@@ -62,20 +85,12 @@ def test_series(tree, thing, result_dir) -> Tuple[int, str]:
             cmd,
             capture_output=True,
             text=True,
-            timeout=10,
+            timeout=20,
             check=False
         )
 
-        # Hide the secret
-        cmd[cmd.index("--token") + 1] = "$TOKEN"
-
-        # Write stdout/stderr to result_dir/series_id/outputs
-        stdout_path = os.path.join(series_output_dir, "outputs")
-        with open(stdout_path, "w", encoding="utf-8") as f:
-            f.write(f"Command: {' '.join(cmd)}\n")
-            f.write(f"Exit code: {result.returncode}\n")
-            f.write(f"\n--- STDOUT ---\n{result.stdout}")
-            f.write(f"\n--- STDERR ---\n{result.stderr}")
+        _write_output(series_output_dir, cmd, exit_code=result.returncode,
+                      stdout=result.stdout, stderr=result.stderr)
 
         if result.returncode != 0:
             return 250, "Submit tool error"
@@ -83,11 +98,7 @@ def test_series(tree, thing, result_dir) -> Tuple[int, str]:
         return 111, "Submitted for review"
 
     except subprocess.TimeoutExpired:
-        return 250, "Command timed out after 30 seconds"
+        return 250, "Command timed out after 20 seconds"
     except Exception as e:
-        # Write error to stdout file
-        stdout_path = os.path.join(series_output_dir, "outputs")
-        with open(stdout_path, "w", encoding="utf-8") as f:
-            f.write(f"Command: {' '.join(cmd)}\n")
-            f.write(f"Exception: {str(e)}\n")
+        _write_output(series_output_dir, cmd, exception=str(e))
         return 250, "Submit tool exception"
