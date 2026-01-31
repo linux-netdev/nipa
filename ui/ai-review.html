@@ -341,6 +341,10 @@
                     <label>Model:</label>
                     <span id="review-model"></span>
                 </div>
+                <div class="review-info-item" id="llm-mode-info" style="display: none;">
+                    <label>Mode:</label>
+                    <span id="review-llm-mode"></span>
+                </div>
                 <div class="review-info-item">
                     <label>Submitted:</label>
                     <span id="review-date"></span>
@@ -387,6 +391,7 @@
             <select id="format" onchange="changeFormat()">
                 <option value="inline">Review</option>
                 <option value="markup">Full output</option>
+                <option value="metadata">Metadata</option>
             </select>
         </div>
 
@@ -515,6 +520,12 @@
             if (data.model) {
                 document.getElementById('model-info').style.display = 'block';
                 document.getElementById('review-model').textContent = data.model;
+            }
+
+            // LLM Mode
+            if (data.llm_mode) {
+                document.getElementById('llm-mode-info').style.display = 'block';
+                document.getElementById('review-llm-mode').textContent = data.llm_mode;
             }
 
             // Patchwork series ID

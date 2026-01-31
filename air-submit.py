@@ -85,7 +85,8 @@ def submit_review(url: str, token: str, tree: str, branch: Optional[str],
                   patches: Optional[List[str]] = None,
                   patchwork_series_id: Optional[int] = None,
                   chash: Optional[str] = None,
-                  model: Optional[str] = None) -> str:
+                  model: Optional[str] = None,
+                  llm_mode: Optional[str] = None) -> str:
     """Submit patches for review
 
     Args:
@@ -97,6 +98,7 @@ def submit_review(url: str, token: str, tree: str, branch: Optional[str],
         patchwork_series_id: Patchwork series ID (or None if using patches/hash)
         chash: Git hash or range (or None if using patches/patchwork)
         model: Optional model name (sonnet, opus, haiku)
+        llm_mode: Optional LLM mode (classic, orc)
 
     Returns:
         Review ID
@@ -123,6 +125,9 @@ def submit_review(url: str, token: str, tree: str, branch: Optional[str],
 
     if model:
         payload['model'] = model
+
+    if llm_mode:
+        payload['llm_mode'] = llm_mode
 
     try:
         response = requests.post(api_url, json=payload, timeout=30)
@@ -301,6 +306,7 @@ Configuration file:
     tree = netdev/net-next
     branch = main
     model = sonnet
+    llm_mode = classic
 
   Command-line arguments always override config file values.
   To unset a config value, pass an empty string:
@@ -320,6 +326,8 @@ Configuration file:
                        help='Git branch name (optional)')
     parser.add_argument('--model',
                        help='Claude model to use (e.g., sonnet, opus, haiku) [optional]')
+    parser.add_argument('--llm-mode', choices=['classic', 'orc'],
+                       help='LLM review mode: classic (default) or orc (agent-based)')
     parser.add_argument('--format', choices=['json', 'markup', 'inline'],
                        default='inline',
                        help='Review output format (default: inline)')
@@ -353,6 +361,8 @@ Configuration file:
             args.branch = config.get('air', 'branch')
         if args.model is None and config.has_option('air', 'model'):
             args.model = config.get('air', 'model')
+        if getattr(args, 'llm_mode', None) is None and config.has_option('air', 'llm_mode'):
+            args.llm_mode = config.get('air', 'llm_mode')
 
     # Convert empty strings to None (allows unsetting config values)
     if args.token == '':
@@ -361,6 +371,8 @@ Configuration file:
         args.branch = None
     if args.model == '':
         args.model = None
+    if getattr(args, 'llm_mode', None) == '':
+        args.llm_mode = None
 
     # Validate that we have URL
     if not args.url:
@@ -408,19 +420,22 @@ Configuration file:
             review_id = submit_review(args.url, args.token, args.tree,
                                       args.branch,
                                       patchwork_series_id=args.pw_series,
-                                      model=args.model)
+                                      model=args.model,
+                                      llm_mode=getattr(args, 'llm_mode', None))
         elif args.hash:
             print(f"Submitting git hash/range {args.hash} to {args.tree}...")
             review_id = submit_review(args.url, args.token, args.tree,
                                       args.branch, chash=args.hash,
-                                      model=args.model)
+                                      model=args.model,
+                                      llm_mode=getattr(args, 'llm_mode', None))
         else:
             print(f"Reading {len(args.patches)} patch file(s)...")
             patches = read_patch_files(args.patches)
             print(f"Submitting to {args.tree}...")
             review_id = submit_review(args.url, args.token, args.tree,
                                       args.branch, patches=patches,
-                                      model=args.model)
+                                      model=args.model,
+                                      llm_mode=getattr(args, 'llm_mode', None))
 
         print(f"Review ID: {review_id}")
 

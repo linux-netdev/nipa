@@ -263,17 +263,53 @@
       Clone this repository to get the latest prompts, and ask your
       favorite LLM to use them to review your code.
     </p>
+
+    <h3>Review Modes</h3>
     <p>
-      The exact prompt we use on netdev is:
+      There are two modes for running reviews:
+    </p>
+
+    <h4>Classic Mode</h4>
+    <p>
+      The original single-prompt mode. Works well for small to medium patches.
     </p>
     <div class="prompt-text">Current directory is the root of a Linux Kernel git repository.
 Read the prompt from kernel/review-core.md.
 Using the prompt, do a deep dive regression analysis of the HEAD commit.
 Use commit range &lt;base&gt;..&lt;head&gt; for the false-positive-guide.md section.</div>
 
+    <h4>Orc Mode (Recommended for Large Patches)</h4>
+    <p>
+      The newer agent-based mode that breaks the review into individual tasks.
+      This mode is recommended for large diffs because it:
+    </p>
+    <ul>
+      <li>Breaks large diffs into smaller chunks and reviews each chunk individually</li>
+      <li>Uses fewer tokens by avoiding repeated context for the entire diff</li>
+      <li>Catches more bugs through focused analysis of each section</li>
+      <li>Pre-processes the code to extract modified functions, types, and call graphs</li>
+    </ul>
+
+    <p>To use orc mode, first run the preprocessing script:</p>
+    <pre><code>cd /path/to/linux
+kernel/scripts/create_changes.py HEAD</code></pre>
+
+    <p>Then invoke the LLM with the orc prompt:</p>
+    <div class="prompt-text">Current directory is the root of a Linux Kernel git repository.
+Read the prompt from kernel/agent/orc.md and run it on the HEAD commit.</div>
+
+    <div class="note">
+        <div class="note-title">When to use Orc Mode</div>
+        <p>
+          Use orc mode for patches with large diffs, multiple files, or complex changes.
+          The preprocessing step extracts context that helps the LLM focus on relevant code
+          without spending tokens discovering it on its own.
+        </p>
+    </div>
+
     <p>
       Where <code>&lt;base&gt;..&lt;head&gt;</code> should be replaced by a real
-      git commit hash range.
+      git commit hash range (classic mode only).
     </p>
 
     <h2>Output Format</h2>

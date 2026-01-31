@@ -325,28 +325,69 @@
 
         .status-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
             gap: 15px;
             margin-bottom: 20px;
         }
 
         .status-card {
             background: var(--bg-card);
-            padding: 15px;
+            padding: 12px 20px;
             border-radius: 4px;
             text-align: center;
         }
 
         .status-card .label {
-            font-size: 12px;
+            font-size: 11px;
             color: var(--text-muted);
             text-transform: uppercase;
+            margin-bottom: 4px;
         }
 
         .status-card .value {
             font-size: 24px;
             font-weight: bold;
             color: var(--heading-color);
+        }
+
+        .status-card .sub-value {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .stats-table-container {
+            margin-bottom: 30px;
+        }
+
+        .stats-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .stats-table th,
+        .stats-table td {
+            padding: 8px 12px;
+            text-align: right;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .stats-table th:first-child,
+        .stats-table td:first-child {
+            text-align: left;
+            font-weight: 500;
+        }
+
+        .stats-table th {
+            color: var(--text-muted);
+            font-weight: 500;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .stats-table tbody tr:hover {
+            background: var(--bg-tertiary);
         }
 
         .review-list {
@@ -598,6 +639,15 @@
                     <input type="checkbox" id="superuserMode">
                     All users
                 </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 14px;">
+                    Limit:
+                    <select id="reviewLimit" style="padding: 4px 8px;">
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="200" selected>200</option>
+                        <option value="500">500</option>
+                    </select>
+                </label>
                 <button class="token-minimized" id="tokenMinimized" onclick="showTokenConfig()">
                     🔑 Token Configured
                 </button>
@@ -642,6 +692,25 @@
 
         <!-- Review History Tab -->
         <div class="section tab-content active" id="tab-history">
+            <div id="statsTable" class="stats-table-container">
+                <table class="stats-table">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>Completed</th>
+                            <th>Patches</th>
+                            <th>Feedback</th>
+                            <th>Errors</th>
+                            <th>Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Last 7 days</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+                        <tr><td>Last 28 days</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+                        <tr><td>Total</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+                    </tbody>
+                </table>
+            </div>
             <h3>Review Counts (6-hour buckets)</h3>
             <div class="chart-container">
                 <canvas id="reviewChart"></canvas>
@@ -658,6 +727,15 @@
                 <label style="display: flex; align-items: center; gap: 6px; font-size: 14px;">
                     <input type="checkbox" id="feedbackOnlyMode">
                     With feedback only
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 14px;">
+                    Sort by:
+                    <select id="reviewSort" style="padding: 4px 8px;">
+                        <option value="date">Date (newest)</option>
+                        <option value="cost">Cost (highest)</option>
+                        <option value="duration">Duration (longest)</option>
+                        <option value="patches">Patches (most)</option>
+                    </select>
                 </label>
             </div>
             <div id="reviewsList">
@@ -883,28 +961,33 @@
         // Initialize and update review chart
         let reviewChart = null;
         let averagesChart = null;
-        loadReviewChart();
-        loadAveragesChart();
-        setInterval(loadReviewChart, 30000); // Refresh every 30 seconds
-        setInterval(loadAveragesChart, 30000); // Refresh every 30 seconds
+        loadCharts();
+        setInterval(loadCharts, 30000); // Refresh every 30 seconds
 
         // Refresh chart and review list when filters change
         document.getElementById('superuserMode').addEventListener('change', function() {
-            loadReviewChart();
-            loadAveragesChart();
+            loadCharts();
             listReviews();
         });
         document.getElementById('feedbackOnlyMode').addEventListener('change', function() {
             listReviews();
         });
+        document.getElementById('reviewSort').addEventListener('change', function() {
+            listReviews();
+        });
+        document.getElementById('reviewLimit').addEventListener('change', function() {
+            loadCharts();
+            listReviews();
+        });
 
-        async function loadReviewChart() {
+        async function loadCharts() {
             const token = getToken();
             const superuser = document.getElementById('superuserMode').checked;
+            const limit = document.getElementById('reviewLimit').value;
 
             try {
-                // Fetch review data - get more reviews to build time series
-                let url = `${API_BASE}/reviews?limit=200&filter_user=${superuser ? 'false' : 'true'}`;
+                // Fetch review data once for both charts
+                let url = `${API_BASE}/reviews?limit=${limit}&filter_user=${superuser ? 'false' : 'true'}`;
                 if (token) {
                     url += `&token=${token}`;
                 }
@@ -917,15 +1000,24 @@
                     return;
                 }
 
-                console.log(`Fetched ${result.reviews.length} reviews for chart`);
+                console.log(`Fetched ${result.reviews.length} reviews for charts`);
 
-                // Check if any review has cost data (indicates superuser)
-                const hasCostData = result.reviews.some(r => r.cost_usd !== undefined);
+                // Update both charts with the same data
+                updateReviewChart(result.reviews);
+                updateAveragesChart(result.reviews);
+            } catch (error) {
+                console.error('Error loading charts:', error);
+            }
+        }
 
-                // Group reviews by 6-hour time buckets and status
-                const dataByBucket = {};
+        function updateReviewChart(reviews) {
+            // Check if any review has cost data (indicates superuser)
+            const hasCostData = reviews.some(r => r.cost_usd !== undefined);
 
-                result.reviews.forEach(review => {
+            // Group reviews by 6-hour time buckets and status
+            const dataByBucket = {};
+
+            reviews.forEach(review => {
                     // Parse date and round to nearest 6-hour bucket
                     const timestamp = parseUTCDate(review.date);
                     const hours = timestamp.getHours();
@@ -1150,64 +1242,24 @@
                         }
                     });
                 }
-            } catch (error) {
-                console.error('Error loading review chart:', error);
-            }
         }
 
-        async function loadAveragesChart() {
-            const token = getToken();
-            const superuser = document.getElementById('superuserMode').checked;
+        function updateAveragesChart(reviews) {
+            // Check if any review has cost data (indicates superuser)
+            const hasCostData = reviews.some(r => r.cost_usd !== undefined);
 
-            try {
-                // Fetch review data - get more reviews to build time series
-                let url = `${API_BASE}/reviews?limit=200&filter_user=${superuser ? 'false' : 'true'}`;
-                if (token) {
-                    url += `&token=${token}`;
-                }
+            // Use has_feedback from API response
+            const reviewsWithFeedback = reviews.map(review => ({
+                ...review,
+                hasFeedback: review.has_feedback || false
+            }));
 
-                const response = await fetch(url);
-                const result = await response.json();
+            // Group reviews by day and calculate averages, separated by feedback status
+            const dataByDay = {};
 
-                if (!response.ok || !result.reviews) {
-                    console.error('Failed to fetch reviews:', result);
-                    return;
-                }
-
-                console.log(`Fetched ${result.reviews.length} reviews for averages chart`);
-
-                // Check if any review has cost data (indicates superuser)
-                const hasCostData = result.reviews.some(r => r.cost_usd !== undefined);
-
-                // Fetch full details for done reviews to check for feedback
-                const reviewsWithFeedback = await Promise.all(result.reviews.map(async (review) => {
-                    if (review.status === 'done') {
-                        try {
-                            let detailUrl = `${API_BASE}/review?id=${review.review_id}&format=inline`;
-                            if (token) {
-                                detailUrl += `&token=${token}`;
-                            }
-                            const detailResponse = await fetch(detailUrl);
-                            const detailData = await detailResponse.json();
-
-                            // Check if any patch has feedback
-                            if (detailData.review && Array.isArray(detailData.review)) {
-                                const hasFeedback = detailData.review.some(r => r !== null && r.trim() !== '');
-                                return { ...review, hasFeedback };
-                            }
-                        } catch (err) {
-                            console.error(`Error fetching details for review ${review.review_id}:`, err);
-                        }
-                    }
-                    return { ...review, hasFeedback: false };
-                }));
-
-                // Group reviews by day and calculate averages, separated by feedback status
-                const dataByDay = {};
-
-                reviewsWithFeedback.forEach(review => {
-                    // Only process completed reviews with timing data
-                    if (review.status !== 'done' || !review.duration_seconds || !review.patch_count || review.patch_count === 0) {
+            reviewsWithFeedback.forEach(review => {
+                // Only process completed reviews with timing data
+                if (review.status !== 'done' || !review.duration_seconds || !review.patch_count || review.patch_count === 0) {
                         return;
                     }
 
@@ -1511,9 +1563,6 @@
                         }
                     });
                 }
-            } catch (error) {
-                console.error('Error loading averages chart:', error);
-            }
         }
 
         // Input type switcher
@@ -1544,51 +1593,121 @@
 
                 const grid = document.getElementById('statusGrid');
 
-                // Determine if we have cost data
-                const hasCost = data.total_cost_usd !== undefined;
+                // Helper to format relative time
+                function formatRelativeTime(isoString) {
+                    if (!isoString) return null;
+                    const date = new Date(isoString + 'Z');
+                    const now = new Date();
+                    const diffMs = now - date;
+                    const diffMins = Math.floor(diffMs / 60000);
+                    const diffHours = Math.floor(diffMs / 3600000);
 
-                // Adjust grid to fit all boxes on one line
-                if (hasCost) {
-                    grid.style.gridTemplateColumns = 'repeat(6, 1fr)';
-                } else {
-                    grid.style.gridTemplateColumns = 'repeat(5, 1fr)';
+                    if (diffMins < 1) return 'just now';
+                    if (diffMins < 60) return `${diffMins}m ago`;
+                    if (diffHours < 24) return `${diffHours}h ago`;
+                    return `${Math.floor(diffHours / 24)}d ago`;
                 }
 
-                // Build status cards HTML
-                let statusHTML = `
+                // Build active sub-value
+                let activeSub = '';
+                if (data.active_count > 0 && data.oldest_active_start) {
+                    activeSub = `started ${formatRelativeTime(data.oldest_active_start)}`;
+                }
+
+                // Build last completed text
+                let lastCompletedText = '';
+                if (data.last_completed) {
+                    lastCompletedText = `last ${formatRelativeTime(data.last_completed)}`;
+                }
+
+                // Build recent card content
+                let recentContent = '';
+                if (activeSub && lastCompletedText) {
+                    recentContent = `${activeSub}<br>${lastCompletedText}`;
+                } else if (activeSub) {
+                    recentContent = activeSub;
+                } else if (lastCompletedText) {
+                    recentContent = lastCompletedText;
+                } else {
+                    recentContent = '-';
+                }
+
+                // Uniform card display
+                grid.innerHTML = `
                     <div class="status-card">
-                        <div class="label">Queue Size</div>
+                        <div class="label">Queue</div>
                         <div class="value">${data.queue_size}</div>
                     </div>
                     <div class="status-card">
-                        <div class="label">Queued</div>
-                        <div class="value">${data.review_counts.queued}</div>
+                        <div class="label">Active</div>
+                        <div class="value">${data.active_count}</div>
                     </div>
                     <div class="status-card">
-                        <div class="label">In Progress</div>
-                        <div class="value">${data.review_counts['in-progress']}</div>
+                        <div class="label">24h Completed</div>
+                        <div class="value">${data.completed_24h}</div>
                     </div>
                     <div class="status-card">
-                        <div class="label">Completed</div>
-                        <div class="value">${data.review_counts.done}</div>
+                        <div class="label">24h Errors</div>
+                        <div class="value">${data.errors_24h}</div>
                     </div>
                     <div class="status-card">
-                        <div class="label">Errors</div>
-                        <div class="value">${data.review_counts.error}</div>
+                        <div class="label">24h Feedback</div>
+                        <div class="value">${data.feedback_24h}</div>
+                    </div>
+                    <div class="status-card">
+                        <div class="label">Recent</div>
+                        <div class="sub-value" style="margin-top: 8px;">${recentContent}</div>
                     </div>
                 `;
 
-                // Add cost card if cost data is present (indicates superuser)
-                if (hasCost) {
-                    statusHTML += `
-                    <div class="status-card">
-                        <div class="label">Total Cost</div>
-                        <div class="value">$${data.total_cost_usd.toFixed(2)}</div>
-                    </div>
+                // Update stats table in Review History tab
+                if (data.stats) {
+                    const s = data.stats;
+                    const hasCost = s.total.cost !== null;
+                    const formatCost = (cost) => cost !== null ? `$${cost.toFixed(2)}` : '-';
+
+                    const tableContainer = document.getElementById('statsTable');
+                    tableContainer.innerHTML = `
+                        <table class="stats-table">
+                            <thead>
+                                <tr>
+                                    <th></th>
+                                    <th>Completed</th>
+                                    <th>Patches</th>
+                                    <th>Feedback</th>
+                                    <th>Errors</th>
+                                    ${hasCost ? '<th>Cost</th>' : ''}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Last 7 days</td>
+                                    <td>${s['7d'].completed}</td>
+                                    <td>${s['7d'].patches}</td>
+                                    <td>${s['7d'].feedback}</td>
+                                    <td>${s['7d'].errors}</td>
+                                    ${hasCost ? `<td>${formatCost(s['7d'].cost)}</td>` : ''}
+                                </tr>
+                                <tr>
+                                    <td>Last 28 days</td>
+                                    <td>${s['28d'].completed}</td>
+                                    <td>${s['28d'].patches}</td>
+                                    <td>${s['28d'].feedback}</td>
+                                    <td>${s['28d'].errors}</td>
+                                    ${hasCost ? `<td>${formatCost(s['28d'].cost)}</td>` : ''}
+                                </tr>
+                                <tr>
+                                    <td>Total</td>
+                                    <td><strong>${s.total.completed}</strong></td>
+                                    <td><strong>${s.total.patches}</strong></td>
+                                    <td><strong>${s.total.feedback}</strong></td>
+                                    <td><strong>${s.total.errors}</strong></td>
+                                    ${hasCost ? `<td><strong>${formatCost(s.total.cost)}</strong></td>` : ''}
+                                </tr>
+                            </tbody>
+                        </table>
                     `;
                 }
-
-                grid.innerHTML = statusHTML;
             } catch (error) {
                 console.error('Error loading status:', error);
             }
@@ -1725,47 +1844,49 @@
             const token = getToken();
             const superuser = document.getElementById('superuserMode').checked;
             const feedbackOnly = document.getElementById('feedbackOnlyMode').checked;
+            const limit = document.getElementById('reviewLimit').value;
+            const sortBy = document.getElementById('reviewSort').value;
 
             try {
                 // Show loading
                 document.getElementById('reviewsList').innerHTML = '<p class="small">Loading reviews...</p>';
 
-                let url = `${API_BASE}/reviews?limit=50&filter_user=${superuser ? 'false' : 'true'}`;
+                let url = `${API_BASE}/reviews?limit=${limit}&filter_user=${superuser ? 'false' : 'true'}`;
                 if (token) {
                     url += `&token=${token}`;
+                }
+                if (feedbackOnly) {
+                    url += '&has_feedback=true';
                 }
 
                 const response = await fetch(url);
                 const result = await response.json();
 
                 if (response.ok) {
-                    // Fetch full details for done reviews to check for feedback
-                    const reviewsWithFeedback = await Promise.all(result.reviews.map(async (review) => {
-                        if (review.status === 'done') {
-                            try {
-                                let detailUrl = `${API_BASE}/review?id=${review.review_id}&format=inline`;
-                                if (token) {
-                                    detailUrl += `&token=${token}`;
-                                }
-                                const detailResponse = await fetch(detailUrl);
-                                const detailData = await detailResponse.json();
-
-                                // Check if any patch has feedback
-                                const hasFeedback = detailData.review && detailData.review.some(r => r && r.trim());
-                                return { ...review, hasFeedback };
-                            } catch (e) {
-                                return { ...review, hasFeedback: false };
-                            }
-                        }
-                        return { ...review, hasFeedback: false };
+                    // Use has_feedback from API response
+                    let reviews = result.reviews.map(review => ({
+                        ...review,
+                        hasFeedback: review.has_feedback || false
                     }));
 
-                    // Filter if needed
-                    const filteredReviews = feedbackOnly
-                        ? reviewsWithFeedback.filter(r => r.hasFeedback)
-                        : reviewsWithFeedback;
+                    // Sort reviews based on selected option
+                    switch (sortBy) {
+                        case 'cost':
+                            reviews.sort((a, b) => (b.cost_usd || 0) - (a.cost_usd || 0));
+                            break;
+                        case 'duration':
+                            reviews.sort((a, b) => (b.duration_seconds || 0) - (a.duration_seconds || 0));
+                            break;
+                        case 'patches':
+                            reviews.sort((a, b) => (b.patch_count || 0) - (a.patch_count || 0));
+                            break;
+                        case 'date':
+                        default:
+                            // Already sorted by date from backend
+                            break;
+                    }
 
-                    displayReviewsList(filteredReviews, token);
+                    displayReviewsList(reviews, token);
                 } else {
                     document.getElementById('reviewsList').innerHTML =
                         `<div class="message error">Error: ${result.error}</div>`;
@@ -1922,9 +2043,10 @@
                     submissionType = `Patch files`;
                 }
 
-                // Token owner
+                // Token owner (use robot head for public/automated tokens)
+                const tokenOwnerIcon = review.is_public ? '🤖' : '👤';
                 const tokenOwner = review.token_owner
-                    ? `👤 ${review.token_owner}`
+                    ? `${tokenOwnerIcon} ${review.token_owner}`
                     : '';
 
                 // Cost (only for superusers)
@@ -1932,20 +2054,20 @@
                     ? `<span style="color: var(--text-muted); font-size: 11px;">$${review.cost_usd.toFixed(2)}</span>`
                     : '';
 
-                // Model
-                const model = review.model
-                    ? `<span style="color: var(--text-muted); font-size: 11px;">🤖 ${review.model}</span>`
-                    : '';
-
                 // Duration (for completed/error reviews)
                 const duration = review.duration_seconds
                     ? `<span style="color: var(--text-muted); font-size: 11px;">⏱️ ${formatDuration(review.duration_seconds)}</span>`
                     : '';
 
+                // LLM mode (only show if not classic/default)
+                const llmMode = review.llm_mode && review.llm_mode !== 'classic'
+                    ? `<span style="color: var(--text-muted); font-size: 11px;">${review.llm_mode}</span>`
+                    : '';
+
                 // Private badge (only show for private reviews)
                 const visibilityBadge = review.is_public
                     ? ''
-                    : '<span class="visibility-badge visibility-private">🔒 Private</span>&nbsp;';
+                    : '<span class="visibility-badge visibility-private">🔒 Private</span>';
 
                 html += `
                     <li class="review-item status-${review.status}">
@@ -1953,8 +2075,8 @@
                             <div class="review-header">
                                 <span class="review-id">${review.review_id}</span>
                                 <div style="display: flex; gap: 8px; align-items: center;">
-                                    ${feedbackBadge}
                                     ${adminFeedbackBadge}
+                                    ${feedbackBadge}
                                     <span class="status-badge status-${review.status}">${review.status}</span>
                                 </div>
                             </div>
@@ -1965,7 +2087,7 @@
                                 <div class="review-meta">
                                     <span class="submission-type">${submissionType}</span>
                                     ${tokenOwner ? `<span class="token-owner">${tokenOwner}</span>` : ''}
-                                    ${model}
+                                    ${llmMode}
                                     ${duration}
                                     ${cost}
                                 </div>
