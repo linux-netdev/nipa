@@ -232,23 +232,42 @@
             text-align: center;
         }
 
-        .format-selector {
+        .controls-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 20px;
-            text-align: right;
+            padding: 10px 15px;
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
         }
 
+        .feedback-selector,
+        .format-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .feedback-selector label,
         .format-selector label {
-            margin-right: 10px;
             font-weight: bold;
             color: var(--text-secondary);
         }
 
+        .feedback-selector select,
         .format-selector select {
             padding: 5px 10px;
             border-radius: 4px;
             border: 1px solid var(--border-color);
             background-color: var(--bg-card);
             color: var(--text-primary);
+        }
+
+        .feedback-selector select:hover,
+        .format-selector select:hover {
+            border-color: var(--accent-primary);
         }
 
         .patch-navigation {
@@ -386,13 +405,24 @@
 
         <div id="patch-navigation" class="patch-navigation" style="display: none;"></div>
 
-        <div class="format-selector" id="format-selector" style="display: none;">
-            <label for="format">Review Format:</label>
-            <select id="format" onchange="changeFormat()">
-                <option value="inline">Review</option>
-                <option value="markup">Full output</option>
-                <option value="metadata">Metadata</option>
-            </select>
+        <div class="controls-bar" id="controls-bar" style="display: none;">
+            <div class="feedback-selector">
+                <label for="feedback-select">Feedback:</label>
+                <select id="feedback-select" onchange="setFeedback()">
+                    <option value="">-- Select --</option>
+                    <option value="emailed">Emailed</option>
+                    <option value="false-positive">False Positive</option>
+                    <option value="false-negative">False Negative</option>
+                </select>
+            </div>
+            <div class="format-selector">
+                <label for="format">Review Format:</label>
+                <select id="format" onchange="changeFormat()">
+                    <option value="inline">Review</option>
+                    <option value="markup">Full output</option>
+                    <option value="metadata">Metadata</option>
+                </select>
+            </div>
         </div>
 
         <div id="reviews-container"></div>
@@ -556,13 +586,15 @@
                 document.getElementById('review-duration').textContent = formatDuration(durationSeconds);
             }
 
-            // Feedback (only shown for superusers)
+            // Feedback handling
+            const feedbackLabels = {
+                'emailed': '📧 Emailed',
+                'false-positive': '❌ False Positive',
+                'false-negative': '⚠️ False Negative'
+            };
+
+            // Always show feedback in info section if it exists
             if (data.feedback) {
-                const feedbackLabels = {
-                    'emailed': '📧 Emailed',
-                    'false-positive': '❌ False Positive',
-                    'false-negative': '⚠️ False Negative'
-                };
                 document.getElementById('feedback-info').style.display = 'block';
                 document.getElementById('review-feedback').textContent = feedbackLabels[data.feedback] || data.feedback;
             }
@@ -597,14 +629,20 @@
                 }
             }
 
-            // Load reviews if status is done
-            if (data.status === 'done' || (data.status === 'error' && patchCount > 0)) {
-                document.getElementById('format-selector').style.display = 'block';
-                // Set the dropdown to match currentFormat
+            // Load reviews if status is done and user has token
+            if ((data.status === 'done' || (data.status === 'error' && patchCount > 0)) && token) {
+                document.getElementById('controls-bar').style.display = 'flex';
+                // Set the dropdowns to match current state
                 document.getElementById('format').value = currentFormat;
+                document.getElementById('feedback-select').value = data.feedback || '';
                 // First load inline format to determine which patches have comments
                 loadInlineForNavigation().then(() => {
                     // Then load the current format for display
+                    loadReview(currentFormat);
+                });
+            } else if (data.status === 'done' || (data.status === 'error' && patchCount > 0)) {
+                // No token - just load reviews without controls bar
+                loadInlineForNavigation().then(() => {
                     loadReview(currentFormat);
                 });
             }
@@ -731,6 +769,61 @@
                 const mins = Math.floor((seconds % 3600) / 60);
                 return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
             }
+        }
+
+        function setFeedback() {
+            const feedbackSelect = document.getElementById('feedback-select');
+            const feedback = feedbackSelect.value;
+
+            if (!feedback || !token || !reviewId) {
+                return;
+            }
+
+            const payload = {
+                id: reviewId,
+                token: token,
+                feedback: feedback
+            };
+
+            fetch('/api/review/feedback', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.error || `HTTP ${response.status}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // Update the feedback display in review info section
+                    const feedbackLabels = {
+                        'emailed': '📧 Emailed',
+                        'false-positive': '❌ False Positive',
+                        'false-negative': '⚠️ False Negative'
+                    };
+                    document.getElementById('feedback-info').style.display = 'block';
+                    document.getElementById('review-feedback').textContent = feedbackLabels[feedback] || feedback;
+
+                    // Brief visual feedback on dropdown
+                    feedbackSelect.style.borderColor = 'var(--status-done-bg)';
+                    setTimeout(() => {
+                        feedbackSelect.style.borderColor = '';
+                    }, 1000);
+                }
+            })
+            .catch(error => {
+                console.error('Error setting feedback:', error);
+                alert(`Failed to set feedback: ${error.message}`);
+                // Reload to reset the dropdown to the actual server state
+                loadReview();
+            });
         }
     </script>
 </body>
