@@ -117,7 +117,11 @@ class FetcherState:
             arg = cur.mogrify("(%s,%s,%s,%s,%s,%s,%s,%s)",
                               (data["branch"], data["branch"][-17:], data["remote"], data["executor"],
                                data["start"], data["end"], normal, full))
-            cur.execute(f"INSERT INTO {self.tbl_res} {fields} VALUES " + arg.decode('utf-8'))
+            try:
+                cur.execute(f"INSERT INTO {self.tbl_res} {fields} VALUES " + arg.decode('utf-8'))
+            except psycopg2.errors.UniqueViolation as e:
+                print(f"ERROR: {type(e).__module__}.{type(e).__name__}: {e.diag.message_primary}")
+                print(f"ERROR: DETAIL: {e.diag.message_detail}")
 
     def psql_json_split(self, data):
         # return "normal" and "full" as json string or None
