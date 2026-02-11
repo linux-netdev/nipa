@@ -172,7 +172,7 @@ class TestWatcher(object):
             raise Exception('Not initialized')
 
         while not should_stop:
-            for event in self.inotify.read(timeout=2):
+            for event in self.inotify.read(timeout=2000):
                 if event.mask & inotify.flags.IGNORED or \
                    event.wd < 0 or \
                    event.wd not in self.wd2name:
