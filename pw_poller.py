@@ -300,7 +300,7 @@ class PwPoller:
 
                 secs = 120 - (datetime.datetime.now() - req_time).total_seconds()
                 if secs > 0:
-                    log("Sleep", secs)
+                    log(f"Sleep {secs} seconds")
                 log_end_sec()
         except KeyboardInterrupt:
             pass  # finally will still run, but don't splat
