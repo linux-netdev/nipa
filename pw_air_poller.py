@@ -209,7 +209,7 @@ class PwAirPoller:
         Returns:
             ISO format timestamp (last check or 3 days ago)
         """
-        three_days_ago = datetime.utcnow() - timedelta(days=3)
+        three_days_ago = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=3)
 
         if self.last_event_ts:
             try:
