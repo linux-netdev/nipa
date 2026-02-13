@@ -127,6 +127,7 @@ class PwAirPoller:
         self.air_token = self.config.get('air', 'token')
         self.air_tree = self.config.get('air', 'tree')
         self.air_branch = self.config.get('air', 'branch', fallback=None)
+        self.air_llm_mode = self.config.get('air', 'llm_mode', fallback=None)
 
         # Patchwork configuration
         self.check_name = self.config.get('patchwork', 'check_name', fallback='ai-review')
@@ -240,6 +241,9 @@ class PwAirPoller:
 
         if self.air_branch:
             payload['branch'] = self.air_branch
+
+        if self.air_llm_mode:
+            payload['llm_mode'] = self.air_llm_mode
 
         try:
             response = requests.post(api_url, json=payload, timeout=30)
@@ -473,6 +477,7 @@ class PwAirPoller:
         log(f"Starting pw_air_poller")
         log(f"  AIR URL: {self.air_url}")
         log(f"  Tree: {self.air_tree}")
+        log(f"  LLM mode: {self.air_llm_mode or 'default'}")
         log(f"  Rate limit: {self.rate_limiter.max_patches} patches / {self.rate_limiter.window_days} days")
         log(f"  Poll interval: {self.poll_interval}s")
         log(f"  Review timeout: {self.review_timeout}s")
@@ -507,6 +512,7 @@ url = https://air.example.com
 token = your_air_token
 tree = netdev/net-next
 branch = main  # optional
+llm_mode = classic  # optional, classic or orc
 
 [patchwork]
 # Standard NIPA patchwork config
