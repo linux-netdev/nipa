@@ -84,8 +84,8 @@ def _tree_name_should_be_local_files(raw_email):
     foreign_found = False
 
     lines = raw_email.split('\n')
-    r_diffstat = re.compile(r'^\s*([-\w/._]+)\s+\|\s+\d+\s*[-+]*\s*$')
-    r_header = re.compile(r'\+\+\+ b/([-\w/._]+)$')
+    r_diffstat = re.compile(r'^\s*([-\w/._,]+)\s+\|\s+\d+\s*[-+]*\s*$')
+    r_header = re.compile(r'\+\+\+ b/([-\w/._,]+)$')
     for line in lines:
         match = r_header.match(line)
         if not match:
