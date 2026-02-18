@@ -342,6 +342,30 @@ class PwAirPoller:
             log(f"Error posting checks: {e}")
             return False
 
+    def post_patchwork_error_checks(self, series_id: int, review_id: str):
+        """Post error check results to Patchwork when review fails
+
+        Args:
+            series_id: Patchwork series ID
+            review_id: AIR review ID
+        """
+        check_url = f"{self.air_server}/ai-review.html?id={review_id}"
+
+        try:
+            series_data = self.patchwork.get('series', series_id)
+            patches = series_data.get('patches', [])
+
+            for patch in patches:
+                patch_id = patch['id']
+                self.patchwork.post_check(patch=patch_id, name=self.check_name,
+                                         state='warning', url=check_url,
+                                         desc='AI review failed or timed out')
+
+            log(f"Posted error checks for {len(patches)} patches")
+
+        except Exception as e:
+            log(f"Error posting error checks: {e}")
+
     def process_series(self, pw_series: Dict) -> bool:
         """Process a single series
 
@@ -382,6 +406,7 @@ class PwAirPoller:
             review_data = self.wait_for_review(review_id)
             if not review_data:
                 log("Review failed or timed out")
+                self.post_patchwork_error_checks(series_id, review_id)
                 log_end_sec()
                 return True  # Still mark as processed
 
