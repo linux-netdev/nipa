@@ -45,7 +45,7 @@ runs_ref=refs/pull/...
 def get(url, token):
     headers = {"Accept": "application/vnd.github+json",
                "X-GitHub-Api-Version": "2022-11-28",
-               "Authorization": token}
+               "Authorization": f"Bearer {token}"}
     return requests.get(url, headers=headers)
 
 
