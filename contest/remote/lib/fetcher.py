@@ -33,7 +33,7 @@ class Fetcher:
             pass
         elif first_run == "continue":
             try:
-                r = requests.get(self._branches_url)
+                r = requests.get(self._branches_url, timeout=30)
                 branches = json.loads(r.content.decode('utf-8'))
                 branch_date = {}
                 for b in branches:
@@ -131,7 +131,12 @@ class Fetcher:
         return branches[0]
 
     def _run_once(self):
-        r = requests.get(self._branches_url)
+        try:
+            r = requests.get(self._branches_url, timeout=30)
+        except requests.exceptions.RequestException as e:
+            print(f'WARN: Failed to fetch branches: {e}')
+            return
+
         branches = json.loads(r.content.decode('utf-8'))
 
         to_test = None
