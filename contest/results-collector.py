@@ -292,7 +292,12 @@ def fetch_remote_run(fetcher, remote, run_info, remote_state):
 
 def fetch_remote(fetcher, remote, seen):
     print("Fetching remote", remote['url'])
-    r = requests.get(remote['url'])
+    try:
+        r = requests.get(remote['url'], timeout=30)
+    except requests.exceptions.RequestException as e:
+        print(f'WARN: Failed to fetch manifest from "{remote["name"]}": {e}')
+        return
+
     try:
         manifest = json.loads(r.content.decode('utf-8'))
     except json.decoder.JSONDecodeError:
