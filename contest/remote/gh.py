@@ -157,6 +157,7 @@ def test_run(binfo, rinfo, cbarg, config, start):
         # If rerere fixed it, just commit
         res = subprocess.run('git diff -s --exit-code', cwd=tree_path, shell=True)
         if res.returncode != 0:
+            subprocess.run('git merge --abort', cwd=tree_path, shell=True)
             return [{'test': config.get('executor', 'test'),
                      'group': config.get('executor', 'group'),
                      'result': 'skip', 'link': config.get('gh', 'link')}]
