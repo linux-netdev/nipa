@@ -97,7 +97,7 @@ def check_maintainer_coverage(tree, new_files, out):
 
     # Ideal entry size is <50. But if someone is adding a Kconfig file,
     # chances are they should be a maintainer.
-    pass_target = 50
+    pass_target = 75
     if 'Kconfig' in new_files:
         pass_target = 3
 
