@@ -5,16 +5,17 @@
 
 errors=( module_param )
 warnings=( "\Wdev_hold(" "\Wdev_put(" "\Wput_net(" "\Wget_net(" "\Winit_dummy_netdev(" )
+netdev_warnings=( "\W__free(" )
 
 res=0
 msg=""
 
 check_item() {
-  total=$(git show | grep -i '^+.*'"$item")
+  total=$(git show $show_path | grep -i '^+.*'"$item")
 
   if [ -n "$total" ]; then
-    new=$(git show | grep -ic '^+.*'"$item")
-    old=$(git show | grep -ic '^-.*'"$item")
+    new=$(git show $show_path | grep -ic '^+.*'"$item")
+    old=$(git show $show_path | grep -ic '^-.*'"$item")
 
     if [ $((new + old)) -eq 0 ]; then
       return
@@ -36,10 +37,17 @@ check_item() {
   fi
 }
 
+show_path=""
 for item in "${warnings[@]}"; do
   check_item 250
 done
 
+show_path="-- drivers/net"
+for item in "${netdev_warnings[@]}"; do
+  check_item 250
+done
+
+show_path=""
 for item in "${errors[@]}"; do
   check_item 1
 done
