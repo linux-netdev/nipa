@@ -481,5 +481,6 @@ def guess_indicators(output):
         "pass": output.find("[OKAY]") != -1 or output.find("[PASS]") != -1 or \
                 output.find("[ OK ]") != -1 or output.find("[OK]") != -1 or \
                 output.find("[ ok ]") != -1 or output.find("[pass]") != -1 or \
-                output.find("PASSED all ") != -1 or output.find("\nok 1 selftests: ") != -1,
+                output.find("PASSED all ") != -1 or output.find("\nok 1 selftests: ") != -1 or \
+                bool(re.search(r"# Totals: pass:[1-9]\d* fail:0 (xfail:0 )?(xpass:0 )?skip:0 error:0", output)),
     }
