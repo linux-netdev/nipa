@@ -52,6 +52,7 @@ def _tree_name_should_be_local_files(raw_email):
         'Documentation/devicetree/bindings/net/',
         'Documentation/netlink/',
         'Documentation/networking/',
+        'include/uapi/linux/nfc.h',
         'include/linux/firmware/broadcom/tee_bnxt_fw.h',
         'include/linux/netdevice.h',
         'include/linux/skbuff.h',
