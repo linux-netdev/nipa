@@ -561,7 +561,8 @@
             // Patchwork series ID
             if (data.patchwork_series_id) {
                 document.getElementById('patchwork-info').style.display = 'block';
-                const pwUrl = `https://patchwork.kernel.org/project/netdevbpf/list/?series=${data.patchwork_series_id}`;
+                const pwProject = data.patchwork_project_link_name || 'netdevbpf';
+                const pwUrl = `https://patchwork.kernel.org/project/${pwProject}/list/?series=${data.patchwork_series_id}`;
                 document.getElementById('review-pw-series').innerHTML = `<a href="${pwUrl}" target="_blank" rel="noopener noreferrer">${data.patchwork_series_id}</a>`;
             }
 

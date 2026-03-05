@@ -55,6 +55,10 @@ class Patchwork(object):
                 self._project = int(config_project)
             except ValueError:
                 raise Exception("Patchwork project not found", config_project)
+            pw_project = self.get('projects', self._project)
+            if not pw_project:
+                raise Exception("Patchwork project not found", config_project)
+        self.project_link_name = pw_project['link_name']
 
     def _request(self, url):
         try:

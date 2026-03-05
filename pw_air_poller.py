@@ -237,6 +237,7 @@ class PwAirPoller:
             'token': self.air_token,
             'tree': self.air_tree,
             'patchwork_series_id': series_id,
+            'patchwork_project_link_name': self.patchwork.project_link_name,
         }
 
         if self.air_branch:
