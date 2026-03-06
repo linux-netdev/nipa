@@ -177,6 +177,16 @@
             color: var(--status-error-text);
         }
 
+        .chip-warning {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-weight: bold;
+            background-color: var(--status-queued-bg);
+            color: var(--status-queued-text);
+        }
+
         .error-message {
             background-color: var(--error-bg);
             color: var(--error-text);
@@ -302,6 +312,11 @@
             border: 1px solid var(--border-color);
         }
 
+        .patch-nav-item.patch-error {
+            background-color: var(--status-error-bg);
+            color: var(--status-error-text);
+        }
+
         .patch-nav-item:hover {
             opacity: 0.8;
             transform: translateY(-2px);
@@ -323,6 +338,87 @@
             font-size: 0.9em;
             font-weight: normal;
             font-style: italic;
+        }
+
+        .patch-error-content {
+            background-color: var(--error-bg);
+            color: var(--error-text);
+            border: 1px solid var(--error-border);
+            padding: 15px;
+            border-radius: 4px;
+            font-style: italic;
+        }
+
+        .collapsible-box {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .collapsible-header {
+            padding: 15px 20px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+        }
+
+        .collapsible-header:hover {
+            opacity: 0.8;
+        }
+
+        .collapsible-header .title {
+            font-weight: bold;
+            color: var(--heading-color);
+        }
+
+        .collapsible-header .toggle-icon {
+            color: var(--text-muted);
+            transition: transform 0.2s ease;
+        }
+
+        .collapsible-header.expanded .toggle-icon {
+            transform: rotate(90deg);
+        }
+
+        .collapsible-content {
+            display: none;
+            padding: 0 20px 20px 20px;
+        }
+
+        .collapsible-content.expanded {
+            display: block;
+        }
+
+        .metadata-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .metadata-table th,
+        .metadata-table td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .metadata-table th {
+            font-weight: bold;
+            color: var(--text-secondary);
+            width: 30%;
+        }
+
+        .metadata-table td {
+            font-family: 'Courier New', monospace;
+            color: var(--text-primary);
+            word-break: break-word;
+        }
+
+        .metadata-table tr:last-child th,
+        .metadata-table tr:last-child td {
+            border-bottom: none;
         }
     </style>
 </head>
@@ -392,12 +488,18 @@
                     <label>Feedback:</label>
                     <span id="review-feedback"></span>
                 </div>
+                <div class="review-info-item" id="public-in-info" style="display: none;">
+                    <label>Public in:</label>
+                    <span id="review-public-in"></span>
+                </div>
             </div>
             <div id="progress-info" style="margin-top: 15px; display: none;">
                 <label style="font-weight: bold; color: var(--text-secondary);">Progress:</label>
                 <span id="review-progress" style="color: var(--text-primary);"></span>
             </div>
         </div>
+
+        <div id="metadata-container" style="display: none;"></div>
 
         <div id="message-container" style="display: none;">
             <div class="error-message" id="review-message"></div>
@@ -413,6 +515,7 @@
                     <option value="emailed">Emailed</option>
                     <option value="false-positive">False Positive</option>
                     <option value="false-negative">False Negative</option>
+                    <option value="nitpick">Ignored (nitpick)</option>
                 </select>
             </div>
             <div class="format-selector">
@@ -470,6 +573,7 @@
 
         let currentFormat = 'inline';  // Default to inline/Review format
         let inlineReviews = [];  // Store inline reviews for navigation coloring
+        let failedPatchNums = [];  // Store failed patch numbers
         let refreshInterval = null;  // Interval for auto-refreshing in-progress reviews
 
         if (!reviewId) {
@@ -540,6 +644,9 @@
             const completedCount = data.completed_patches || 0;
             document.getElementById('review-patches').textContent = patchCount;
 
+            // Store failed patch numbers for navigation display
+            failedPatchNums = data.failed_patch_nums || [];
+
             // Progress info for in-progress reviews
             if (data.status === 'in-progress' && patchCount > 0) {
                 document.getElementById('progress-info').style.display = 'block';
@@ -561,7 +668,7 @@
             // Patchwork series ID
             if (data.patchwork_series_id) {
                 document.getElementById('patchwork-info').style.display = 'block';
-                const pwUrl = `https://patchwork.kernel.org/project/netdevbpf/list/?series=${data.patchwork_series_id}`;
+                const pwUrl = `https://patchwork.kernel.org/project/${data.pw_project || 'netdevbpf'}/list/?series=${data.patchwork_series_id}`;
                 document.getElementById('review-pw-series').innerHTML = `<a href="${pwUrl}" target="_blank" rel="noopener noreferrer">${data.patchwork_series_id}</a>`;
             }
 
@@ -590,13 +697,27 @@
             const feedbackLabels = {
                 'emailed': '📧 Emailed',
                 'false-positive': '❌ False Positive',
-                'false-negative': '⚠️ False Negative'
+                'false-negative': '⚠️ False Negative',
+                'nitpick': '💬 Ignored (nitpick)'
             };
 
             // Always show feedback in info section if it exists
             if (data.feedback) {
                 document.getElementById('feedback-info').style.display = 'block';
                 document.getElementById('review-feedback').textContent = feedbackLabels[data.feedback] || data.feedback;
+            }
+
+            // Show time until public access (for owners viewing public reviews)
+            if (data.public_in_hours !== undefined && data.public_in_hours > 0) {
+                document.getElementById('public-in-info').style.display = 'block';
+                const hours = data.public_in_hours;
+                let timeText;
+                if (hours < 1) {
+                    timeText = `${Math.round(hours * 60)} minutes`;
+                } else {
+                    timeText = `${hours.toFixed(1)} hours`;
+                }
+                document.getElementById('review-public-in').innerHTML = `<span class="chip-warning">${timeText}</span>`;
             }
 
             // Message (error or warning)
@@ -640,6 +761,8 @@
                     // Then load the current format for display
                     loadReview(currentFormat);
                 });
+                // Load metadata (only with token)
+                loadMetadata();
             } else if (data.status === 'done' || (data.status === 'error' && patchCount > 0)) {
                 // No token - just load reviews without controls bar
                 loadInlineForNavigation().then(() => {
@@ -672,6 +795,100 @@
                 });
         }
 
+        function loadMetadata() {
+            if (!token) {
+                return;
+            }
+
+            let url = `/api/review?id=${encodeURIComponent(reviewId)}`;
+            url += `&token=${encodeURIComponent(token)}`;
+            url += '&format=metadata';
+
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.review && data.review.length > 0) {
+                        displayMetadata(data.review);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading metadata:', error);
+                });
+        }
+
+        function displayMetadata(metadataArray) {
+            const container = document.getElementById('metadata-container');
+
+            // Collect all metadata from all patches
+            const allMetadata = {};
+            metadataArray.forEach((metadata, index) => {
+                if (metadata && metadata.trim()) {
+                    try {
+                        const parsed = JSON.parse(metadata);
+                        if (typeof parsed === 'object' && parsed !== null) {
+                            // Prefix keys with patch number if multiple patches
+                            if (metadataArray.length > 1) {
+                                Object.entries(parsed).forEach(([key, value]) => {
+                                    allMetadata[`Patch ${index + 1}: ${key}`] = value;
+                                });
+                            } else {
+                                Object.assign(allMetadata, parsed);
+                            }
+                        }
+                    } catch (e) {
+                        console.error(`Error parsing metadata for patch ${index + 1}:`, e);
+                    }
+                }
+            });
+
+            if (Object.keys(allMetadata).length === 0) {
+                return;
+            }
+
+            // Create collapsible box
+            const box = document.createElement('div');
+            box.className = 'collapsible-box';
+
+            const header = document.createElement('div');
+            header.className = 'collapsible-header';
+            header.innerHTML = '<span class="title">Metadata</span><span class="toggle-icon">▶</span>';
+            header.onclick = function() {
+                header.classList.toggle('expanded');
+                content.classList.toggle('expanded');
+            };
+
+            const content = document.createElement('div');
+            content.className = 'collapsible-content';
+
+            // Create table
+            const table = document.createElement('table');
+            table.className = 'metadata-table';
+
+            Object.entries(allMetadata).forEach(([key, value]) => {
+                const row = document.createElement('tr');
+                const th = document.createElement('th');
+                th.textContent = key;
+                const td = document.createElement('td');
+                td.textContent = typeof value === 'object' ? JSON.stringify(value) : String(value);
+                row.appendChild(th);
+                row.appendChild(td);
+                table.appendChild(row);
+            });
+
+            content.appendChild(table);
+            box.appendChild(header);
+            box.appendChild(content);
+
+            container.innerHTML = '';
+            container.appendChild(box);
+            container.style.display = 'block';
+        }
+
         function displayReviews(reviews) {
             const container = document.getElementById('reviews-container');
             const navContainer = document.getElementById('patch-navigation');
@@ -688,6 +905,9 @@
             navContainer.style.display = 'flex';
 
             reviews.forEach((review, index) => {
+                const patchNum = index + 1;
+                const isFailed = failedPatchNums.includes(patchNum);
+
                 // Use inline reviews to determine if patch has comments (for navigation coloring)
                 const inlineReview = inlineReviews[index];
                 const hasCommentsInline = inlineReview !== null && inlineReview !== '';
@@ -696,12 +916,20 @@
                 const hasComments = review !== null && review !== '';
                 const patchId = `patch-${index}`;
 
-                // Create navigation item - color based on inline format
+                // Create navigation item - color based on error status or inline format
                 const navItem = document.createElement('a');
-                navItem.className = `patch-nav-item ${hasCommentsInline ? 'has-comments' : 'no-comments'}`;
-                navItem.textContent = `${index + 1}`;
+                if (isFailed) {
+                    navItem.className = 'patch-nav-item patch-error';
+                    navItem.title = `Patch ${patchNum}: Review failed (timeout or error)`;
+                } else if (hasCommentsInline) {
+                    navItem.className = 'patch-nav-item has-comments';
+                    navItem.title = `Patch ${patchNum}: Has review comments`;
+                } else {
+                    navItem.className = 'patch-nav-item no-comments';
+                    navItem.title = `Patch ${patchNum}: No comments`;
+                }
+                navItem.textContent = `${patchNum}`;
                 navItem.href = `#${patchId}`;
-                navItem.title = hasCommentsInline ? `Patch ${index + 1}: Has review comments` : `Patch ${index + 1}: No comments`;
                 navContainer.appendChild(navItem);
 
                 // Create patch review section
@@ -713,11 +941,17 @@
                 headerDiv.className = 'patch-header';
 
                 const headerTitle = document.createElement('span');
-                headerTitle.textContent = `Patch ${index + 1}`;
+                headerTitle.textContent = `Patch ${patchNum}`;
                 headerDiv.appendChild(headerTitle);
 
-                // Show "No review comments" based on inline format
-                if (!hasCommentsInline) {
+                // Show status in header based on error or inline format
+                if (isFailed) {
+                    const errorSpan = document.createElement('span');
+                    errorSpan.className = 'no-comments-inline';
+                    errorSpan.style.color = 'var(--status-error-text)';
+                    errorSpan.textContent = 'Review failed';
+                    headerDiv.appendChild(errorSpan);
+                } else if (!hasCommentsInline) {
                     const noCommentsSpan = document.createElement('span');
                     noCommentsSpan.className = 'no-comments-inline';
                     noCommentsSpan.textContent = 'No review comments';
@@ -726,8 +960,18 @@
 
                 patchDiv.appendChild(headerDiv);
 
-                // Only add content div if there are comments in current format
-                if (hasComments) {
+                // Add content div - error message for failed patches, review content otherwise
+                if (isFailed) {
+                    const contentDiv = document.createElement('div');
+                    contentDiv.className = 'patch-content';
+
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'patch-error-content';
+                    errorDiv.textContent = 'This patch could not be reviewed due to a timeout or error. Please try resubmitting the review.';
+                    contentDiv.appendChild(errorDiv);
+
+                    patchDiv.appendChild(contentDiv);
+                } else if (hasComments) {
                     const contentDiv = document.createElement('div');
                     contentDiv.className = 'patch-content';
 

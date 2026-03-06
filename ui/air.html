@@ -642,10 +642,18 @@
                 <label style="display: flex; align-items: center; gap: 6px; font-size: 14px;">
                     Limit:
                     <select id="reviewLimit" style="padding: 4px 8px;">
-                        <option value="50">50</option>
-                        <option value="100">100</option>
-                        <option value="200" selected>200</option>
+                        <option value="250" selected>250</option>
                         <option value="500">500</option>
+                        <option value="1000">1000</option>
+                        <option value="1500">1500</option>
+                    </select>
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 14px;">
+                    User:
+                    <select id="userFilter" style="padding: 4px 8px;">
+                        <option value="">All</option>
+                        <option value="__public__">All Public</option>
+                        <option value="__private__">All Private</option>
                     </select>
                 </label>
                 <button class="token-minimized" id="tokenMinimized" onclick="showTokenConfig()">
@@ -718,6 +726,10 @@
             <h3 style="margin-top: 40px;">Daily Averages (by feedback status)</h3>
             <div class="chart-container">
                 <canvas id="averagesChart"></canvas>
+            </div>
+            <h3 style="margin-top: 40px;">Feedback Breakdown (36-hour rolling)</h3>
+            <div class="chart-container">
+                <canvas id="feedbackChart"></canvas>
             </div>
         </div>
 
@@ -961,11 +973,14 @@
         // Initialize and update review chart
         let reviewChart = null;
         let averagesChart = null;
+        let feedbackChart = null;
         loadCharts();
-        setInterval(loadCharts, 30000); // Refresh every 30 seconds
+        // Charts/tables only refresh on user action (filter/limit changes), not periodically
+        // to avoid expensive queries when Limit is set high
 
         // Refresh chart and review list when filters change
         document.getElementById('superuserMode').addEventListener('change', function() {
+            cachedReviews = null; // Clear cache since visible reviews change
             loadCharts();
             listReviews();
         });
@@ -976,9 +991,194 @@
             listReviews();
         });
         document.getElementById('reviewLimit').addEventListener('change', function() {
+            cachedReviews = null; // Clear cache to force re-fetch with new limit
             loadCharts();
             listReviews();
         });
+        document.getElementById('userFilter').addEventListener('change', function() {
+            // Only re-filter cached data, don't re-fetch
+            applyFilterAndUpdateDisplay();
+        });
+
+        // Cache for fetched reviews
+        let cachedReviews = null;
+
+        function applyFilterAndUpdateDisplay() {
+            if (!cachedReviews) {
+                console.log('No cached reviews, triggering full load');
+                loadCharts();
+                return;
+            }
+
+            // Apply user filter to cached reviews
+            const filteredReviews = applyUserFilter(cachedReviews);
+            console.log(`Filtering cached ${cachedReviews.length} reviews -> ${filteredReviews.length} after filter`);
+
+            // Update stats table and charts
+            updateStatsTable(filteredReviews);
+            updateReviewChart(filteredReviews);
+            updateAveragesChart(filteredReviews);
+            updateFeedbackChart(filteredReviews);
+
+            // Also update the reviews list
+            listReviews();
+        }
+
+        function populateUserFilter(reviews) {
+            const select = document.getElementById('userFilter');
+            const currentValue = select.value;
+
+            // Extract unique token owners
+            const users = new Map();
+            reviews.forEach(review => {
+                if (review.token_owner) {
+                    users.set(review.token_owner, review.is_public);
+                }
+            });
+
+            // Sort users alphabetically
+            const sortedUsers = Array.from(users.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+
+            // Rebuild options (keep meta options)
+            select.innerHTML = `
+                <option value="">All</option>
+                <option value="__public__">All Public</option>
+                <option value="__private__">All Private</option>
+            `;
+
+            sortedUsers.forEach(([user, isPublic]) => {
+                const icon = isPublic ? '🤖' : '👤';
+                const option = document.createElement('option');
+                option.value = user;
+                option.textContent = `${icon} ${user}`;
+                select.appendChild(option);
+            });
+
+            // Restore selection if still valid
+            if (currentValue && Array.from(select.options).some(opt => opt.value === currentValue)) {
+                select.value = currentValue;
+            }
+        }
+
+        function applyUserFilter(reviews) {
+            const filterValue = document.getElementById('userFilter').value;
+
+            if (!filterValue) {
+                // Debug: log counts for All
+                const publicCount = reviews.filter(r => r.is_public).length;
+                const privateCount = reviews.filter(r => !r.is_public).length;
+                console.log(`All filter: ${reviews.length} reviews (public: ${publicCount}, private: ${privateCount}, sum: ${publicCount + privateCount})`);
+                return reviews; // No filter
+            }
+
+            if (filterValue === '__public__') {
+                const filtered = reviews.filter(r => r.is_public);
+                console.log(`Public filter: ${filtered.length} of ${reviews.length} reviews (is_public=true)`);
+                return filtered;
+            }
+
+            if (filterValue === '__private__') {
+                const filtered = reviews.filter(r => !r.is_public);
+                console.log(`Private filter: ${filtered.length} of ${reviews.length} reviews (is_public=false/undefined)`);
+                // Debug: check for undefined is_public
+                const undefinedCount = reviews.filter(r => r.is_public === undefined).length;
+                const falseCount = reviews.filter(r => r.is_public === false).length;
+                console.log(`  - is_public undefined: ${undefinedCount}, is_public false: ${falseCount}`);
+                return filtered;
+            }
+
+            // Filter by specific user
+            return reviews.filter(r => r.token_owner === filterValue);
+        }
+
+        function updateStatsTable(reviews) {
+            const now = new Date();
+            const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+            const twentyEightDaysAgo = new Date(now - 28 * 24 * 60 * 60 * 1000);
+
+            function computeStats(reviewList) {
+                let completed = 0, patches = 0, feedback = 0, errors = 0, cost = 0;
+                let hasCost = false;
+
+                reviewList.forEach(r => {
+                    if (r.status === 'done') {
+                        completed++;
+                        patches += r.patch_count || 0;
+                    }
+                    if (r.status === 'error') {
+                        errors++;
+                    }
+                    if (r.feedback || r.has_feedback) {
+                        feedback++;
+                    }
+                    if (r.cost_usd !== undefined) {
+                        hasCost = true;
+                        cost += r.cost_usd || 0;
+                    }
+                });
+
+                return { completed, patches, feedback, errors, cost: hasCost ? cost : null };
+            }
+
+            // Filter by time periods
+            const reviews7d = reviews.filter(r => {
+                const d = parseUTCDate(r.date);
+                return d && d >= sevenDaysAgo;
+            });
+            const reviews28d = reviews.filter(r => {
+                const d = parseUTCDate(r.date);
+                return d && d >= twentyEightDaysAgo;
+            });
+
+            const stats7d = computeStats(reviews7d);
+            const stats28d = computeStats(reviews28d);
+            const statsTotal = computeStats(reviews);
+
+            const hasCost = statsTotal.cost !== null;
+            const formatCost = (cost) => cost !== null ? `$${cost.toFixed(2)}` : '-';
+
+            const tableContainer = document.getElementById('statsTable');
+            tableContainer.innerHTML = `
+                <table class="stats-table">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>Completed</th>
+                            <th>Patches</th>
+                            <th>Feedback</th>
+                            <th>Errors</th>
+                            ${hasCost ? '<th>Cost</th>' : ''}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Last 7 days</td>
+                            <td>${stats7d.completed}</td>
+                            <td>${stats7d.patches}</td>
+                            <td>${stats7d.feedback}</td>
+                            <td>${stats7d.errors}</td>
+                            ${hasCost ? `<td>${formatCost(stats7d.cost)}</td>` : ''}
+                        </tr>
+                        <tr>
+                            <td>Last 28 days</td>
+                            <td>${stats28d.completed}</td>
+                            <td>${stats28d.patches}</td>
+                            <td>${stats28d.feedback}</td>
+                            <td>${stats28d.errors}</td>
+                            ${hasCost ? `<td>${formatCost(stats28d.cost)}</td>` : ''}
+                        </tr>
+                        <tr>
+                            <td>Total (loaded)</td>
+                            <td><strong>${statsTotal.completed}</strong></td>
+                            <td><strong>${statsTotal.patches}</strong></td>
+                            <td><strong>${statsTotal.feedback}</strong></td>
+                            <td><strong>${statsTotal.errors}</strong></td>
+                            ${hasCost ? `<td><strong>${formatCost(statsTotal.cost)}</strong></td>` : ''}
+                        </tr>
+                    </tbody>
+                </table>
+            `;
+        }
 
         async function loadCharts() {
             const token = getToken();
@@ -1002,9 +1202,25 @@
 
                 console.log(`Fetched ${result.reviews.length} reviews for charts`);
 
-                // Update both charts with the same data
-                updateReviewChart(result.reviews);
-                updateAveragesChart(result.reviews);
+                // Cache reviews for filtering
+                cachedReviews = result.reviews;
+
+                // Populate user filter dropdown from all reviews
+                populateUserFilter(result.reviews);
+
+                // Apply user filter
+                const userFilterValue = document.getElementById('userFilter').value;
+                const filteredReviews = applyUserFilter(result.reviews);
+                console.log(`After user filter: ${filteredReviews.length} reviews`);
+
+                // Always update stats table from loaded reviews for consistency
+                // (so All Public + All Private = All)
+                updateStatsTable(filteredReviews);
+
+                // Update charts with filtered data
+                updateReviewChart(filteredReviews);
+                updateAveragesChart(filteredReviews);
+                updateFeedbackChart(filteredReviews);
             } catch (error) {
                 console.error('Error loading charts:', error);
             }
@@ -1565,6 +1781,269 @@
                 }
         }
 
+        function updateFeedbackChart(reviews) {
+            // Only process completed reviews
+            const completedReviews = reviews.filter(r => r.status === 'done');
+
+            if (completedReviews.length === 0) {
+                return;
+            }
+
+            // Group reviews by 6-hour buckets (like the review chart)
+            const dataByBucket = {};
+            completedReviews.forEach(review => {
+                const timestamp = parseUTCDate(review.date);
+                if (!timestamp) return;
+
+                // Round to nearest 6-hour bucket
+                const hours = timestamp.getHours();
+                const bucketHour = Math.floor(hours / 6) * 6;
+                timestamp.setHours(bucketHour, 0, 0, 0);
+                const bucketKey = timestamp.toISOString();
+
+                if (!dataByBucket[bucketKey]) {
+                    dataByBucket[bucketKey] = {
+                        total: 0,
+                        hasOutput: 0,
+                        emailed: 0,
+                        'false-positive': 0,
+                        'false-negative': 0,
+                        'nitpick': 0
+                    };
+                }
+
+                dataByBucket[bucketKey].total++;
+                if (review.has_feedback) {
+                    dataByBucket[bucketKey].hasOutput++;
+                }
+                if (review.feedback) {
+                    dataByBucket[bucketKey][review.feedback] = (dataByBucket[bucketKey][review.feedback] || 0) + 1;
+                }
+            });
+
+            // Get sorted buckets
+            const allBuckets = Object.keys(dataByBucket).sort();
+
+            // Calculate 36-hour rolling percentages (6 buckets of 6 hours each)
+            const rollingData = allBuckets.map((bucket, idx) => {
+                // Get last 6 buckets of data (36 hours)
+                const windowStart = Math.max(0, idx - 5);
+                const windowBuckets = allBuckets.slice(windowStart, idx + 1);
+
+                let total = 0, hasOutput = 0, emailed = 0, falsePositive = 0, falseNegative = 0, nitpick = 0;
+                windowBuckets.forEach(b => {
+                    total += dataByBucket[b].total;
+                    hasOutput += dataByBucket[b].hasOutput || 0;
+                    emailed += dataByBucket[b].emailed || 0;
+                    falsePositive += dataByBucket[b]['false-positive'] || 0;
+                    falseNegative += dataByBucket[b]['false-negative'] || 0;
+                    nitpick += dataByBucket[b]['nitpick'] || 0;
+                });
+
+                const withFeedback = emailed + falsePositive + falseNegative + nitpick;
+
+                return {
+                    bucket: bucket,
+                    total: total,
+                    withFeedback: withFeedback,
+                    // Percentage of reviews with AI output
+                    hasOutputPct: total > 0 ? (hasOutput / total) * 100 : null,
+                    // Percentages of all reviews (for dotted lines)
+                    emailedPctAll: total > 0 ? (emailed / total) * 100 : null,
+                    fpPctAll: total > 0 ? (falsePositive / total) * 100 : null,
+                    fnPctAll: total > 0 ? (falseNegative / total) * 100 : null,
+                    nitpickPctAll: total > 0 ? (nitpick / total) * 100 : null,
+                    // Percentages of reviews with feedback (for solid lines)
+                    emailedPctFeedback: withFeedback > 0 ? (emailed / withFeedback) * 100 : null,
+                    fpPctFeedback: withFeedback > 0 ? (falsePositive / withFeedback) * 100 : null,
+                    fnPctFeedback: withFeedback > 0 ? (falseNegative / withFeedback) * 100 : null,
+                    nitpickPctFeedback: withFeedback > 0 ? (nitpick / withFeedback) * 100 : null
+                };
+            });
+
+            // Convert to chart datasets
+            const hasOutputData = rollingData.map(d => ({ x: d.bucket, y: d.hasOutputPct }));
+            const emailedAllData = rollingData.map(d => ({ x: d.bucket, y: d.emailedPctAll }));
+            const fpAllData = rollingData.map(d => ({ x: d.bucket, y: d.fpPctAll }));
+            const fnAllData = rollingData.map(d => ({ x: d.bucket, y: d.fnPctAll }));
+            const nitpickAllData = rollingData.map(d => ({ x: d.bucket, y: d.nitpickPctAll }));
+            const emailedFeedbackData = rollingData.map(d => ({ x: d.bucket, y: d.emailedPctFeedback }));
+            const fpFeedbackData = rollingData.map(d => ({ x: d.bucket, y: d.fpPctFeedback }));
+            const fnFeedbackData = rollingData.map(d => ({ x: d.bucket, y: d.fnPctFeedback }));
+            const nitpickFeedbackData = rollingData.map(d => ({ x: d.bucket, y: d.nitpickPctFeedback }));
+
+            const ctx = document.getElementById('feedbackChart');
+
+            const datasets = [
+                // Gray solid line - % of reviews with AI output
+                {
+                    label: 'Has Review Output (% of all)',
+                    data: hasOutputData,
+                    borderColor: '#6c757d',
+                    backgroundColor: 'rgba(108, 117, 125, 0.1)',
+                    tension: 0.1,
+                    fill: false,
+                    spanGaps: false,
+                    pointRadius: 0
+                },
+                // Solid lines - % of reviews with feedback
+                {
+                    label: 'Emailed (% of categorized)',
+                    data: emailedFeedbackData,
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    tension: 0.1,
+                    fill: false,
+                    spanGaps: false,
+                    pointRadius: 0
+                },
+                {
+                    label: 'False Positive (% of categorized)',
+                    data: fpFeedbackData,
+                    borderColor: '#dc3545',
+                    backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                    tension: 0.1,
+                    fill: false,
+                    spanGaps: false,
+                    pointRadius: 0
+                },
+                {
+                    label: 'False Negative (% of categorized)',
+                    data: fnFeedbackData,
+                    borderColor: '#ffc107',
+                    backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                    tension: 0.1,
+                    fill: false,
+                    spanGaps: false,
+                    pointRadius: 0
+                },
+                {
+                    label: 'Ignored/Nitpick (% of categorized)',
+                    data: nitpickFeedbackData,
+                    borderColor: '#17a2b8',
+                    backgroundColor: 'rgba(23, 162, 184, 0.1)',
+                    tension: 0.1,
+                    fill: false,
+                    spanGaps: false,
+                    pointRadius: 0
+                },
+                // Dotted lines - % of all reviews
+                {
+                    label: 'Emailed (% of all)',
+                    data: emailedAllData,
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    tension: 0.1,
+                    fill: false,
+                    spanGaps: false,
+                    borderDash: [5, 5],
+                    pointRadius: 0
+                },
+                {
+                    label: 'False Positive (% of all)',
+                    data: fpAllData,
+                    borderColor: '#dc3545',
+                    backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                    tension: 0.1,
+                    fill: false,
+                    spanGaps: false,
+                    borderDash: [5, 5],
+                    pointRadius: 0
+                },
+                {
+                    label: 'False Negative (% of all)',
+                    data: fnAllData,
+                    borderColor: '#ffc107',
+                    backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                    tension: 0.1,
+                    fill: false,
+                    spanGaps: false,
+                    borderDash: [5, 5],
+                    pointRadius: 0
+                },
+                {
+                    label: 'Ignored/Nitpick (% of all)',
+                    data: nitpickAllData,
+                    borderColor: '#17a2b8',
+                    backgroundColor: 'rgba(23, 162, 184, 0.1)',
+                    tension: 0.1,
+                    fill: false,
+                    spanGaps: false,
+                    borderDash: [5, 5],
+                    pointRadius: 0
+                }
+            ];
+
+            if (feedbackChart) {
+                feedbackChart.data.datasets = datasets;
+                feedbackChart.update();
+            } else {
+                feedbackChart = new Chart(ctx, {
+                    type: 'line',
+                    data: { datasets: datasets },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: {
+                                    color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary')
+                                }
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false,
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) label += ': ';
+                                        if (context.parsed.y !== null) {
+                                            label += context.parsed.y.toFixed(1) + '%';
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                type: 'time',
+                                time: {
+                                    unit: 'day',
+                                    displayFormats: { day: 'MMM d' }
+                                },
+                                grid: {
+                                    color: getComputedStyle(document.documentElement).getPropertyValue('--border-color')
+                                },
+                                ticks: {
+                                    color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary')
+                                }
+                            },
+                            y: {
+                                type: 'linear',
+                                beginAtZero: true,
+                                max: 100,
+                                grid: {
+                                    color: getComputedStyle(document.documentElement).getPropertyValue('--border-color')
+                                },
+                                ticks: {
+                                    color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary'),
+                                    callback: function(value) {
+                                        return value + '%';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
         // Input type switcher
         document.getElementById('inputType').addEventListener('change', function() {
             const type = this.value;
@@ -1660,54 +2139,8 @@
                     </div>
                 `;
 
-                // Update stats table in Review History tab
-                if (data.stats) {
-                    const s = data.stats;
-                    const hasCost = s.total.cost !== null;
-                    const formatCost = (cost) => cost !== null ? `$${cost.toFixed(2)}` : '-';
-
-                    const tableContainer = document.getElementById('statsTable');
-                    tableContainer.innerHTML = `
-                        <table class="stats-table">
-                            <thead>
-                                <tr>
-                                    <th></th>
-                                    <th>Completed</th>
-                                    <th>Patches</th>
-                                    <th>Feedback</th>
-                                    <th>Errors</th>
-                                    ${hasCost ? '<th>Cost</th>' : ''}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td>Last 7 days</td>
-                                    <td>${s['7d'].completed}</td>
-                                    <td>${s['7d'].patches}</td>
-                                    <td>${s['7d'].feedback}</td>
-                                    <td>${s['7d'].errors}</td>
-                                    ${hasCost ? `<td>${formatCost(s['7d'].cost)}</td>` : ''}
-                                </tr>
-                                <tr>
-                                    <td>Last 28 days</td>
-                                    <td>${s['28d'].completed}</td>
-                                    <td>${s['28d'].patches}</td>
-                                    <td>${s['28d'].feedback}</td>
-                                    <td>${s['28d'].errors}</td>
-                                    ${hasCost ? `<td>${formatCost(s['28d'].cost)}</td>` : ''}
-                                </tr>
-                                <tr>
-                                    <td>Total</td>
-                                    <td><strong>${s.total.completed}</strong></td>
-                                    <td><strong>${s.total.patches}</strong></td>
-                                    <td><strong>${s.total.feedback}</strong></td>
-                                    <td><strong>${s.total.errors}</strong></td>
-                                    ${hasCost ? `<td><strong>${formatCost(s.total.cost)}</strong></td>` : ''}
-                                </tr>
-                            </tbody>
-                        </table>
-                    `;
-                }
+                // Stats table is now always updated by loadCharts() for consistency
+                // (so All Public + All Private = All, all based on loaded reviews)
             } catch (error) {
                 console.error('Error loading status:', error);
             }
@@ -1869,6 +2302,9 @@
                         hasFeedback: review.has_feedback || false
                     }));
 
+                    // Apply user filter
+                    reviews = applyUserFilter(reviews);
+
                     // Sort reviews based on selected option
                     switch (sortBy) {
                         case 'cost':
@@ -1940,7 +2376,7 @@
 
             // Show patch source information
             if (data.patchwork_series_id) {
-                const pwUrl = `https://patchwork.kernel.org/project/netdevbpf/list/?series=${data.patchwork_series_id}`;
+                const pwUrl = `https://patchwork.kernel.org/project/${data.pw_project || 'netdevbpf'}/list/?series=${data.patchwork_series_id}`;
                 html += `<p><strong>Patchwork Series:</strong> <a href="${pwUrl}" target="_blank" rel="noopener noreferrer">${data.patchwork_series_id}</a></p>`;
             } else if (data.hash) {
                 html += `<p><strong>Hash/Range:</strong> <code>${data.hash}</code></p>`;
@@ -2027,7 +2463,8 @@
                     const feedbackLabels = {
                         'emailed': '📧 Emailed',
                         'false-positive': '❌ False Positive',
-                        'false-negative': '⚠️ False Negative'
+                        'false-negative': '⚠️ False Negative',
+                        'nitpick': '💬 Ignored (nitpick)'
                     };
                     adminFeedbackBadge = `<span class="feedback-badge">${feedbackLabels[review.feedback] || review.feedback}</span>`;
                 }
@@ -2035,7 +2472,7 @@
                 // Determine submission type
                 let submissionType = '';
                 if (review.patchwork_series_id) {
-                    const pwUrl = `https://patchwork.kernel.org/project/netdevbpf/list/?series=${review.patchwork_series_id}`;
+                    const pwUrl = `https://patchwork.kernel.org/project/${review.pw_project || 'netdevbpf'}/list/?series=${review.patchwork_series_id}`;
                     submissionType = `Patchwork: <span onclick="event.stopPropagation(); event.preventDefault(); window.open('${pwUrl}', '_blank');" style="cursor: pointer; text-decoration: underline;">${review.patchwork_series_id}</span>`;
                 } else if (review.hash) {
                     submissionType = `Hash: ${review.hash.substring(0, 12)}`;
