@@ -1,0 +1,49 @@
+# HW testing DB schema
+# Applied to the existing 'nipa' PostgreSQL database
+
+CREATE TABLE machine_info (
+    id                  serial primary key,
+    name                varchar(128) NOT NULL,
+    mgmt_ipaddr         varchar(64)
+);
+
+CREATE TABLE machine_info_sec (
+    machine_id          integer REFERENCES machine_info(id),
+    bmc_ipaddr          varchar(64),
+    bmc_pass            varchar(128),
+    allowed_ips         text
+);
+
+CREATE TABLE nic_info (
+    id                  serial primary key,
+    machine_id          integer REFERENCES machine_info(id),
+    vendor              varchar(128),
+    model               varchar(128),
+    peer_id             integer REFERENCES nic_info(id),
+    ifname              varchar(128),
+    ip4addr             varchar(128),
+    ip6addr             varchar(128)
+);
+
+CREATE TABLE sol (
+    id                  serial primary key,
+    machine_id          integer REFERENCES machine_info(id),
+    ts                  timestamp(6) NOT NULL,
+    line                varchar(200),
+    eol                 boolean NOT NULL DEFAULT true
+);
+CREATE INDEX sol_by_machine ON sol (machine_id, id);
+
+CREATE TABLE reservations (
+    id                  serial primary key,
+    ts_start            timestamp NOT NULL,
+    ts_end              timestamp,
+    status              varchar(16) NOT NULL DEFAULT 'ACTIVE',
+    metadata            text
+);
+
+CREATE TABLE reservation_machines (
+    reservation_id      integer REFERENCES reservations(id),
+    machine_id          integer REFERENCES machine_info(id)
+);
+CREATE INDEX res_machines_by_res ON reservation_machines (reservation_id);

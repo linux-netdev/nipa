@@ -216,6 +216,22 @@ Config
 
  - reservation timeout, seconds
 
+CLI
+---
+
+The ``nipa-mctrl`` CLI (``/usr/local/bin/nipa-mctrl`` on ctrl) provides
+command-line access to the machine_control API::
+
+  nipa-mctrl machines            # list machines and health state
+  nipa-mctrl nics                # list NICs
+  nipa-mctrl sol --machine-id 1  # view SOL logs
+  nipa-mctrl reserve --machine-ids 1,2  # reserve machines
+  nipa-mctrl close --reservation-id 5   # release a reservation
+  nipa-mctrl power-cycle --machine-id 1 # power cycle via BMC
+
+Add ``--json`` for machine-parseable output. Defaults to
+``http://localhost:5050``; override with ``--url`` or ``MC_URL`` env var.
+
 In-memory state
 ---------------
 
@@ -256,14 +272,12 @@ The service discovers all machines using the ``machine_info`` table at startup.
 SOL collection
 ~~~~~~~~~~~~~~
 
-Service assumes BMC of the machines is already configured to send SOL
-logs to the correct place. The service uses ipmitool call to
-enable the SOL output at startup (and disable it at shutdown).
-
-The service maintains a UDP socket to receive the logs.
-The BMC ipaddr from ``machine_info_sec`` is used to identify the sending
-machine. The service inserts the logs into the correct table
-and does line chunking if necessary.
+At startup the service spawns a persistent ``ipmitool sol activate``
+session for each machine (using BMC credentials from ``machine_info_sec``).
+Each session runs in its own thread, reading stdout and inserting lines
+into the ``sol`` table. If a session drops it is automatically
+reconnected after a short delay. Stale sessions are deactivated before
+each new connection attempt.
 
 Managing reservations
 ~~~~~~~~~~~~~~~~~~~~~
