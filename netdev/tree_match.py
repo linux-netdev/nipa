@@ -64,6 +64,7 @@ def _tree_name_should_be_local_files(raw_email):
         'net/',
         'drivers/atm/',
         'drivers/bluetooth/',
+        'drivers/dibs/',
         'drivers/dpll/',
         'drivers/firmware/broadcom/tee_bnxt_fw.c',
         'drivers/isdn/',
