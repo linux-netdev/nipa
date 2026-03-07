@@ -8,6 +8,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 
 
 def run_cmd_text(cmd):
@@ -33,8 +34,24 @@ def run_cmd_json(cmd):
     return ret
 
 
+def wait_for_detached_pp():
+    """Wait for detached (zombie) page pools to disappear, up to 60s."""
+    deadline = time.time() + 60
+    while time.time() < deadline:
+        pp_all = run_cmd_json("ynl --family netdev --output-json --dump page-pool-get")
+        if not isinstance(pp_all, list):
+            break
+        detached = [pp for pp in pp_all if "detach-time" in pp]
+        if not detached:
+            break
+        time.sleep(1)
+
+
 def collect_system_state():
     """Collect network interface information."""
+
+    wait_for_detached_pp()
+
     state = {
         "links": {},
         "chans": {},
@@ -70,7 +87,19 @@ def collect_system_state():
 
             cmd = f'ynl --family netdev --output-json {method} {op} '
             cmd += "--json '{" + f'"ifindex": {ifindex}' + "}'"
-            state["netdev-" + op][ifname] = run_cmd_json(cmd)
+            data = run_cmd_json(cmd)
+
+            # Strip attributes that change across runs
+            drop_keys = {'id', 'napi-id', 'irq', 'inflight', 'inflight-mem'}
+            if isinstance(data, list):
+                for obj in data:
+                    for key in drop_keys:
+                        obj.pop(key, None)
+            elif isinstance(data, dict):
+                for key in drop_keys:
+                    data.pop(key, None)
+
+            state["netdev-" + op][ifname] = data
 
     return state
 
