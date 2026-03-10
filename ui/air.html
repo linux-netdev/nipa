@@ -739,6 +739,10 @@
             <div class="chart-container">
                 <canvas id="averagesChart"></canvas>
             </div>
+            <h3 style="margin-top: 40px;">Patches and Submissions</h3>
+            <div class="chart-container">
+                <canvas id="volumeChart"></canvas>
+            </div>
             <h3 style="margin-top: 40px;">Feedback Breakdown (36-hour rolling)</h3>
             <div class="chart-container">
                 <canvas id="feedbackChart"></canvas>
@@ -985,6 +989,7 @@
         // Initialize and update review chart
         let reviewChart = null;
         let averagesChart = null;
+        let volumeChart = null;
         let feedbackChart = null;
         loadCharts();
         // Charts/tables only refresh on user action (filter/limit changes), not periodically
@@ -1030,6 +1035,7 @@
             updateStatsTable(filteredReviews);
             updateReviewChart(filteredReviews);
             updateAveragesChart(filteredReviews);
+            updateVolumeChart(filteredReviews);
             updateFeedbackChart(filteredReviews);
 
             // Also update the reviews list
@@ -1792,6 +1798,109 @@
                         }
                     });
                 }
+        }
+
+        function updateVolumeChart(reviews) {
+            const bucketSize = parseInt(document.getElementById('bucketSize').value);
+
+            // Group reviews by time buckets, counting submissions and patches
+            const dataByBucket = {};
+
+            reviews.forEach(review => {
+                if (review.status !== 'done') return;
+
+                const timestamp = parseUTCDate(review.date);
+                const bucketMs = bucketSize * 3600000;
+                const bucketStart = new Date(Math.floor(timestamp.getTime() / bucketMs) * bucketMs);
+                const bucketKey = bucketStart.toISOString();
+
+                if (!dataByBucket[bucketKey]) {
+                    dataByBucket[bucketKey] = { submissions: 0, patches: 0 };
+                }
+
+                dataByBucket[bucketKey].submissions++;
+                dataByBucket[bucketKey].patches += review.patch_count || 0;
+            });
+
+            const buckets = Object.keys(dataByBucket).sort();
+            const submissionsData = buckets.map(b => ({ x: b, y: dataByBucket[b].submissions || null }));
+            const patchesData = buckets.map(b => ({ x: b, y: dataByBucket[b].patches || null }));
+
+            const ctx = document.getElementById('volumeChart');
+
+            if (volumeChart) {
+                volumeChart.data.datasets[0].data = submissionsData;
+                volumeChart.data.datasets[1].data = patchesData;
+                volumeChart.update();
+            } else {
+                const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-primary');
+                const borderColor = getComputedStyle(document.documentElement).getPropertyValue('--border-color');
+
+                volumeChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        datasets: [
+                            {
+                                label: 'Submissions',
+                                data: submissionsData,
+                                borderColor: '#007bff',
+                                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                                tension: 0.1,
+                                fill: true,
+                                spanGaps: false,
+                                yAxisID: 'y'
+                            },
+                            {
+                                label: 'Patches',
+                                data: patchesData,
+                                borderColor: '#28a745',
+                                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                                tension: 0.1,
+                                fill: true,
+                                spanGaps: false,
+                                yAxisID: 'y'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: { color: textColor }
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false,
+                            }
+                        },
+                        scales: {
+                            x: {
+                                type: 'time',
+                                time: {
+                                    unit: 'hour',
+                                    stepSize: 6,
+                                    displayFormats: { hour: 'MMM d HH:mm' }
+                                },
+                                grid: { color: borderColor },
+                                ticks: { color: textColor }
+                            },
+                            y: {
+                                type: 'linear',
+                                position: 'left',
+                                beginAtZero: true,
+                                grid: { color: borderColor },
+                                ticks: { color: textColor, precision: 0 }
+                            }
+                        }
+                    }
+                });
+            }
         }
 
         function updateFeedbackChart(reviews) {
@@ -2627,6 +2736,15 @@
                 }
 
                 averagesChart.update();
+            }
+
+            if (volumeChart) {
+                volumeChart.options.plugins.legend.labels.color = textColor;
+                volumeChart.options.scales.x.grid.color = borderColor;
+                volumeChart.options.scales.x.ticks.color = textColor;
+                volumeChart.options.scales.y.grid.color = borderColor;
+                volumeChart.options.scales.y.ticks.color = textColor;
+                volumeChart.update();
             }
         }
 
