@@ -205,6 +205,9 @@ def run_tests(test_dir, results_dir):
             retcode = ret.returncode
             stdout = ret.stdout.decode('utf-8', 'ignore')
             stderr = ret.stderr.decode('utf-8', 'ignore')
+            if not stdout and not stderr:
+                print(f"[{test_idx+1}/{len(tests)}] {test_name}: "
+                      f"no output (rc={retcode})")
         except subprocess.TimeoutExpired:
             retcode = 1
             stdout = ''
