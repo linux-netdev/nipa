@@ -250,10 +250,27 @@ def wait_for_results(config, mc, reservation_id, machine_ids, machine_ips,
             print("wait_for_results: hw-worker completed")
             return WaitResult(ok=True)
 
-        # Check if hw-worker exited without producing results
-        ret = _ssh_retcode(primary_ip, 'systemctl is-active nipa-hw-worker.service')
-        if ret != 0:
-            # Service is inactive/failed — no results.json means it failed.
+        # Check if hw-worker exited without producing results.
+        # For Type=oneshot services, is-active returns "activating" (rc=3)
+        # while running, "active" (rc=0) after success with RemainAfterExit=yes,
+        # and "failed"/"inactive" after failure/stop.  Use show -p ActiveState
+        # to distinguish "still running" from "done".
+        state = _ssh(primary_ip,
+                     'systemctl show -p ActiveState --value nipa-hw-worker.service',
+                     check=False).strip()
+        if state == 'activating':
+            pass  # still running, continue polling
+        elif state in ('inactive', 'failed'):
+            # Service exited, but results.json may have been written
+            # between our test -f check and the state check (race).
+            # Re-check before declaring failure.
+            ret = _ssh_retcode(primary_ip,
+                                f'test -f /srv/hw-worker/results/{reservation_id}/results.json')
+            if ret == 0:
+                print("wait_for_results: hw-worker completed")
+                return WaitResult(ok=True)
+
+            # Service finished and no results.json — something went wrong.
             # Grab journalctl output for debugging.
             journal = _ssh(primary_ip,
                            'journalctl -u nipa-hw-worker.service -n 100 --no-pager',
@@ -262,7 +279,7 @@ def wait_for_results(config, mc, reservation_id, machine_ids, machine_ips,
                 journal_file = os.path.join(results_path, 'hw-worker-journal')
                 with open(journal_file, 'w', encoding='utf-8') as fp:
                     fp.write(journal)
-            msg = "hw-worker exited without results"
+            msg = f"hw-worker exited without results (state={state})"
             print(f"wait_for_results: {msg}")
             return WaitResult(ok=False, error=msg)
 

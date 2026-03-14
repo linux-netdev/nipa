@@ -375,15 +375,23 @@ class TestCrashRecovery(unittest.TestCase):
         def ssh_retcode_side_effect(ip, cmd, timeout=30):
             if 'test -f' in cmd:
                 return 1  # no results.json
-            if 'is-active' in cmd:
-                return 1  # service exited
             return 0
+
+        ssh_call_count = {'n': 0}
+
+        def ssh_side_effect(ip, cmd, check=True, timeout=30):
+            ssh_call_count['n'] += 1
+            if 'systemctl show' in cmd:
+                return 'failed\n'
+            if 'journalctl' in cmd:
+                return 'Mar 14 hw-worker[123]: some log\n'
+            return ''
 
         with tempfile.TemporaryDirectory() as tmpdir:
             with mock.patch('lib.deployer._ssh_retcode',
                              side_effect=ssh_retcode_side_effect):
                 with mock.patch('lib.deployer._ssh',
-                                 return_value='Mar 14 hw-worker[123]: some log\n') as mock_ssh:
+                                 side_effect=ssh_side_effect) as mock_ssh:
                     result = wait_for_results(config, mc, 42, [1], ['10.0.0.1'],
                                               results_path=tmpdir)
 
@@ -392,8 +400,9 @@ class TestCrashRecovery(unittest.TestCase):
             self.assertIn('hw-worker exited without results', result.error)
 
             # Verify journalctl output was fetched and saved
-            mock_ssh.assert_called_once()
-            self.assertIn('journalctl', mock_ssh.call_args[0][1])
+            journal_calls = [c for c in mock_ssh.call_args_list
+                             if 'journalctl' in c[0][1]]
+            self.assertEqual(len(journal_calls), 1)
             journal_file = os.path.join(tmpdir, 'hw-worker-journal')
             self.assertTrue(os.path.exists(journal_file))
             with open(journal_file) as fp:
@@ -487,20 +496,24 @@ class TestCrashRecovery(unittest.TestCase):
         poll_num = {'n': 0}
 
         def ssh_retcode_side_effect(ip, cmd, timeout=30):
-            if 'is-active' in cmd:
-                poll_num['n'] += 1
-                if poll_num['n'] <= 2:
-                    return 0  # active
-                return 1  # exited
             if 'test -f' in cmd:
                 return 0  # results exist
             return 0
-        ssh_retcode_side_effect.result_calls = 0
+
+        def ssh_side_effect(ip, cmd, check=True, timeout=30):
+            if 'systemctl show' in cmd:
+                poll_num['n'] += 1
+                if poll_num['n'] <= 2:
+                    return 'activating\n'
+                return 'active\n'
+            return ''
 
         with mock.patch('lib.deployer._ssh_retcode',
                          side_effect=ssh_retcode_side_effect):
-            with mock.patch('lib.deployer._crash_recover') as mock_recover:
-                wait_for_results(config, mc, 42, [1], ['10.0.0.1'])
+            with mock.patch('lib.deployer._ssh',
+                             side_effect=ssh_side_effect):
+                with mock.patch('lib.deployer._crash_recover') as mock_recover:
+                    wait_for_results(config, mc, 42, [1], ['10.0.0.1'])
 
                 # Should have been called with skip_power_cycle=True
                 mock_recover.assert_called_once()
@@ -546,21 +559,26 @@ class TestCrashRecovery(unittest.TestCase):
             },
         ]
 
-        # hw-worker: not active, no results on first; results on second
+        # hw-worker: still activating on first poll; results on second
         call_count = {'results': 0}
 
         def ssh_retcode_side_effect(ip, cmd, timeout=30):
-            if 'is-active' in cmd:
-                return 1
             if 'test -f' in cmd:
                 call_count['results'] += 1
                 return 0 if call_count['results'] >= 2 else 1
             return 0
 
+        def ssh_side_effect(ip, cmd, check=True, timeout=30):
+            if 'systemctl show' in cmd:
+                return 'activating\n'
+            return ''
+
         with mock.patch('lib.deployer._ssh_retcode',
                          side_effect=ssh_retcode_side_effect):
-            with mock.patch('lib.deployer._crash_recover') as mock_recover:
-                wait_for_results(config, mc, 42, [1], ['10.0.0.1'])
+            with mock.patch('lib.deployer._ssh',
+                             side_effect=ssh_side_effect):
+                with mock.patch('lib.deployer._crash_recover') as mock_recover:
+                    wait_for_results(config, mc, 42, [1], ['10.0.0.1'])
 
                 # SOL was progressing — no recovery should have been triggered
                 mock_recover.assert_not_called()
