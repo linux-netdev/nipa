@@ -218,6 +218,25 @@ def grab_hw_worker_journal(ipaddr, results_path):
             fp.write(journal)
 
 
+def grab_sol_logs(mc, machine_ids, results_path, sol_start_ids):
+    """Fetch SOL output for the test session and save locally.
+
+    Only fetches lines after sol_start_ids (captured before kexec).
+    """
+    for mid in machine_ids:
+        start_id = sol_start_ids.get(mid, 0)
+        sol = mc.get_sol_logs(mid, start_id=start_id)
+        lines = sol.get('lines', [])
+        if not lines:
+            continue
+        sol_file = os.path.join(results_path, f'sol-machine-{mid}')
+        with open(sol_file, 'w', encoding='utf-8') as fp:
+            for entry in lines:
+                ts = entry.get('ts', '')
+                line = entry.get('line', '')
+                fp.write(f"{ts} {line}\n")
+
+
 def wait_for_results(config, mc, reservation_id, machine_ids, machine_ips):
     """Main wait loop with crash monitoring.
 

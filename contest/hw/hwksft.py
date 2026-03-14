@@ -25,7 +25,7 @@ from lib.mc_client import MCClient, resolve_machines, resolve_nic_id  # noqa: E4
 from lib.deployer import (build_kernel, build_ksft, deploy_artifacts,  # noqa: E402
                           kexec_machine, wait_for_results, fetch_results,
                           parse_results, set_log_file, WaitResult,
-                          grab_hw_worker_journal)
+                          grab_hw_worker_journal, grab_sol_logs)
 
 # Config:
 #
@@ -157,6 +157,7 @@ def test(binfo, rinfo, cbarg):  # pylint: disable=unused-argument
         raise RuntimeError(f"Failed to reserve machines after {max_retries} attempts")
 
     cases = None
+    sol_start_ids = {}
     try:
         # 5. Deploy artifacts via SCP
         with open(os.path.join(results_path, 'deploy'), 'w', encoding='utf-8') as fp:
@@ -165,7 +166,13 @@ def test(binfo, rinfo, cbarg):  # pylint: disable=unused-argument
                              tree_path, kernel_version)
             set_log_file(None)
 
-        # 6. kexec into new kernel
+        # 6. Record SOL position before kexec so we can grab just this session
+        sol_start_ids = {}
+        for mid in machine_ids:
+            sol = mc.get_sol_logs(mid, limit=1, sort='desc')
+            sol_start_ids[mid] = sol.get('last_id', 0)
+
+        # 7. kexec into new kernel
         kexec_machine(config, machine_ips, reservation_id, mc=mc)
 
         # 7. Wait for hw-worker with crash monitoring
@@ -195,7 +202,12 @@ def test(binfo, rinfo, cbarg):  # pylint: disable=unused-argument
             grab_hw_worker_journal(machine_ips[0], results_path)
         except Exception as e:
             print(f"Warning: failed to grab hw-worker journal: {e}")
-        # 11. Release reservation
+        # 11. Grab SOL output for the test session
+        try:
+            grab_sol_logs(mc, machine_ids, results_path, sol_start_ids)
+        except Exception as e:
+            print(f"Warning: failed to grab SOL logs: {e}")
+        # 12. Release reservation
         try:
             mc.reservation_close(reservation_id)
         except Exception as e:
