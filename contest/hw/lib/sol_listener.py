@@ -58,7 +58,12 @@ class SOLCollector:
                     "VALUES (%s, %s, %s, %s)",
                     (machine_id, ts, line[:LINE_MAX], eol)
                 )
-        finally:
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            self.db_pool.putconn(conn, close=True)
+            raise
+        else:
             self.db_pool.putconn(conn)
 
     def _process_data(self, machine_id, data):

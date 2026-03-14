@@ -77,9 +77,12 @@ class ReservationManager:
                             )
                     finally:
                         cur.execute("SELECT pg_advisory_unlock(42)")
+                conn.commit()
             except psycopg2.Error as e:
+                conn.rollback()
+                self.db_pool.putconn(conn, close=True)
                 return None, str(e)
-            finally:
+            else:
                 self.db_pool.putconn(conn)
 
             # Update in-memory state
@@ -134,9 +137,13 @@ class ReservationManager:
                     "WHERE id = %s",
                     (now, reservation_id)
                 )
+            conn.commit()
         except psycopg2.Error as e:
+            conn.rollback()
+            self.db_pool.putconn(conn, close=True)
             print(f"Reservation: DB error closing {reservation_id}: {e}")
-        finally:
+            return
+        else:
             self.db_pool.putconn(conn)
 
         for mid in machine_ids:
