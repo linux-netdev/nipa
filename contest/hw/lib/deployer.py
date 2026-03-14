@@ -159,6 +159,9 @@ def deploy_artifacts(_config, machine_ips, reservation_id, nic_info, tree_path,
             peer_ip = nic_info.get('peer_machine_ip', machine_ips[0])
             config_lines.append(f'REMOTE_ARGS=root@{peer_ip}')
 
+        if nic_info.get('disruptive'):
+            config_lines.append(f'DISRUPTIVE={nic_info["disruptive"]}')
+
         config_content = '\n'.join(config_lines) + '\n'
         _ssh(machine_ips[0],
              f"cat > {remote_dir}/nic-test.env << 'HEREDOC'\n{config_content}HEREDOC")

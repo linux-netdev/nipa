@@ -52,6 +52,7 @@ from lib.deployer import (build_kernel, build_ksft, deploy_artifacts,  # noqa: E
 # max_test_time=3600
 # crash_wait_time=120
 # sol_poll_interval=15
+# disruptive=true          (optional, propagated to test env if set)
 # [build]
 # extra_kconfig=/path/to/nic-driver.config
 # [ksft]
@@ -139,6 +140,11 @@ def test(binfo, rinfo, cbarg):  # pylint: disable=unused-argument
                 nic_deploy_info['peer_machine_ip'] = machine_ip_map.get(
                     n['machine_id'], machine_ips[0])
                 break
+
+    # Propagate optional test env variables from config
+    disruptive = config.get('hw', 'disruptive', fallback=None)
+    if disruptive is not None:
+        nic_deploy_info['disruptive'] = disruptive
 
     # 4. Reserve machines (retry loop with backoff)
     max_retries = config.getint('hw', 'max_reservation_retries', fallback=30)
