@@ -86,6 +86,16 @@ class MCClient:
         r.raise_for_status()
         return r.json()
 
+    def health_check(self, machine_id):
+        """Trigger an immediate health check for a machine."""
+        data = {
+            'caller': self.caller,
+            'machine_id': machine_id,
+        }
+        r = requests.post(f'{self.base_url}/health_check', json=data, timeout=30)
+        r.raise_for_status()
+        return r.json()
+
 
 def resolve_nic_id(nic_info_list, vendor, model):
     """Resolve a NIC id from vendor and model strings."""

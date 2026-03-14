@@ -276,6 +276,32 @@ def power_cycle():
     })
 
 
+@app.route('/health_check', methods=['POST'])
+def health_check():
+    """Trigger an immediate health check for a machine."""
+    data = request.get_json() or {}
+    machine_id = data.get('machine_id')
+    if machine_id is None:
+        return jsonify({'error': 'machine_id required'}), 400
+
+    if not _check_auth(machine_id):
+        return jsonify({'error': 'unauthorized'}), 403
+
+    machine = machines.get(machine_id)
+    if machine is None:
+        return jsonify({'error': f'Machine {machine_id} not found'}), 404
+
+    old_state = machine['state'].value
+    health_checker.check_machine(machine_id, machine)
+    new_state = machine['state'].value
+    print(f"Health check: machine {machine_id} {old_state} -> {new_state}")
+    return jsonify({
+        'machine_id': machine_id,
+        'old_state': old_state,
+        'new_state': new_state,
+    })
+
+
 @app.route('/reserve', methods=['POST'])
 def reserve():
     """Atomically reserve a group of machines."""

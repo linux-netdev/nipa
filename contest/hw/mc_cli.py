@@ -169,6 +169,16 @@ def cmd_power_cycle(args, mc):
     return 0 if retcode == 0 else 1
 
 
+def cmd_health_check(args, mc):
+    """Trigger an immediate health check for a machine."""
+    result = mc.health_check(args.machine_id)
+    if args.json:
+        print(json.dumps(result, indent=2))
+        return 0
+    print(f"{result['old_state']} -> {result['new_state']}")
+    return 0
+
+
 def main(argv=None):
     """Entry point: parse args and dispatch subcommand."""
     parser = argparse.ArgumentParser(
@@ -223,6 +233,11 @@ def main(argv=None):
     p_pc.add_argument('--machine-id', type=int, required=True,
                       help='machine ID')
 
+    p_hc = sub.add_parser('health-check',
+                          help='trigger immediate health check for a machine')
+    p_hc.add_argument('--machine-id', type=int, required=True,
+                      help='machine ID')
+
     args = parser.parse_args(argv)
 
     if not args.command:
@@ -243,6 +258,7 @@ def main(argv=None):
         'refresh': cmd_refresh,
         'close': cmd_close,
         'power-cycle': cmd_power_cycle,
+        'health-check': cmd_health_check,
     }
     try:
         return commands[args.command](args, mc)
