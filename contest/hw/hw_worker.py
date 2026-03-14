@@ -144,7 +144,7 @@ def main():
     # the deployed kernel version against the running kernel.
     kver_path = os.path.join(test_dir, '.kernel-version')
     if not os.path.exists(kver_path):
-        print("No kernel version file, skipping")
+        print(test_dir, "No kernel version file, skipping")
         return
     with open(kver_path, encoding='utf-8') as fp:
         expected = fp.read().strip()
@@ -155,10 +155,13 @@ def main():
     # (e.g. "6.1" matching "6.12.0") cannot happen in practice.
     # The '-' separator check is an extra safety measure.
     if actual != expected and not actual.startswith(expected + '-'):
-        print(f"Kernel mismatch: running {actual}, expected {expected}")
+        print(test_dir,
+              f"Kernel mismatch: running {actual}, expected {expected}")
         return
 
     mark_all_seen(tests_dir)
+
+    print(test_dir, "Starting tests")
 
     # Configure test interfaces and write net.config
     setup_test_interfaces(test_dir)

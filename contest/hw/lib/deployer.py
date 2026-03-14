@@ -10,6 +10,7 @@ import string
 import subprocess
 import tempfile
 import time
+from dataclasses import dataclass, field
 
 
 # Log file handle, set by set_log_file() before builds start.
@@ -17,6 +18,13 @@ _log_fp = None
 
 # Cached initramfs path per machine IP, survives across kexec calls
 _initrd_cache = {}
+
+
+@dataclass
+class WaitResult:
+    """Result of wait_for_results()."""
+    ok: bool
+    error: str = ''
 
 
 def set_log_file(fp):
@@ -223,16 +231,16 @@ def wait_for_results(config, mc, reservation_id, machine_ids, machine_ips,
     while True:
         elapsed = time.monotonic() - start_time
         if elapsed > max_test_time:
-            # Caller (hwksft.test) will still try fetch_results, which
-            # handles missing results gracefully.
-            print("wait_for_results: max test time exceeded")
-            break
+            msg = "max test time exceeded"
+            print(f"wait_for_results: {msg}")
+            return WaitResult(ok=False, error=msg)
 
         # Refresh reservation
         result = mc.reservation_refresh(reservation_id)
         if not result.get('ok') and 'error' in result:
-            print(f"wait_for_results: reservation refresh failed: {result['error']}")
-            break
+            msg = f"reservation refresh failed: {result['error']}"
+            print(f"wait_for_results: {msg}")
+            return WaitResult(ok=False, error=msg)
 
         # Check if hw-worker has produced results on primary machine
         primary_ip = machine_ips[0]
@@ -240,14 +248,23 @@ def wait_for_results(config, mc, reservation_id, machine_ids, machine_ips,
                             f'test -f /srv/hw-worker/results/{reservation_id}/results.json')
         if ret == 0:
             print("wait_for_results: hw-worker completed")
-            return True
+            return WaitResult(ok=True)
 
         # Check if hw-worker exited without producing results
         ret = _ssh_retcode(primary_ip, 'systemctl is-active nipa-hw-worker.service')
         if ret != 0:
-            # Service is inactive/failed — no results.json means it failed
-            print("wait_for_results: hw-worker exited without results")
-            return False
+            # Service is inactive/failed — no results.json means it failed.
+            # Grab journalctl output for debugging.
+            journal = _ssh(primary_ip,
+                           'journalctl -u nipa-hw-worker.service -n 100 --no-pager',
+                           check=False)
+            if journal and results_path:
+                journal_file = os.path.join(results_path, 'hw-worker-journal')
+                with open(journal_file, 'w', encoding='utf-8') as fp:
+                    fp.write(journal)
+            msg = "hw-worker exited without results"
+            print(f"wait_for_results: {msg}")
+            return WaitResult(ok=False, error=msg)
 
         # Check SOL logs for crashes on each machine
         for i, mid in enumerate(machine_ids):

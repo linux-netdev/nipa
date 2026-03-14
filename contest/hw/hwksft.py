@@ -24,7 +24,7 @@ from contest.remote.lib.fetcher import Fetcher  # noqa: E402
 from lib.mc_client import MCClient, resolve_machines, resolve_nic_id  # noqa: E402
 from lib.deployer import (build_kernel, build_ksft, deploy_artifacts,  # noqa: E402
                           kexec_machine, wait_for_results, fetch_results,
-                          set_log_file)
+                          set_log_file, WaitResult)
 
 # Config:
 #
@@ -167,14 +167,18 @@ def test(binfo, rinfo, cbarg):  # pylint: disable=unused-argument
         kexec_machine(config, machine_ips, reservation_id, mc=mc)
 
         # 7. Wait for hw-worker with crash monitoring
-        has_results = wait_for_results(config, mc, reservation_id,
+        wait_result = wait_for_results(config, mc, reservation_id,
                                        machine_ids, machine_ips,
                                        results_path=results_path)
 
         # 8. Copy back results
-        if has_results:
+        if wait_result.ok:
             cases = fetch_results(config, machine_ips, reservation_id, rinfo)
         else:
+            # Write error to disk so it's visible via the UI result link
+            with open(os.path.join(results_path, 'error'), 'w',
+                      encoding='utf-8') as fp:
+                fp.write(wait_result.error + '\n')
             cases = [{
                 'test': 'hw-worker',
                 'group': grp_name,

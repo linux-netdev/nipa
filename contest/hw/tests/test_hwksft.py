@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
 import json
+import tempfile
 import unittest
 from unittest import mock
 
@@ -313,6 +314,129 @@ class TestCrashRecovery(unittest.TestCase):
 
         normal_output = "[  123.456789] Normal kernel message"
         self.assertFalse(_has_reboot(normal_output))
+
+    @mock.patch('subprocess.run')
+    @mock.patch('time.monotonic')
+    @mock.patch('time.sleep')
+    def test_wait_for_results_timeout(self, _mock_sleep,
+                                      mock_monotonic, mock_run):
+        """max_test_time exceeded returns WaitResult with error string."""
+        from lib.deployer import wait_for_results, WaitResult
+
+        mock_run.return_value = mock.Mock(returncode=0, stdout=b'', stderr=b'')
+        mock_monotonic.side_effect = [
+            0,      # start_time
+            99999,  # elapsed check -> exceeds max_test_time
+        ]
+
+        config = mock.Mock()
+        config.getint.side_effect = lambda section, key, fallback=None: {
+            'max_test_time': 3600,
+            'sol_poll_interval': 15,
+            'crash_wait_time': 120,
+            'max_kexec_boot_timeout': 300,
+        }.get(key, fallback)
+
+        mc = mock.Mock()
+        mc.get_sol_logs.return_value = {'last_id': 0, 'lines': []}
+
+        result = wait_for_results(config, mc, 42, [1], ['10.0.0.1'])
+
+        self.assertIsInstance(result, WaitResult)
+        self.assertFalse(result.ok)
+        self.assertIn('max test time exceeded', result.error)
+
+    @mock.patch('subprocess.run')
+    @mock.patch('time.monotonic')
+    @mock.patch('time.sleep')
+    def test_wait_for_results_no_results(self, _mock_sleep,
+                                         mock_monotonic, mock_run):
+        """hw-worker exits without results returns WaitResult with error."""
+        from lib.deployer import wait_for_results, WaitResult
+
+        mock_run.return_value = mock.Mock(returncode=0, stdout=b'', stderr=b'')
+        mock_monotonic.side_effect = [
+            0,   # start_time
+            10,  # elapsed check
+        ]
+
+        config = mock.Mock()
+        config.getint.side_effect = lambda section, key, fallback=None: {
+            'max_test_time': 3600,
+            'sol_poll_interval': 15,
+            'crash_wait_time': 120,
+            'max_kexec_boot_timeout': 300,
+        }.get(key, fallback)
+
+        mc = mock.Mock()
+        mc.get_sol_logs.return_value = {'last_id': 0, 'lines': []}
+        mc.reservation_refresh.return_value = {'ok': True}
+
+        def ssh_retcode_side_effect(ip, cmd, timeout=30):
+            if 'test -f' in cmd:
+                return 1  # no results.json
+            if 'is-active' in cmd:
+                return 1  # service exited
+            return 0
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with mock.patch('lib.deployer._ssh_retcode',
+                             side_effect=ssh_retcode_side_effect):
+                with mock.patch('lib.deployer._ssh',
+                                 return_value='Mar 14 hw-worker[123]: some log\n') as mock_ssh:
+                    result = wait_for_results(config, mc, 42, [1], ['10.0.0.1'],
+                                              results_path=tmpdir)
+
+            self.assertIsInstance(result, WaitResult)
+            self.assertFalse(result.ok)
+            self.assertIn('hw-worker exited without results', result.error)
+
+            # Verify journalctl output was fetched and saved
+            mock_ssh.assert_called_once()
+            self.assertIn('journalctl', mock_ssh.call_args[0][1])
+            journal_file = os.path.join(tmpdir, 'hw-worker-journal')
+            self.assertTrue(os.path.exists(journal_file))
+            with open(journal_file) as fp:
+                self.assertIn('some log', fp.read())
+
+    @mock.patch('subprocess.run')
+    @mock.patch('time.monotonic')
+    @mock.patch('time.sleep')
+    def test_wait_for_results_success(self, _mock_sleep,
+                                      mock_monotonic, mock_run):
+        """hw-worker completes with results returns WaitResult(ok=True)."""
+        from lib.deployer import wait_for_results, WaitResult
+
+        mock_run.return_value = mock.Mock(returncode=0, stdout=b'', stderr=b'')
+        mock_monotonic.side_effect = [
+            0,   # start_time
+            10,  # elapsed check
+        ]
+
+        config = mock.Mock()
+        config.getint.side_effect = lambda section, key, fallback=None: {
+            'max_test_time': 3600,
+            'sol_poll_interval': 15,
+            'crash_wait_time': 120,
+            'max_kexec_boot_timeout': 300,
+        }.get(key, fallback)
+
+        mc = mock.Mock()
+        mc.get_sol_logs.return_value = {'last_id': 0, 'lines': []}
+        mc.reservation_refresh.return_value = {'ok': True}
+
+        def ssh_retcode_side_effect(ip, cmd, timeout=30):
+            if 'test -f' in cmd:
+                return 0  # results.json exists
+            return 0
+
+        with mock.patch('lib.deployer._ssh_retcode',
+                         side_effect=ssh_retcode_side_effect):
+            result = wait_for_results(config, mc, 42, [1], ['10.0.0.1'])
+
+        self.assertIsInstance(result, WaitResult)
+        self.assertTrue(result.ok)
+        self.assertEqual(result.error, '')
 
     @mock.patch('subprocess.run')
     @mock.patch('time.monotonic')

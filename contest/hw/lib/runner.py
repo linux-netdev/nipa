@@ -156,11 +156,14 @@ def run_tests(test_dir, results_dir):
         print("No tests found")
         return []
 
+    print(f"Found {len(tests)} tests")
+
     previously_attempted = set(load_attempted(test_dir))
     results = []
 
     # Mark previously attempted tests as crashed
     for test_name in previously_attempted:
+        print(f"Skipping previously attempted (crashed): {test_name}")
         results.append({
             'test': _namify(test_name),
             'group': 'selftests-hw',
@@ -175,6 +178,8 @@ def run_tests(test_dir, results_dir):
 
         if test_name in previously_attempted:
             continue
+
+        print(f"[{test_idx+1}/{len(tests)}] Running {test_name}")
 
         # Mark as attempted before execution
         mark_attempted(test_dir, test_name)
@@ -204,6 +209,7 @@ def run_tests(test_dir, results_dir):
             retcode = 1
             stdout = ''
             stderr = 'test timed out'
+            print(f"[{test_idx+1}/{len(tests)}] {test_name}: timed out")
         t2 = time.monotonic()
 
         # Save output
@@ -235,6 +241,8 @@ def run_tests(test_dir, results_dir):
         if crash_lines:
             outcome['crashes'] = crash_lines
             outcome['result'] = 'fail'
+
+        print(f"[{test_idx+1}/{len(tests)}] {test_name}: {outcome['result']} ({outcome['time']}s)")
 
         results.append(outcome)
 
