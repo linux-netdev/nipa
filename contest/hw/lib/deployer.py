@@ -207,8 +207,18 @@ def kexec_machine(config, machine_ips, reservation_id, mc=None):
         print(f"kexec: {ipaddr} is back")
 
 
-def wait_for_results(config, mc, reservation_id, machine_ids, machine_ips,
-                     results_path=None):
+def grab_hw_worker_journal(ipaddr, results_path):
+    """Fetch hw-worker journal from the test machine and save locally."""
+    journal = _ssh(ipaddr,
+                   'journalctl -u nipa-hw-worker.service -n 250 --no-pager',
+                   check=False)
+    if journal:
+        journal_file = os.path.join(results_path, 'hw-worker-journal')
+        with open(journal_file, 'w', encoding='utf-8') as fp:
+            fp.write(journal)
+
+
+def wait_for_results(config, mc, reservation_id, machine_ids, machine_ips):
     """Main wait loop with crash monitoring.
 
     Polls SOL logs via mc.get_sol_logs() to detect crashes.
@@ -271,14 +281,6 @@ def wait_for_results(config, mc, reservation_id, machine_ids, machine_ips,
                 return WaitResult(ok=True)
 
             # Service finished and no results.json — something went wrong.
-            # Grab journalctl output for debugging.
-            journal = _ssh(primary_ip,
-                           'journalctl -u nipa-hw-worker.service -n 100 --no-pager',
-                           check=False)
-            if journal and results_path:
-                journal_file = os.path.join(results_path, 'hw-worker-journal')
-                with open(journal_file, 'w', encoding='utf-8') as fp:
-                    fp.write(journal)
             msg = f"hw-worker exited without results (state={state})"
             print(f"wait_for_results: {msg}")
             return WaitResult(ok=False, error=msg)
@@ -300,10 +302,6 @@ def wait_for_results(config, mc, reservation_id, machine_ids, machine_ips,
                                                            'unreferenced object 0x'))]
                     for cl in crash_lines:
                         print(f"wait_for_results: crash on machine {mid}: {cl.strip()}")
-                    if results_path:
-                        crash_file = os.path.join(results_path, f'crash-machine-{mid}')
-                        with open(crash_file, 'a', encoding='utf-8') as fp:
-                            fp.write(sol_text + '\n')
 
             if mid in crash_detected_at:
                 if _has_reboot(sol_text):

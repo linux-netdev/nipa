@@ -154,6 +154,23 @@ class TestMCClient(unittest.TestCase):
 
 
 class TestDeployer(unittest.TestCase):
+    def test_grab_hw_worker_journal(self):
+        """Verify journal is fetched and saved to results dir."""
+        from lib.deployer import grab_hw_worker_journal
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with mock.patch('lib.deployer._ssh',
+                             return_value='Mar 14 hw-worker[1]: test log\n') as mock_ssh:
+                grab_hw_worker_journal('10.0.0.1', tmpdir)
+
+            mock_ssh.assert_called_once()
+            self.assertIn('journalctl', mock_ssh.call_args[0][1])
+            self.assertIn('-n 250', mock_ssh.call_args[0][1])
+            journal_file = os.path.join(tmpdir, 'hw-worker-journal')
+            self.assertTrue(os.path.exists(journal_file))
+            with open(journal_file) as fp:
+                self.assertIn('test log', fp.read())
+
     @mock.patch('subprocess.run')
     def test_deploy_artifacts(self, mock_run):
         mock_run.return_value = mock.Mock(returncode=0, stdout=b'', stderr=b'')
@@ -378,36 +395,20 @@ class TestCrashRecovery(unittest.TestCase):
                 return 1  # no results.json
             return 0
 
-        ssh_call_count = {'n': 0}
-
         def ssh_side_effect(ip, cmd, check=True, timeout=30):
-            ssh_call_count['n'] += 1
             if 'systemctl show' in cmd:
                 return 'failed\n'
-            if 'journalctl' in cmd:
-                return 'Mar 14 hw-worker[123]: some log\n'
             return ''
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with mock.patch('lib.deployer._ssh_retcode',
-                             side_effect=ssh_retcode_side_effect):
-                with mock.patch('lib.deployer._ssh',
-                                 side_effect=ssh_side_effect) as mock_ssh:
-                    result = wait_for_results(config, mc, 42, [1], ['10.0.0.1'],
-                                              results_path=tmpdir)
+        with mock.patch('lib.deployer._ssh_retcode',
+                         side_effect=ssh_retcode_side_effect):
+            with mock.patch('lib.deployer._ssh',
+                             side_effect=ssh_side_effect):
+                result = wait_for_results(config, mc, 42, [1], ['10.0.0.1'])
 
-            self.assertIsInstance(result, WaitResult)
-            self.assertFalse(result.ok)
-            self.assertIn('hw-worker exited without results', result.error)
-
-            # Verify journalctl output was fetched and saved
-            journal_calls = [c for c in mock_ssh.call_args_list
-                             if 'journalctl' in c[0][1]]
-            self.assertEqual(len(journal_calls), 1)
-            journal_file = os.path.join(tmpdir, 'hw-worker-journal')
-            self.assertTrue(os.path.exists(journal_file))
-            with open(journal_file) as fp:
-                self.assertIn('some log', fp.read())
+        self.assertIsInstance(result, WaitResult)
+        self.assertFalse(result.ok)
+        self.assertIn('hw-worker exited without results', result.error)
 
     @mock.patch('subprocess.run')
     @mock.patch('time.monotonic')

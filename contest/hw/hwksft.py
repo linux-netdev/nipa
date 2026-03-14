@@ -24,7 +24,7 @@ from contest.remote.lib.fetcher import Fetcher  # noqa: E402
 from lib.mc_client import MCClient, resolve_machines, resolve_nic_id  # noqa: E402
 from lib.deployer import (build_kernel, build_ksft, deploy_artifacts,  # noqa: E402
                           kexec_machine, wait_for_results, fetch_results,
-                          set_log_file, WaitResult)
+                          set_log_file, WaitResult, grab_hw_worker_journal)
 
 # Config:
 #
@@ -168,10 +168,12 @@ def test(binfo, rinfo, cbarg):  # pylint: disable=unused-argument
 
         # 7. Wait for hw-worker with crash monitoring
         wait_result = wait_for_results(config, mc, reservation_id,
-                                       machine_ids, machine_ips,
-                                       results_path=results_path)
+                                       machine_ids, machine_ips)
 
-        # 8. Copy back results
+        # 8. Grab hw-worker journal for debugging
+        grab_hw_worker_journal(machine_ips[0], results_path)
+
+        # 9. Copy back results
         if wait_result.ok:
             cases = fetch_results(config, machine_ips, reservation_id, rinfo)
         else:
@@ -187,7 +189,7 @@ def test(binfo, rinfo, cbarg):  # pylint: disable=unused-argument
             }]
     finally:
         set_log_file(None)
-        # 9. Release reservation
+        # 10. Release reservation
         try:
             mc.reservation_close(reservation_id)
         except Exception as e:
