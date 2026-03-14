@@ -196,7 +196,7 @@ def kexec_machine(config, machine_ips, reservation_id, mc=None):
         else:
             print(f"kexec: {ipaddr} no initrd found, booting without")
         _ssh(ipaddr, kexec_cmd)
-        print(f"kexec: {ipaddr} loaded, executing")
+        print(f"kexec: {ipaddr}: ", kexec_cmd)
         # kexec -e will kill the SSH session, so ignore errors
         _ssh(ipaddr, 'kexec -e', check=False, timeout=5)
 
@@ -490,8 +490,16 @@ def parse_results(reservation_id, results_path, link):
 # and may be re-imaged, changing host keys. The risk of MITM on a
 # dedicated management VLAN is accepted.
 
+def _log(msg):
+    """Write a line to the log file if set."""
+    if _log_fp:
+        _log_fp.write(msg)
+        _log_fp.flush()
+
+
 def _ssh(ipaddr, cmd, check=True, timeout=30):
     """Run a command on a remote machine via SSH."""
+    _log(f"$ ssh {cmd}\n")
     try:
         ret = subprocess.run(
             ['ssh', '-o', 'ConnectTimeout=10',
@@ -500,11 +508,19 @@ def _ssh(ipaddr, cmd, check=True, timeout=30):
              f'root@{ipaddr}', cmd],
             capture_output=True, timeout=timeout, check=False
         )
-        if check and ret.returncode != 0:
-            stderr = ret.stderr.decode('utf-8', 'ignore')
-            raise RuntimeError(f"SSH to {ipaddr} failed: {stderr}")
-        return ret.stdout.decode('utf-8', 'ignore')
+        stdout = ret.stdout.decode('utf-8', 'ignore')
+        stderr = ret.stderr.decode('utf-8', 'ignore')
+        if stdout:
+            _log(stdout)
+        if stderr:
+            _log(f"(stderr) {stderr}")
+        if ret.returncode != 0:
+            _log(f"(rc={ret.returncode})\n")
+            if check:
+                raise RuntimeError(f"SSH to {ipaddr} failed: {stderr}")
+        return stdout
     except subprocess.TimeoutExpired:
+        _log("(timeout)\n")
         if check:
             raise
         return ''
@@ -527,15 +543,18 @@ def _ssh_retcode(ipaddr, cmd, timeout=30):
 
 def _scp(local_path, remote_ip, remote_path, check=True):
     """Copy a file to a remote machine."""
+    _log(f"$ scp {local_path} [remote]:{remote_path}\n")
     ret = subprocess.run(
         ['scp', '-o', 'StrictHostKeyChecking=no',
          '-o', 'BatchMode=yes',
          local_path, f'root@{remote_ip}:{remote_path}'],
         capture_output=True, timeout=300, check=False
     )
-    if check and ret.returncode != 0:
+    if ret.returncode != 0:
         stderr = ret.stderr.decode('utf-8', 'ignore')
-        raise RuntimeError(f"SCP to {remote_ip} failed: {stderr}")
+        _log(f"(stderr) {stderr}")
+        if check:
+            raise RuntimeError(f"SCP to {remote_ip} failed: {stderr}")
 
 
 def _scp_from(remote_ip, remote_path, local_path, check=True):
