@@ -222,19 +222,31 @@ def grab_sol_logs(mc, machine_ids, results_path, sol_start_ids):
     """Fetch SOL output for the test session and save locally.
 
     Only fetches lines after sol_start_ids (captured before kexec).
+    Paginates until the server returns no more lines.
     """
     for mid in machine_ids:
-        start_id = sol_start_ids.get(mid, 0)
-        sol = mc.get_sol_logs(mid, start_id=start_id)
-        lines = sol.get('lines', [])
-        if not lines:
-            continue
         sol_file = os.path.join(results_path, f'sol-machine-{mid}')
+
+        if mid not in sol_start_ids:
+            with open(sol_file, 'w', encoding='utf-8') as fp:
+                fp.write('<fail: no start ID>\n')
+            continue
+
+        cursor = sol_start_ids[mid]
         with open(sol_file, 'w', encoding='utf-8') as fp:
-            for entry in lines:
-                ts = entry.get('ts', '')
-                line = entry.get('line', '')
-                fp.write(f"{ts} {line}\n")
+            while True:
+                sol = mc.get_sol_logs(mid, start_id=cursor)
+                lines = sol.get('lines', [])
+                if not lines:
+                    break
+                for entry in lines:
+                    ts = entry.get('ts', '')
+                    line = entry.get('line', '')
+                    fp.write(f"{ts} {line}\n")
+                new_cursor = sol.get('last_id', cursor)
+                if new_cursor == cursor:
+                    break
+                cursor = new_cursor
 
 
 def wait_for_results(config, mc, reservation_id, machine_ids, machine_ips):
