@@ -241,7 +241,7 @@ def get_sol_logs():
     else:
         db_pool.putconn(conn)
 
-    last_id = rows[-1][0] if rows else start_id
+    last_id = max(r[0] for r in rows) if rows else start_id
     lines = reconstruct_sol_lines(rows)
 
     return jsonify({
