@@ -11,7 +11,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from lib.runner import (find_newest_unseen, mark_all_seen, load_attempted,
-                        mark_attempted, run_tests, DmesgMonitor, _namify)
+                        mark_attempted, run_tests, DmesgReader, _namify)
 
 
 class TestFindNewestUnseen(unittest.TestCase):
@@ -101,11 +101,11 @@ class TestKernelVersionCheck(unittest.TestCase):
             mock_rt.assert_not_called()
 
     @mock.patch('os.uname', return_value=mock.Mock(release='6.12.0'))
-    @mock.patch('lib.runner.DmesgMonitor')
+    @mock.patch('lib.runner.DmesgReader')
     @mock.patch('subprocess.run')
     def test_correct_kernel_runs(self, mock_run, mock_dmesg_cls, _mock_uname):
         mock_dmesg = mock.Mock()
-        mock_dmesg.stop.return_value = []
+        mock_dmesg.drain.return_value = ''
         mock_dmesg_cls.return_value = mock_dmesg
         mock_run.return_value = mock.Mock(
             returncode=0, stdout=b'ok 1 test\n', stderr=b'')
@@ -126,16 +126,19 @@ class TestKernelVersionCheck(unittest.TestCase):
                 with mock.patch('hw_worker.RESULTS_DIR', results_dir):
                     hw_main()
 
-            result_file = os.path.join(results_dir, 'test1', 'results.json')
-            self.assertTrue(os.path.exists(result_file))
+            result_dir = os.path.join(results_dir, 'test1')
+            # Check that test output was produced (info file in output dir)
+            test_output = os.path.join(result_dir, '0-test1-sh')
+            self.assertTrue(os.path.isdir(test_output))
+            self.assertTrue(os.path.exists(os.path.join(test_output, 'info')))
 
     @mock.patch('os.uname', return_value=mock.Mock(release='6.12.0-dirty'))
-    @mock.patch('lib.runner.DmesgMonitor')
+    @mock.patch('lib.runner.DmesgReader')
     @mock.patch('subprocess.run')
     def test_version_suffix_match(self, mock_run, mock_dmesg_cls, _mock_uname):
         """uname has LOCALVERSION suffix (-dirty) — should match '6.12.0'."""
         mock_dmesg = mock.Mock()
-        mock_dmesg.stop.return_value = []
+        mock_dmesg.drain.return_value = ''
         mock_dmesg_cls.return_value = mock_dmesg
         mock_run.return_value = mock.Mock(
             returncode=0, stdout=b'ok 1 test\n', stderr=b'')
@@ -156,8 +159,9 @@ class TestKernelVersionCheck(unittest.TestCase):
                 with mock.patch('hw_worker.RESULTS_DIR', results_dir):
                     hw_main()
 
-            result_file = os.path.join(results_dir, 'test1', 'results.json')
-            self.assertTrue(os.path.exists(result_file))
+            result_dir = os.path.join(results_dir, 'test1')
+            test_output = os.path.join(result_dir, '0-test1-sh')
+            self.assertTrue(os.path.isdir(test_output))
 
     @mock.patch('os.uname', return_value=mock.Mock(release='6.12.0-generic'))
     def test_version_prefix_overlap_rejected(self, _mock_uname):
@@ -270,11 +274,16 @@ class TestNamify(unittest.TestCase):
 
 
 class TestRunTests(unittest.TestCase):
-    @mock.patch('lib.runner.DmesgMonitor')
+    def _read_info(self, results_dir, dir_name='0-test1-sh'):
+        info_path = os.path.join(results_dir, dir_name, 'info')
+        with open(info_path, encoding='utf-8') as fp:
+            return json.load(fp)
+
+    @mock.patch('lib.runner.DmesgReader')
     @mock.patch('subprocess.run')
     def test_single_test_pass(self, mock_run, mock_dmesg_cls):
         mock_dmesg = mock.Mock()
-        mock_dmesg.stop.return_value = []
+        mock_dmesg.drain.return_value = ''
         mock_dmesg_cls.return_value = mock_dmesg
 
         mock_run.return_value = mock.Mock(
@@ -293,16 +302,16 @@ class TestRunTests(unittest.TestCase):
             with open(os.path.join(test_dir, 'kselftest-list.txt'), 'w') as fp:
                 fp.write('net:test1.sh\n')
 
-            results = run_tests(test_dir, results_dir)
+            run_tests(test_dir, results_dir)
 
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results[0]['result'], 'pass')
+            info = self._read_info(results_dir)
+            self.assertEqual(info['retcode'], 0)
 
-    @mock.patch('lib.runner.DmesgMonitor')
+    @mock.patch('lib.runner.DmesgReader')
     @mock.patch('subprocess.run')
     def test_single_test_fail(self, mock_run, mock_dmesg_cls):
         mock_dmesg = mock.Mock()
-        mock_dmesg.stop.return_value = []
+        mock_dmesg.drain.return_value = ''
         mock_dmesg_cls.return_value = mock_dmesg
 
         mock_run.return_value = mock.Mock(
@@ -320,16 +329,16 @@ class TestRunTests(unittest.TestCase):
             with open(os.path.join(test_dir, 'kselftest-list.txt'), 'w') as fp:
                 fp.write('net:test1.sh\n')
 
-            results = run_tests(test_dir, results_dir)
+            run_tests(test_dir, results_dir)
 
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results[0]['result'], 'fail')
+            info = self._read_info(results_dir)
+            self.assertEqual(info['retcode'], 1)
 
-    @mock.patch('lib.runner.DmesgMonitor')
+    @mock.patch('lib.runner.DmesgReader')
     @mock.patch('subprocess.run')
     def test_test_skip(self, mock_run, mock_dmesg_cls):
         mock_dmesg = mock.Mock()
-        mock_dmesg.stop.return_value = []
+        mock_dmesg.drain.return_value = ''
         mock_dmesg_cls.return_value = mock_dmesg
 
         mock_run.return_value = mock.Mock(
@@ -347,16 +356,16 @@ class TestRunTests(unittest.TestCase):
             with open(os.path.join(test_dir, 'kselftest-list.txt'), 'w') as fp:
                 fp.write('net:test1.sh\n')
 
-            results = run_tests(test_dir, results_dir)
+            run_tests(test_dir, results_dir)
 
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results[0]['result'], 'skip')
+            info = self._read_info(results_dir)
+            self.assertEqual(info['retcode'], 4)
 
-    @mock.patch('lib.runner.DmesgMonitor')
+    @mock.patch('lib.runner.DmesgReader')
     @mock.patch('subprocess.run')
     def test_output_saved(self, mock_run, mock_dmesg_cls):
         mock_dmesg = mock.Mock()
-        mock_dmesg.stop.return_value = []
+        mock_dmesg.drain.return_value = ''
         mock_dmesg_cls.return_value = mock_dmesg
 
         mock_run.return_value = mock.Mock(
@@ -380,6 +389,7 @@ class TestRunTests(unittest.TestCase):
             test_output_dir = os.path.join(results_dir, '0-test1-sh')
             self.assertTrue(os.path.exists(os.path.join(test_output_dir, 'stdout')))
             self.assertTrue(os.path.exists(os.path.join(test_output_dir, 'stderr')))
+            self.assertTrue(os.path.exists(os.path.join(test_output_dir, 'info')))
 
     def test_skips_previously_attempted(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -395,14 +405,13 @@ class TestRunTests(unittest.TestCase):
             with open(os.path.join(test_dir, 'kselftest-list.txt'), 'w') as fp:
                 fp.write('net:test1.sh\n')
 
-            with mock.patch('lib.runner.DmesgMonitor'):
+            with mock.patch('lib.runner.DmesgReader') as mock_dmesg_cls:
+                mock_dmesg_cls.return_value.drain.return_value = ''
                 with mock.patch('subprocess.run') as mock_run:
-                    results = run_tests(test_dir, results_dir)
+                    run_tests(test_dir, results_dir)
 
-            # test1 should be marked as failed (crash recovery)
-            self.assertEqual(len(results), 1)
-            self.assertEqual(results[0]['result'], 'fail')
-            self.assertIn('crash', str(results[0].get('crashes', '')))
+            # No output directory should have been created (test was skipped)
+            self.assertEqual(os.listdir(results_dir), [])
 
             # subprocess.run should NOT have been called (test was skipped)
             mock_run.assert_not_called()
@@ -413,28 +422,24 @@ class TestRunTests(unittest.TestCase):
             returncode=1, stdout=b'', stderr=b''
         )
         with tempfile.TemporaryDirectory() as tmpdir:
-            results = run_tests(tmpdir, tmpdir)
-            self.assertEqual(results, [])
+            run_tests(tmpdir, tmpdir)
+            # No output dirs should be created
+            self.assertEqual(os.listdir(tmpdir), [])
 
 
-class TestDmesgMonitor(unittest.TestCase):
-    def test_no_crash(self):
-        dmesg = DmesgMonitor()
-        # Just verify stop returns empty list when not started
-        crash_lines = dmesg.stop()
-        self.assertEqual(crash_lines, [])
+class TestDmesgReader(unittest.TestCase):
+    def test_drain_no_fd(self):
+        """DmesgReader with no fd returns empty string on drain."""
+        dmesg = DmesgReader()
+        # Force _fd to None (as if /dev/kmsg was not available)
+        dmesg._fd = None
+        self.assertEqual(dmesg.drain(), '')
 
-    def test_detects_crash(self):
-        dmesg = DmesgMonitor()
-        # Directly test the crash detection logic
-        # by adding lines to the internal state
-        crash_line = 'something ] RIP: 0010:some_func+0x42/0x100'
-        with dmesg._lock:
-            dmesg._crash_lines.append(crash_line)
-
-        result = dmesg.stop()
-        self.assertEqual(len(result), 1)
-        self.assertIn('RIP', result[0])
+    def test_close_no_fd(self):
+        """Closing with no fd doesn't raise."""
+        dmesg = DmesgReader()
+        dmesg._fd = None
+        dmesg.close()  # should not raise
 
 
 class TestMainFlow(unittest.TestCase):
@@ -446,13 +451,13 @@ class TestMainFlow(unittest.TestCase):
                 hw_main()  # Should exit cleanly
 
     @mock.patch('os.uname')
-    @mock.patch('lib.runner.DmesgMonitor')
+    @mock.patch('lib.runner.DmesgReader')
     @mock.patch('subprocess.run')
     def test_full_run(self, mock_run, mock_dmesg_cls, mock_uname):
         mock_uname.return_value = mock.Mock(release='6.12.0')
 
         mock_dmesg = mock.Mock()
-        mock_dmesg.stop.return_value = []
+        mock_dmesg.drain.return_value = ''
         mock_dmesg_cls.return_value = mock_dmesg
 
         mock_run.return_value = mock.Mock(
@@ -481,27 +486,25 @@ class TestMainFlow(unittest.TestCase):
                 with mock.patch('hw_worker.RESULTS_DIR', results_dir):
                     hw_main()
 
-            # Results should have been written
-            result_file = os.path.join(results_dir, '42', 'results.json')
-            self.assertTrue(os.path.exists(result_file))
-
-            with open(result_file) as fp:
-                data = json.load(fp)
-            self.assertEqual(len(data), 1)
-            self.assertEqual(data[0]['result'], 'pass')
+            # Results should have been written as output directories
+            result_dir = os.path.join(results_dir, '42')
+            test_output = os.path.join(result_dir, '0-test1-sh')
+            self.assertTrue(os.path.isdir(test_output))
+            self.assertTrue(os.path.exists(os.path.join(test_output, 'info')))
+            self.assertTrue(os.path.exists(os.path.join(test_output, 'stdout')))
 
             # .seen should be created
             seen_path = os.path.join(test_dir, '.seen')
             self.assertTrue(os.path.exists(seen_path))
 
     @mock.patch('os.uname')
-    @mock.patch('lib.runner.DmesgMonitor')
+    @mock.patch('lib.runner.DmesgReader')
     @mock.patch('subprocess.run')
     def test_crash_recovery_resume(self, mock_run, mock_dmesg_cls, mock_uname):
         mock_uname.return_value = mock.Mock(release='6.12.0')
 
         mock_dmesg = mock.Mock()
-        mock_dmesg.stop.return_value = []
+        mock_dmesg.drain.return_value = ''
         mock_dmesg_cls.return_value = mock_dmesg
 
         mock_run.return_value = mock.Mock(
@@ -533,16 +536,19 @@ class TestMainFlow(unittest.TestCase):
                 with mock.patch('hw_worker.RESULTS_DIR', results_dir):
                     hw_main()
 
-            result_file = os.path.join(results_dir, '42', 'results.json')
-            with open(result_file) as fp:
-                data = json.load(fp)
+            result_dir = os.path.join(results_dir, '42')
 
-            # test1 should be fail (crashed), test2 should have run
-            self.assertEqual(len(data), 2)
-            failed = [d for d in data if d['result'] == 'fail']
-            passed = [d for d in data if d['result'] == 'pass']
-            self.assertEqual(len(failed), 1)
-            self.assertEqual(len(passed), 1)
+            # test1 was in .attempted, so it should be skipped (no output dir)
+            # test2 should have run and produced output
+            # test_idx=0 is test1, test_idx=1 is test2
+            test2_dir = os.path.join(result_dir, '1-test2-sh')
+            self.assertTrue(os.path.isdir(test2_dir))
+            self.assertTrue(os.path.exists(os.path.join(test2_dir, 'info')))
+            self.assertTrue(os.path.exists(os.path.join(test2_dir, 'stdout')))
+
+            # test1 output dir should NOT exist (it was skipped)
+            test1_dir = os.path.join(result_dir, '0-test1-sh')
+            self.assertFalse(os.path.isdir(test1_dir))
 
 
 if __name__ == '__main__':

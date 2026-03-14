@@ -165,7 +165,7 @@ class TestDeployer(unittest.TestCase):
 
             mock_ssh.assert_called_once()
             self.assertIn('journalctl', mock_ssh.call_args[0][1])
-            self.assertIn('-n 250', mock_ssh.call_args[0][1])
+            self.assertIn('-b', mock_ssh.call_args[0][1])
             journal_file = os.path.join(tmpdir, 'hw-worker-journal')
             self.assertTrue(os.path.exists(journal_file))
             with open(journal_file) as fp:
@@ -241,35 +241,57 @@ class TestDeployer(unittest.TestCase):
 
     @mock.patch('subprocess.run')
     def test_fetch_results(self, mock_run):
+        """fetch_results SCPs files from remote."""
         mock_run.return_value = mock.Mock(returncode=0, stdout=b'', stderr=b'')
 
         from lib.deployer import fetch_results
-        import tempfile
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Create mock results that fetch_results will find
-            with mock.patch('tempfile.TemporaryDirectory') as mock_td:
-                mock_td.return_value.__enter__ = mock.Mock(return_value=tmpdir)
-                mock_td.return_value.__exit__ = mock.Mock(return_value=False)
-                results_data = [
-                    {'test': 'test1', 'result': 'pass', 'group': 'selftests-net'},
-                    {'test': 'test2', 'result': 'fail', 'group': 'selftests-net'},
-                ]
-                with open(os.path.join(tmpdir, 'results.json'), 'w') as fp:
-                    json.dump(results_data, fp)
+            with mock.patch('lib.deployer._scp_from'):
+                fetch_results(['10.0.0.1'], 42, tmpdir)
 
-                attempted = ['test1', 'test2', 'test3']
-                with open(os.path.join(tmpdir, 'attempted.json'), 'w') as fp:
-                    json.dump(attempted, fp)
+            # Should have called scp -r
+            scp_calls = [c for c in mock_run.call_args_list
+                         if 'scp' in str(c)]
+            self.assertTrue(len(scp_calls) >= 1)
 
-                rinfo = {'link': 'http://test/results/123'}
-                cases = fetch_results(mock.Mock(), ['10.0.0.1'], 42, rinfo)
+    def test_parse_results(self):
+        """parse_results reads info/stdout files and builds result list."""
+        from lib.deployer import parse_results
 
-        # test1 and test2 from results, test3 as crashed
+        with tempfile.TemporaryDirectory() as tmpdir:
+            res_id = '42'
+            output_base = os.path.join(tmpdir, 'test-outputs', res_id)
+
+            for idx, (target, prog, rc, stdout_text) in enumerate([
+                ('net', 'test1.sh', 0, 'ok 1 test1\n'),
+                ('net', 'test2.sh', 1, 'not ok 1 test2\n'),
+            ]):
+                test_dir = os.path.join(output_base, f'{idx}-{prog.replace(".", "-")}')
+                os.makedirs(test_dir)
+                with open(os.path.join(test_dir, 'info'), 'w') as fp:
+                    json.dump({'retcode': rc, 'time': 1.5,
+                               'target': target, 'prog': prog}, fp)
+                with open(os.path.join(test_dir, 'stdout'), 'w') as fp:
+                    fp.write(stdout_text)
+                with open(os.path.join(test_dir, 'stderr'), 'w') as fp:
+                    fp.write('')
+
+            # .attempted includes a third test that crashed
+            attempted = ['net:test1.sh', 'net:test2.sh', 'net:test3.sh']
+            with open(os.path.join(tmpdir, 'attempted.json'), 'w') as fp:
+                json.dump(attempted, fp)
+
+            cases = parse_results(42, tmpdir, 'http://test/results/123')
+
+        # test1 pass, test2 fail, test3 crashed
         self.assertEqual(len(cases), 3)
-        crashed = [c for c in cases if c['test'] == 'test3']
+        passed = [c for c in cases if c['result'] == 'pass']
+        failed = [c for c in cases if c['result'] == 'fail']
+        self.assertEqual(len(passed), 1)
+        self.assertEqual(len(failed), 2)
+        crashed = [c for c in cases if c.get('crashes')]
         self.assertEqual(len(crashed), 1)
-        self.assertEqual(crashed[0]['result'], 'fail')
         self.assertIn('crash', str(crashed[0]['crashes']))
 
 
@@ -369,7 +391,7 @@ class TestCrashRecovery(unittest.TestCase):
     @mock.patch('time.sleep')
     def test_wait_for_results_no_results(self, _mock_sleep,
                                          mock_monotonic, mock_run):
-        """hw-worker exits without results returns WaitResult with error."""
+        """hw-worker service failed returns WaitResult with error."""
         from lib.deployer import wait_for_results, WaitResult
 
         mock_run.return_value = mock.Mock(returncode=0, stdout=b'', stderr=b'')
@@ -390,25 +412,18 @@ class TestCrashRecovery(unittest.TestCase):
         mc.get_sol_logs.return_value = {'last_id': 0, 'lines': []}
         mc.reservation_refresh.return_value = {'ok': True}
 
-        def ssh_retcode_side_effect(ip, cmd, timeout=30):
-            if 'test -f' in cmd:
-                return 1  # no results.json
-            return 0
-
         def ssh_side_effect(ip, cmd, check=True, timeout=30):
             if 'systemctl show' in cmd:
                 return 'failed\n'
             return ''
 
-        with mock.patch('lib.deployer._ssh_retcode',
-                         side_effect=ssh_retcode_side_effect):
-            with mock.patch('lib.deployer._ssh',
-                             side_effect=ssh_side_effect):
-                result = wait_for_results(config, mc, 42, [1], ['10.0.0.1'])
+        with mock.patch('lib.deployer._ssh',
+                         side_effect=ssh_side_effect):
+            result = wait_for_results(config, mc, 42, [1], ['10.0.0.1'])
 
         self.assertIsInstance(result, WaitResult)
         self.assertFalse(result.ok)
-        self.assertIn('hw-worker exited without results', result.error)
+        self.assertIn('worker service failed', result.error)
 
     @mock.patch('subprocess.run')
     @mock.patch('time.monotonic')
@@ -436,13 +451,13 @@ class TestCrashRecovery(unittest.TestCase):
         mc.get_sol_logs.return_value = {'last_id': 0, 'lines': []}
         mc.reservation_refresh.return_value = {'ok': True}
 
-        def ssh_retcode_side_effect(ip, cmd, timeout=30):
-            if 'test -f' in cmd:
-                return 0  # results.json exists
-            return 0
+        def ssh_side_effect(ip, cmd, check=True, timeout=30):
+            if 'systemctl show' in cmd:
+                return 'inactive\n'
+            return ''
 
-        with mock.patch('lib.deployer._ssh_retcode',
-                         side_effect=ssh_retcode_side_effect):
+        with mock.patch('lib.deployer._ssh',
+                         side_effect=ssh_side_effect):
             result = wait_for_results(config, mc, 42, [1], ['10.0.0.1'])
 
         self.assertIsInstance(result, WaitResult)
@@ -496,32 +511,26 @@ class TestCrashRecovery(unittest.TestCase):
             },
         ]
 
-        # hw-worker: activating on polls 1-2 (crash + reboot), results on poll 3
+        # hw-worker: activating on polls 1-2 (crash + reboot), done on poll 3
         poll_num = {'n': 0}
-
-        def ssh_retcode_side_effect(ip, cmd, timeout=30):
-            if 'test -f' in cmd:
-                # No results until after recovery (poll 3)
-                return 1 if poll_num['n'] < 3 else 0
-            return 0
 
         def ssh_side_effect(ip, cmd, check=True, timeout=30):
             if 'systemctl show' in cmd:
                 poll_num['n'] += 1
-                return 'activating\n'
+                if poll_num['n'] <= 2:
+                    return 'activating\n'
+                return 'inactive\n'
             return ''
 
-        with mock.patch('lib.deployer._ssh_retcode',
-                         side_effect=ssh_retcode_side_effect):
-            with mock.patch('lib.deployer._ssh',
-                             side_effect=ssh_side_effect):
-                with mock.patch('lib.deployer._crash_recover') as mock_recover:
-                    wait_for_results(config, mc, 42, [1], ['10.0.0.1'])
+        with mock.patch('lib.deployer._ssh',
+                         side_effect=ssh_side_effect):
+            with mock.patch('lib.deployer._crash_recover') as mock_recover:
+                wait_for_results(config, mc, 42, [1], ['10.0.0.1'])
 
-                    # Should have been called with skip_power_cycle=True
-                    mock_recover.assert_called_once()
-                    _, kwargs = mock_recover.call_args
-                    self.assertTrue(kwargs.get('skip_power_cycle', False))
+                # Should have been called with skip_power_cycle=True
+                mock_recover.assert_called_once()
+                _, kwargs = mock_recover.call_args
+                self.assertTrue(kwargs.get('skip_power_cycle', False))
 
     @mock.patch('subprocess.run')
     @mock.patch('time.monotonic')
@@ -549,9 +558,10 @@ class TestCrashRecovery(unittest.TestCase):
         }.get(key, fallback)
 
         mc = mock.Mock()
-        # Poll 1: crash in SOL
+        # Seed + Poll 1: crash in SOL
         # Poll 2: more crash output (SOL progressing, no reboot)
         mc.get_sol_logs.side_effect = [
+            {'last_id': 50, 'lines': []},  # seed
             {
                 'last_id': 100,
                 'lines': [{'line': '] RIP: 0010:bad_func+0x10'}],
@@ -562,26 +572,21 @@ class TestCrashRecovery(unittest.TestCase):
             },
         ]
 
-        # hw-worker: still activating on first poll; results on second
-        call_count = {'results': 0}
-
-        def ssh_retcode_side_effect(ip, cmd, timeout=30):
-            if 'test -f' in cmd:
-                call_count['results'] += 1
-                return 0 if call_count['results'] >= 2 else 1
-            return 0
+        # hw-worker: activating on poll 1, inactive on poll 2
+        poll_num = {'n': 0}
 
         def ssh_side_effect(ip, cmd, check=True, timeout=30):
             if 'systemctl show' in cmd:
-                return 'activating\n'
+                poll_num['n'] += 1
+                if poll_num['n'] <= 1:
+                    return 'activating\n'
+                return 'inactive\n'
             return ''
 
-        with mock.patch('lib.deployer._ssh_retcode',
-                         side_effect=ssh_retcode_side_effect):
-            with mock.patch('lib.deployer._ssh',
-                             side_effect=ssh_side_effect):
-                with mock.patch('lib.deployer._crash_recover') as mock_recover:
-                    wait_for_results(config, mc, 42, [1], ['10.0.0.1'])
+        with mock.patch('lib.deployer._ssh',
+                         side_effect=ssh_side_effect):
+            with mock.patch('lib.deployer._crash_recover') as mock_recover:
+                wait_for_results(config, mc, 42, [1], ['10.0.0.1'])
 
                 # SOL was progressing — no recovery should have been triggered
                 mock_recover.assert_not_called()

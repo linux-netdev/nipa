@@ -170,16 +170,9 @@ def main():
     results_dir = os.path.join(results_base, reservation_id)
     os.makedirs(results_dir, exist_ok=True)
 
-    results = run_tests(test_dir, results_dir)
+    run_tests(test_dir, results_dir)
 
-    results_file = os.path.join(results_dir, 'results.json')
-    fd = os.open(results_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC)
-    with os.fdopen(fd, 'w') as fp:
-        json.dump(results, fp)
-        fp.flush()
-        os.fsync(fp.fileno())
-
-    print(f"Completed {len(results)} tests, results in {results_dir}")
+    print(f"Completed, results in {results_dir}")
 
 
 if __name__ == '__main__':

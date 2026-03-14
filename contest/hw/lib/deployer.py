@@ -5,10 +5,10 @@
 import json
 import os
 import random
+import re
 import shutil
 import string
 import subprocess
-import tempfile
 import time
 from dataclasses import dataclass, field
 
@@ -210,7 +210,7 @@ def kexec_machine(config, machine_ips, reservation_id, mc=None):
 def grab_hw_worker_journal(ipaddr, results_path):
     """Fetch hw-worker journal from the test machine and save locally."""
     journal = _ssh(ipaddr,
-                   'journalctl -u nipa-hw-worker.service -n 250 --no-pager',
+                   'journalctl -u nipa-hw-worker.service -b --no-pager',
                    check=False)
     if journal:
         journal_file = os.path.join(results_path, 'hw-worker-journal')
@@ -252,38 +252,26 @@ def wait_for_results(config, mc, reservation_id, machine_ids, machine_ips):
             print(f"wait_for_results: {msg}")
             return WaitResult(ok=False, error=msg)
 
-        # Check if hw-worker has produced results on primary machine
-        primary_ip = machine_ips[0]
-        ret = _ssh_retcode(primary_ip,
-                            f'test -f /srv/hw-worker/results/{reservation_id}/results.json')
-        if ret == 0:
-            print("wait_for_results: hw-worker completed")
-            return WaitResult(ok=True)
-
-        # Check if hw-worker exited without producing results.
+        # Check if hw-worker service has exited.
         # For Type=oneshot services, is-active returns "activating" (rc=3)
         # while running, "active" (rc=0) after success with RemainAfterExit=yes,
         # and "failed"/"inactive" after failure/stop.  Use show -p ActiveState
         # to distinguish "still running" from "done".
+        primary_ip = machine_ips[0]
         state = _ssh(primary_ip,
                      'systemctl show -p ActiveState --value nipa-hw-worker.service',
                      check=False).strip()
         if state == 'activating':
             pass  # still running, continue polling
-        elif state in ('inactive', 'failed'):
-            # Service exited, but results.json may have been written
-            # between our test -f check and the state check (race).
-            # Re-check before declaring failure.
-            ret = _ssh_retcode(primary_ip,
-                                f'test -f /srv/hw-worker/results/{reservation_id}/results.json')
-            if ret == 0:
-                print("wait_for_results: hw-worker completed")
-                return WaitResult(ok=True)
-
-            # Service finished and no results.json — something went wrong.
-            msg = f"hw-worker exited without results (state={state})"
+        elif state == 'failed':
+            msg = "hw-worker service failed"
             print(f"wait_for_results: {msg}")
             return WaitResult(ok=False, error=msg)
+        elif state in ('inactive', 'active'):
+            # inactive = exited normally (RemainAfterExit=no)
+            # active = exited normally (RemainAfterExit=yes)
+            print("wait_for_results: hw-worker completed")
+            return WaitResult(ok=True)
 
         # Check SOL logs for crashes on each machine
         for i, mid in enumerate(machine_ids):
@@ -363,61 +351,109 @@ def _crash_recover(config, mc, machine_id, ipaddr, reservation_id,
     kexec_machine(config, [ipaddr], reservation_id, mc=mc)
 
 
-def fetch_results(_config, machine_ips, reservation_id, rinfo):
-    """SCP results from test machines back to build node.
+def fetch_results(machine_ips, reservation_id, results_path):
+    """SCP test output from the test machine back to the build node.
 
-    Parse and format into vmksft-p-style result list.
-    Tests that crashed (in .attempted but not in results) are marked
-    as result='fail' with crash info.
+    Copies the results directory tree and the .attempted file.
     """
     primary_ip = machine_ips[0]
     remote_results = f'/srv/hw-worker/results/{reservation_id}'
+    remote_tests = f'/srv/hw-worker/tests/{reservation_id}'
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        # Copy results.json
-        _scp_from(primary_ip, f'{remote_results}/results.json',
-                  os.path.join(tmpdir, 'results.json'))
+    # Copy the entire results directory tree
+    local_results = os.path.join(results_path, 'test-outputs')
+    os.makedirs(local_results, exist_ok=True)
+    # Use scp -r to grab all test output directories
+    ret = subprocess.run(
+        ['scp', '-r', '-o', 'StrictHostKeyChecking=no',
+         '-o', 'BatchMode=yes',
+         f'root@{primary_ip}:{remote_results}/', local_results],
+        capture_output=True, timeout=300, check=False
+    )
+    if ret.returncode != 0:
+        print(f"fetch_results: scp failed: {ret.stderr.decode('utf-8', 'ignore')}")
 
-        # Copy .attempted for crash tracking
-        remote_tests = f'/srv/hw-worker/tests/{reservation_id}'
-        _scp_from(primary_ip, f'{remote_tests}/.attempted',
-                  os.path.join(tmpdir, 'attempted.json'),
-                  check=False)
+    # Copy .attempted for crash tracking
+    _scp_from(primary_ip, f'{remote_tests}/.attempted',
+              os.path.join(results_path, 'attempted.json'),
+              check=False)
 
-        # Parse results
-        results_path = os.path.join(tmpdir, 'results.json')
-        if os.path.exists(results_path):
-            with open(results_path, encoding='utf-8') as fp:
-                raw_results = json.load(fp)
-        else:
-            raw_results = []
 
-        # Load attempted tests
-        attempted_path = os.path.join(tmpdir, 'attempted.json')
-        attempted = []
-        if os.path.exists(attempted_path):
-            with open(attempted_path, encoding='utf-8') as fp:
-                attempted = json.load(fp)
+def parse_results(reservation_id, results_path, link):
+    """Parse fetched test output into a vmksft-p-style result list.
 
-        # Identify crashed tests: in attempted but not in results
-        result_names = {r['test'] for r in raw_results}
-        link = rinfo.get('link', '')
+    Reads info/stdout files from the test-outputs directory and
+    the .attempted file to identify crashed tests.
+    """
+    # Find the actual results subdir (scp -r creates reservation_id/ inside)
+    local_results = os.path.join(results_path, 'test-outputs')
+    output_dir = os.path.join(local_results, str(reservation_id))
+    if not os.path.isdir(output_dir):
+        output_dir = local_results
 
-        cases = []
-        for r in raw_results:
+    # Parse each test output directory
+    cases = []
+    completed_tests = set()
+    if os.path.isdir(output_dir):
+        for entry in sorted(os.listdir(output_dir)):
+            test_dir = os.path.join(output_dir, entry)
+            if not os.path.isdir(test_dir):
+                continue
+
+            info_path = os.path.join(test_dir, 'info')
+            stdout_path = os.path.join(test_dir, 'stdout')
+
+            if not os.path.exists(info_path):
+                continue
+
+            with open(info_path, encoding='utf-8') as fp:
+                info = json.load(fp)
+
+            retcode = info.get('retcode', 1)
+            target = info.get('target', 'unknown')
+            prog = info.get('prog', entry)
+            test_name = f"{target}:{prog}"
+            completed_tests.add(test_name)
+
+            stdout = ''
+            if os.path.exists(stdout_path):
+                with open(stdout_path, encoding='utf-8') as fp:
+                    stdout = fp.read()
+
+            # Determine result
+            result = 'pass'
+            if retcode == 4:
+                result = 'skip'
+            elif retcode != 0:
+                result = 'fail'
+            if 'ok' not in stdout.lower() and result == 'pass':
+                result = 'skip'
+
+            safe_name = re.sub(r'[^0-9a-zA-Z]+', '-', prog)
+            if safe_name and safe_name[-1] == '-':
+                safe_name = safe_name[:-1]
+
             outcome = {
-                'test': r['test'],
-                'group': r.get('group', 'selftests-hw'),
-                'result': r['result'],
+                'test': safe_name or entry,
+                'group': f'selftests-{re.sub(r"[^0-9a-zA-Z]+", "-", target).rstrip("-")}',
+                'result': result,
                 'link': link,
             }
-            for key in ['time', 'crashes']:
-                if key in r:
-                    outcome[key] = r[key]
+            if 'time' in info:
+                outcome['time'] = info['time']
             cases.append(outcome)
 
+    # Check .attempted for crashed tests (attempted but no output)
+    attempted_path = os.path.join(results_path, 'attempted.json')
+    if os.path.exists(attempted_path):
+        with open(attempted_path, encoding='utf-8') as fp:
+            try:
+                attempted = json.load(fp)
+            except (json.JSONDecodeError, ValueError):
+                attempted = []
+
         for test_name in attempted:
-            if test_name not in result_names:
+            if test_name not in completed_tests:
                 cases.append({
                     'test': test_name,
                     'group': 'selftests-hw',

@@ -24,7 +24,8 @@ from contest.remote.lib.fetcher import Fetcher  # noqa: E402
 from lib.mc_client import MCClient, resolve_machines, resolve_nic_id  # noqa: E402
 from lib.deployer import (build_kernel, build_ksft, deploy_artifacts,  # noqa: E402
                           kexec_machine, wait_for_results, fetch_results,
-                          set_log_file, WaitResult, grab_hw_worker_journal)
+                          parse_results, set_log_file, WaitResult,
+                          grab_hw_worker_journal)
 
 # Config:
 #
@@ -155,6 +156,7 @@ def test(binfo, rinfo, cbarg):  # pylint: disable=unused-argument
     else:
         raise RuntimeError(f"Failed to reserve machines after {max_retries} attempts")
 
+    cases = None
     try:
         # 5. Deploy artifacts via SCP
         with open(os.path.join(results_path, 'deploy'), 'w', encoding='utf-8') as fp:
@@ -170,32 +172,43 @@ def test(binfo, rinfo, cbarg):  # pylint: disable=unused-argument
         wait_result = wait_for_results(config, mc, reservation_id,
                                        machine_ids, machine_ips)
 
-        # 8. Grab hw-worker journal for debugging
-        grab_hw_worker_journal(machine_ips[0], results_path)
+        # 8. Copy back results
+        fetch_results(machine_ips, reservation_id, results_path)
 
-        # 9. Copy back results
-        if wait_result.ok:
-            cases = fetch_results(config, machine_ips, reservation_id, rinfo)
-        else:
+        # 9. Parse results
+        cases = parse_results(reservation_id, results_path, link)
+        if not wait_result.ok:
             # Write error to disk so it's visible via the UI result link
             with open(os.path.join(results_path, 'error'), 'w',
                       encoding='utf-8') as fp:
                 fp.write(wait_result.error + '\n')
-            cases = [{
-                'test': 'hw-worker',
+            cases.insert(0, {
+                'test': 'worker-failed',
                 'group': grp_name,
                 'result': 'fail',
                 'link': link,
-            }]
+            })
     finally:
         set_log_file(None)
-        # 10. Release reservation
+        # 10. Grab hw-worker journal for debugging
+        try:
+            grab_hw_worker_journal(machine_ips[0], results_path)
+        except Exception as e:
+            print(f"Warning: failed to grab hw-worker journal: {e}")
+        # 11. Release reservation
         try:
             mc.reservation_close(reservation_id)
         except Exception as e:
             print(f"Warning: failed to close reservation {reservation_id}: {e}")
 
     print("Done at", datetime.datetime.now())
+    if cases is None:
+        cases = [{
+            'test': 'worker-failed',
+            'group': grp_name,
+            'result': 'fail',
+            'link': link,
+        }]
     return cases
 
 

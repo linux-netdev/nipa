@@ -7,7 +7,6 @@ import os
 import re
 import select
 import subprocess
-import threading
 import time
 
 
@@ -138,38 +137,33 @@ def _namify(what):
 def run_tests(test_dir, results_dir):
     """Execute kselftest in 'installed' form.
 
-    Flow for each test:
+    For each test:
       1. Check if test_name is in .attempted -- if so, skip (crash recovery)
       2. Write test_name to .attempted + fsync (crash-safe bookkeeping)
-      3. Start DmesgMonitor
-      4. Run via: ./run_kselftest.sh -t <target>/<test>
-      5. Capture stdout/stderr, save to results_dir/<test_name>/
-      6. Stop DmesgMonitor, collect crash fingerprints
-      7. Parse KTAP output for results
-      8. Append to results list
-
-    Tests that were in .attempted from a previous run (crash recovery)
-    are recorded as result='fail' with a note about the crash.
+      3. Run via: ./run_kselftest.sh -t <target>:<test>
+      4. Capture stdout/stderr, save to results_dir/<dir_name>/
+      5. Drain dmesg output produced during the test, save to dmesg file
+      6. Save metadata (retcode, time, target, prog) to info file
     """
     tests = _list_tests(test_dir)
     if not tests:
         print("No tests found")
-        return []
+        return
 
     print(f"Found {len(tests)} tests")
 
     previously_attempted = set(load_attempted(test_dir))
-    results = []
-
-    # Mark previously attempted tests as crashed
     for test_name in previously_attempted:
         print(f"Skipping previously attempted (crashed): {test_name}")
-        results.append({
-            'test': _namify(test_name),
-            'group': 'selftests-hw',
-            'result': 'fail',
-            'crashes': ['kernel crash during test (previous attempt)'],
-        })
+
+    # Open dmesg once, drain boot messages
+    dmesg = DmesgReader()
+    boot_lines = dmesg.drain()
+    if boot_lines:
+        boot_path = os.path.join(results_dir, 'boot-dmesg')
+        with open(boot_path, 'w', encoding='utf-8') as fp:
+            fp.write(boot_lines)
+        print(f"Saved {len(boot_lines.splitlines())} lines of boot dmesg")
 
     for test_idx, (target, prog) in enumerate(tests):
         test_name = f"{target}:{prog}"
@@ -183,10 +177,6 @@ def run_tests(test_dir, results_dir):
 
         # Mark as attempted before execution
         mark_attempted(test_dir, test_name)
-
-        # Start dmesg monitoring
-        dmesg = DmesgMonitor()
-        dmesg.start()
 
         # Create output directory
         test_results_dir = os.path.join(results_dir, dir_name)
@@ -214,97 +204,74 @@ def run_tests(test_dir, results_dir):
             stderr = 'test timed out'
             print(f"[{test_idx+1}/{len(tests)}] {test_name}: timed out")
         t2 = time.monotonic()
+        elapsed = round(t2 - t1, 1)
 
-        # Save output
+        # Drain dmesg produced during this test
+        test_dmesg = dmesg.drain()
+        if test_dmesg:
+            with open(os.path.join(test_results_dir, 'dmesg'), 'w',
+                      encoding='utf-8') as fp:
+                fp.write(test_dmesg)
+
+        # Save output and metadata
         with open(os.path.join(test_results_dir, 'stdout'), 'w', encoding='utf-8') as fp:
             fp.write(stdout)
         with open(os.path.join(test_results_dir, 'stderr'), 'w', encoding='utf-8') as fp:
             fp.write(stderr)
+        with open(os.path.join(test_results_dir, 'info'), 'w', encoding='utf-8') as fp:
+            json.dump({'retcode': retcode, 'time': elapsed,
+                       'target': target, 'prog': prog}, fp)
 
-        # Stop dmesg and check for crashes
-        crash_lines = dmesg.stop()
+        print(f"[{test_idx+1}/{len(tests)}] {test_name}: rc={retcode} ({elapsed}s)")
 
-        # Determine result
-        result = 'pass'
-        if retcode == 4:
-            result = 'skip'
-        elif retcode != 0:
-            result = 'fail'
-
-        # Check KTAP output for skip indicators
-        if 'ok' not in stdout.lower() and result == 'pass':
-            result = 'skip'
-
-        outcome = {
-            'test': safe_name,
-            'group': f'selftests-{_namify(target)}',
-            'result': result,
-            'time': round(t2 - t1, 1),
-        }
-        if crash_lines:
-            outcome['crashes'] = crash_lines
-            outcome['result'] = 'fail'
-
-        print(f"[{test_idx+1}/{len(tests)}] {test_name}: {outcome['result']} ({outcome['time']}s)")
-
-        results.append(outcome)
-
-    return results
+    dmesg.close()
 
 
-class DmesgMonitor:
-    """Background thread that reads /dev/kmsg during test execution.
+class DmesgReader:
+    """Non-blocking reader for /dev/kmsg.
 
-    Detects kernel crashes by looking for RIP, Call Trace, etc.
+    Opens /dev/kmsg once and provides a drain() method that returns
+    all lines accumulated since the last drain.  Not threaded — the
+    caller is expected to drain between tests.
+
+    /dev/kmsg gives each opener its own read position.  It does not
+    support seek(), so we just read from wherever the kernel puts us
+    (typically the start of the ring buffer) and drain forward.
     """
+
     def __init__(self):
-        self._thread = None
-        self._stop_event = threading.Event()
-        self._crash_lines = []
-        self._lock = threading.Lock()
-
-    def start(self):
-        """Start monitoring /dev/kmsg for crash traces."""
-        self._crash_lines = []
-        self._thread = threading.Thread(target=self._run, daemon=True)
-        self._thread.start()
-
-    def _run(self):
+        self._fd = None
         try:
-            fp = open('/dev/kmsg', 'r', encoding='utf-8', errors='ignore')
-        except (PermissionError, FileNotFoundError):
-            return
+            # O_RDONLY | O_NONBLOCK so reads return EAGAIN instead of blocking
+            self._fd = os.open('/dev/kmsg', os.O_RDONLY | os.O_NONBLOCK)
+        except (PermissionError, FileNotFoundError, OSError) as e:
+            print(f"DmesgReader: cannot open /dev/kmsg: {e}")
 
-        # Seek to end
-        try:
-            fp.seek(0, 2)
-        except OSError:
-            pass
+    def drain(self):
+        """Read all available lines from /dev/kmsg.
 
-        while not self._stop_event.is_set():
-            ready, _, _ = select.select([fp], [], [], 0.5)
-            if not ready:
-                continue
+        Returns accumulated text as a string, or '' if nothing new.
+        """
+        if self._fd is None:
+            return ''
+
+        lines = []
+        while True:
             try:
-                line = fp.readline()
+                data = os.read(self._fd, 8192)
             except OSError:
+                # EAGAIN = no more data available
                 break
-            if not line:
-                continue
+            if not data:
+                break
+            # kmsg format: "priority,sequence,timestamp,-;message\n"
+            # Just keep the raw lines — hwksft doesn't parse them.
+            lines.append(data.decode('utf-8', 'ignore'))
 
-            if ('] RIP: ' in line or
-                    '] Call Trace:' in line or
-                    '] ref_tracker: ' in line or
-                    'unreferenced object 0x' in line):
-                with self._lock:
-                    self._crash_lines.append(line.strip())
+        return ''.join(lines)
 
-        fp.close()
-
-    def stop(self):
-        """Stop monitoring. Returns list of crash lines found."""
-        self._stop_event.set()
-        if self._thread:
-            self._thread.join(timeout=5)
-        with self._lock:
-            return list(self._crash_lines)
+    def close(self):
+        """Close the /dev/kmsg fd."""
+        if self._fd is not None:
+            os.close(self._fd)
+            self._fd = None

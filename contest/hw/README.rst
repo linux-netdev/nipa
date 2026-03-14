@@ -430,16 +430,54 @@ Operation
    immediately.
 3. Mark all entries under ``/srv/hw-worker/tests`` as "seen" (create a
    ``.seen`` file in each directory). This prevents loop-testing the same set.
-4. Run the tests. For each test:
+4. Open ``/dev/kmsg`` and drain existing boot messages to
+   ``results_dir/boot-dmesg``.
+5. Run the tests. For each test:
     a. Check if test name is in ``.attempted`` — if so, skip (crash recovery).
     b. Write test name to ``.attempted`` + fsync before execution.
-    c. Start a dmesg monitor thread (reads ``/dev/kmsg``) to detect kernel
-       crashes during the test (``RIP:``, ``Call Trace:``, etc.).
-    d. Run via ``./run_kselftest.sh -t <target>/<test>`` (installed form).
-    e. Capture stdout/stderr, save to ``results_dir/<test_name>/``.
-    f. Stop dmesg monitor, collect any crash lines.
-    g. Determine result: pass/fail/skip based on return code and output.
-5. Results are saved under ``/srv/hw-worker/results/$reservation_id/``
-   as ``results.json``. Previously-attempted tests (from crash recovery)
-   are included as failures with a crash note.
-6. Service exits.
+    c. Run via ``./run_kselftest.sh -t <target>:<test>`` (installed form).
+    d. Capture stdout/stderr, save to ``results_dir/<idx>-<name>/``.
+    e. Drain ``/dev/kmsg`` — if any dmesg output was produced during
+       the test, save it to ``results_dir/<idx>-<name>/dmesg``.
+    f. Save metadata to ``results_dir/<idx>-<name>/info`` (JSON).
+6. Results are saved under ``/srv/hw-worker/results/$reservation_id/``.
+   hw-worker does **not** determine pass/fail — that is done by hwksft
+   when it copies back and parses the output files.
+7. Service exits.
+
+Output artifacts
+----------------
+
+hw-worker produces the following files under
+``/srv/hw-worker/results/$reservation_id/``.  hwksft copies this tree
+back and parses it to build the final result JSON.
+
+::
+
+  $reservation_id/
+  ├── boot-dmesg                    # dmesg from boot until first test
+  ├── 0-test_name/                  # per-test output directory
+  │   ├── stdout                    # test stdout (KTAP/TAP output)
+  │   ├── stderr                    # test stderr
+  │   ├── info                      # JSON: {retcode, time, target, prog}
+  │   └── dmesg                     # dmesg during this test (if any)
+  ├── 1-another_test/
+  │   ├── stdout
+  │   ├── stderr
+  │   ├── info
+  │   └── dmesg
+  └── ...
+
+``info`` JSON fields:
+
+``retcode``
+  Exit code of ``run_kselftest.sh``.  0 = pass, 4 = skip, other = fail.
+
+``time``
+  Wall-clock seconds the test took (float).
+
+``target``
+  kselftest collection name (e.g. ``drivers/net/hw``).
+
+``prog``
+  Test program name within the collection (e.g. ``rss_drv.py``).
