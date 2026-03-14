@@ -189,7 +189,10 @@ def get_nic_info():
                     "ifname, ip4addr, ip6addr FROM nic_info"
                 )
             rows = cur.fetchall()
-    finally:
+    except Exception:
+        db_pool.putconn(conn, close=True)
+        raise
+    else:
         db_pool.putconn(conn)
 
     result = []
@@ -232,7 +235,10 @@ def get_sol_logs():
                 (machine_id, start_id, limit)
             )
             rows = cur.fetchall()
-    finally:
+    except Exception:
+        db_pool.putconn(conn, close=True)
+        raise
+    else:
         db_pool.putconn(conn)
 
     last_id = rows[-1][0] if rows else start_id
