@@ -376,8 +376,8 @@ class TestRunTests(unittest.TestCase):
 
             run_tests(test_dir, results_dir)
 
-            # Check output files exist
-            test_output_dir = os.path.join(results_dir, 'net-test1-sh')
+            # Check output files exist — dir format is {idx}-{safe_name}
+            test_output_dir = os.path.join(results_dir, '0-test1-sh')
             self.assertTrue(os.path.exists(os.path.join(test_output_dir, 'stdout')))
             self.assertTrue(os.path.exists(os.path.join(test_output_dir, 'stderr')))
 
@@ -388,9 +388,9 @@ class TestRunTests(unittest.TestCase):
             os.makedirs(test_dir)
             os.makedirs(results_dir)
 
-            # Pre-populate .attempted
+            # Pre-populate .attempted — format matches run_tests' test_name
             with open(os.path.join(test_dir, '.attempted'), 'w') as fp:
-                json.dump(['net/test1.sh'], fp)
+                json.dump(['net:test1.sh'], fp)
 
             with open(os.path.join(test_dir, 'kselftest-list.txt'), 'w') as fp:
                 fp.write('net:test1.sh\n')
@@ -523,7 +523,7 @@ class TestMainFlow(unittest.TestCase):
 
             # Pre-populate .attempted (simulating crash recovery)
             with open(os.path.join(test_dir, '.attempted'), 'w') as fp:
-                json.dump(['net/test1.sh'], fp)
+                json.dump(['net:test1.sh'], fp)
 
             with open(os.path.join(test_dir, 'kselftest-list.txt'), 'w') as fp:
                 fp.write('net:test1.sh\nnet:test2.sh\n')

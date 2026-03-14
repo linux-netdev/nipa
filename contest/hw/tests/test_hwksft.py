@@ -200,9 +200,10 @@ class TestDeployer(unittest.TestCase):
         config = mock.Mock()
         config.get.return_value = None
 
-        result = build_kernel(config, '/tmp/tree')
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result = build_kernel(config, tmpdir)
 
-        # Should call make mrproper, defconfig, main build, and kernelversion
+        # Should call make mrproper, defconfig, main build, and kernelrelease
         make_calls = [c for c in mock_run.call_args_list
                       if 'make' in str(c)]
         self.assertTrue(len(make_calls) >= 4)
@@ -455,13 +456,13 @@ class TestCrashRecovery(unittest.TestCase):
         """Full flow: crash detected, then self-reboot seen in SOL,
         verify power_cycle is NOT called."""
         mock_run.return_value = mock.Mock(returncode=0, stdout=b'', stderr=b'')
-        mock_monotonic.side_effect = [
-            0,     # start_time
-            10,    # elapsed check (poll 1)
-            10,    # crash_detected_at set
-            20,    # elapsed check (poll 2)
-            30,    # elapsed check (poll 3)
-        ]
+        _clock = {'t': 0}
+
+        def monotonic():
+            _clock['t'] += 10
+            return _clock['t']
+
+        mock_monotonic.side_effect = monotonic
 
         from lib.deployer import wait_for_results
 
@@ -474,10 +475,12 @@ class TestCrashRecovery(unittest.TestCase):
         }.get(key, fallback)
 
         mc = mock.Mock()
+        # Seed: initial SOL cursor position
         # Poll 1: SOL shows crash
         # Poll 2: SOL shows reboot (early boot line) -> triggers recovery
         # Poll 3: clean (after recovery, hw-worker completes)
         mc.get_sol_logs.side_effect = [
+            {'last_id': 50, 'lines': []},  # seed
             {
                 'last_id': 100,
                 'lines': [{'line': '] RIP: 0010:bad_func+0x10'}],
@@ -492,20 +495,19 @@ class TestCrashRecovery(unittest.TestCase):
             },
         ]
 
-        # hw-worker: active on polls 1-2, completed on poll 3
+        # hw-worker: activating on polls 1-2 (crash + reboot), results on poll 3
         poll_num = {'n': 0}
 
         def ssh_retcode_side_effect(ip, cmd, timeout=30):
             if 'test -f' in cmd:
-                return 0  # results exist
+                # No results until after recovery (poll 3)
+                return 1 if poll_num['n'] < 3 else 0
             return 0
 
         def ssh_side_effect(ip, cmd, check=True, timeout=30):
             if 'systemctl show' in cmd:
                 poll_num['n'] += 1
-                if poll_num['n'] <= 2:
-                    return 'activating\n'
-                return 'active\n'
+                return 'activating\n'
             return ''
 
         with mock.patch('lib.deployer._ssh_retcode',
@@ -515,10 +517,10 @@ class TestCrashRecovery(unittest.TestCase):
                 with mock.patch('lib.deployer._crash_recover') as mock_recover:
                     wait_for_results(config, mc, 42, [1], ['10.0.0.1'])
 
-                # Should have been called with skip_power_cycle=True
-                mock_recover.assert_called_once()
-                _, kwargs = mock_recover.call_args
-                self.assertTrue(kwargs.get('skip_power_cycle', False))
+                    # Should have been called with skip_power_cycle=True
+                    mock_recover.assert_called_once()
+                    _, kwargs = mock_recover.call_args
+                    self.assertTrue(kwargs.get('skip_power_cycle', False))
 
     @mock.patch('subprocess.run')
     @mock.patch('time.monotonic')
