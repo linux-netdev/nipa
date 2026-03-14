@@ -102,8 +102,14 @@ class HealthChecker(threading.Thread):
 
     def run(self):
         while not self._stop_event.is_set():
-            for machine_id, machine in self.machines.items():
-                if self._stop_event.is_set():
-                    break
-                self.check_machine(machine_id, machine)
+            try:
+                for machine_id, machine in self.machines.items():
+                    if self._stop_event.is_set():
+                        break
+                    try:
+                        self.check_machine(machine_id, machine)
+                    except Exception as e:
+                        print(f"Health: error checking {machine.get('name', machine_id)}: {e}")
+            except Exception as e:
+                print(f"Health: error in check round: {e}")
             self._stop_event.wait(self.interval)
