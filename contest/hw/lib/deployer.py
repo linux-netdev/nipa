@@ -61,10 +61,11 @@ def build_kernel(config, tree_path):
     # Apply base defconfig
     _run(['make', '-C', tree_path, 'defconfig'])
 
-    # Apply extra kconfig for the NIC driver
+    # Apply extra kconfig fragments (space-separated list)
     extra_kconfig = config.get('build', 'extra_kconfig', fallback=None)
     if extra_kconfig:
-        _run(['scripts/kconfig/merge_config.sh', '-m', '.config', extra_kconfig],
+        configs = extra_kconfig.split()
+        _run(['scripts/kconfig/merge_config.sh', '-m', '.config'] + configs,
              cwd=tree_path)
         _run(['make', '-C', tree_path, 'olddefconfig'])
 
