@@ -53,7 +53,8 @@ def extract_crash(outputs, prompt, get_filters):
             in_crash &= '] ---[ end trace ' not in line
             in_crash &= ']  </TASK>' not in line
             in_crash &= line[-2:] != '] '
-            in_crash &= not line.startswith(prompt)
+            if prompt:
+                in_crash &= not line.startswith(prompt)
             if not in_crash:
                 last5 = [""] * 5
                 finger_prints.add(crash_finger_print(get_filters(),
@@ -72,6 +73,11 @@ def extract_crash(outputs, prompt, get_filters):
 
         if in_crash:
             crash_lines.append(line)
+
+    # Finalize if we ended while still in a crash block
+    if in_crash:
+        finger_prints.add(crash_finger_print(get_filters(),
+                                             crash_lines[start:]))
 
     return crash_lines, finger_prints
 
@@ -121,6 +127,12 @@ class TestCrashes(unittest.TestCase):
                          {'__schedule:schedule:__wait_on_freeing_inode:find_inode_fast:iget_locked',
                           '__schedule:schedule:d_alloc_parallel:__lookup_slow:walk_component'})
 
+    def test_hw_ice_warn(self):
+        self.assertTrue(has_crash(TestCrashes.ice_warn))
+        lines, fingers = extract_crash(TestCrashes.ice_warn, '', lambda : None)
+        self.assertGreater(len(lines), 10)
+        self.assertEqual(fingers,
+                         {'__netif_set_xps_queue:netif_set_xps_queue:ice_vsi_cfg_txq:ice_vsi_cfg_lan_txqs:ice_vsi_cfg_lan'})
     #########################################################
     ### Sample outputs
     #########################################################
@@ -819,6 +831,74 @@ xx__->
 [ 2213.289855][   T43] 
 [ 2213.289919][   T43] =============================================
 [ 2213.289919][   T43] 
+"""
+
+    ice_warn = """
+[   81.109586] ice 0000:e1:00.0 ens1f0np0: Dedicated RX or TX channels cannot be used simultaneously
+ SUBSYSTEM=pci
+ DEVICE=+pci:0000:e1:00.0
+[   81.129543] ice 0000:e1:00.0 ens1f0np0: Dedicated RX or TX channels cannot be used simultaneously
+ SUBSYSTEM=pci
+ DEVICE=+pci:0000:e1:00.0
+[   81.141899] ice 0000:e1:00.0: Failed to allocate 32 q_vectors for VSI 6, new value 8
+ SUBSYSTEM=pci
+ DEVICE=+pci:0000:e1:00.0
+[   81.141899] ice 0000:e1:00.0: Failed to allocate 32 q_vectors for VSI 6, new value 8
+ SUBSYSTEM=pci
+ DEVICE=+pci:0000:e1:00.0
+[   81.157173] ------------[ cut here ]------------
+[   81.162363] WARNING: net/core/dev.c:2861 at __netif_set_xps_queue+0x90a/0xb10, CPU#27: python3/3163
+[   81.172532] Modules linked in:
+[   81.175968] CPU: 27 UID: 0 PID: 3163 Comm: python3 Not tainted 7.0.0-rc3-tvyo-g76f4f4965ab1 #1 PREEMPT(lazy)
+[   81.187108] Hardware name: Giga Computing E163-Z34-AAH1-000/MZ33-DC1-000, BIOS R30_F44 12/24/2025
+[   81.197067] RIP: 0010:__netif_set_xps_queue+0x90a/0xb10
+[   81.202940] Code: 10 48 c7 04 c2 00 00 00 00 e8 62 51 64 ff e9 95 fe ff ff 45 31 c9 bf 40 00 00 00 45 31 d2 41 bb 14 00 00 00 e9 e7 f8 ff ff 90 <0f> 0b 90 e9 1d f7 ff ff 48 8b 5c 24 28 41 0f b7 c7 48 8d 04 80 48
+[   81.224024] RSP: 0018:ff7fe3226ddeb7e8 EFLAGS: 00010246
+[   81.229898] RAX: ff37b602c3528000 RBX: 0000000000000008 RCX: 0000000000000000
+[   81.237914] RDX: 0000000000000008 RSI: ff37b602c0d05c68 RDI: 0000000000000008
+[   81.245932] RBP: ff7fe3226ddeb928 R08: ff37b602c0d05c68 R09: ff37b602c322eb40
+[   81.253951] R10: ff7fe3226208a460 R11: ff37b602c1d0b0c8 R12: ff7fe3226ddeb8b8
+[   81.261962] R13: ff37b602d7c2f828 R14: 0000000000000000 R15: 0000000000000008
+[   81.269978] FS:  00007f5408436f00(0000) GS:ff37b61a8742d000(0000) knlGS:0000000000000000
+[   81.279068] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[   81.285526] CR2: 00005618062b86a8 CR3: 0000000108aa4003 CR4: 0000000000771ef0
+[   81.293547] PKRU: 55555554
+[   81.296592] Call Trace:
+[   81.299344]  <TASK>
+[   81.301705]  ? ice_ena_vsi_txq+0x1eb/0x300
+[   81.306314]  netif_set_xps_queue+0x2c/0x40
+[   81.310919]  ice_vsi_cfg_txq+0x221/0x2a0
+[   81.315330]  ice_vsi_cfg_lan_txqs+0x60/0x90
+[   81.320034]  ice_vsi_cfg_lan+0x24/0xf0
+[   81.324241]  ice_vsi_open+0x8a/0x180
+[   81.328263]  ice_vsi_recfg_qs+0x10f/0x160
+[   81.332762]  ice_set_channels+0x161/0x2b0
+[   81.337272]  ethnl_set_channels+0x187/0x2b0
+[   81.341977]  ethnl_default_set_doit+0xf6/0x200
+[   81.346971]  genl_family_rcv_msg_doit+0xf3/0x150
+[   81.352162]  genl_rcv_msg+0x1a1/0x2a0
+[   81.356279]  ? ethnl_notify+0xb0/0xb0
+[   81.360397]  ? genl_family_rcv_msg_dumpit+0xf0/0xf0
+[   81.365877]  netlink_rcv_skb+0x54/0x100
+[   81.370191]  genl_rcv+0x23/0x30
+[   81.373722]  netlink_unicast+0x250/0x380
+[   81.378131]  netlink_sendmsg+0x1ed/0x410
+[   81.382541]  __sock_sendmsg+0x33/0x60
+[   81.386660]  __sys_sendto+0x120/0x170
+[   81.390780]  __x64_sys_sendto+0x1f/0x30
+[   81.395091]  do_syscall_64+0xe2/0x570
+[   81.399211]  entry_SYSCALL_64_after_hwframe+0x4b/0x53
+[   81.404890] RIP: 0033:0x7f540859bc5e
+[   81.408911] Code: 4d 89 d8 e8 34 bd 00 00 4c 8b 5d f8 41 8b 93 08 03 00 00 59 5e 48 83 f8 fc 74 11 c9 c3 0f 1f 80 00
+00 00 00 48 8b 45 10 0f 05 <c9> c3 83 e2 39 83 fa 08 75 e7 e8 13 ff ff ff 0f 1f 00 f3 0f 1e fa
+[   81.430001] RSP: 002b:00007ffc8a45c890 EFLAGS: 00000202 ORIG_RAX: 000000000000002c
+[   81.438509] RAX: ffffffffffffffda RBX: 00007ffc8a45c9a0 RCX: 00007f540859bc5e
+[   81.446524] RDX: 0000000000000038 RSI: 00007f5407b98410 RDI: 0000000000000006
+[   81.454543] RBP: 00007ffc8a45c8a0 R08: 0000000000000000 R09: 0000000000000000
+[   81.462559] R10: 0000000000000000 R11: 0000000000000202 R12: 0000000000000000
+[   81.470579] R13: 00007f5407aed160 R14: 0000000000000000 R15: 00007f5407e12390
+[   81.478591]  </TASK>
+[   81.481049] ---[ end trace 0000000000000000 ]---
 """
 
 
