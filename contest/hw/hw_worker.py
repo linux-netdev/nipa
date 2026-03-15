@@ -6,6 +6,7 @@
 import json
 import os
 import subprocess
+import sys
 import time
 
 from lib.runner import find_newest_unseen, mark_all_seen, run_tests
@@ -13,6 +14,34 @@ from lib.runner import find_newest_unseen, mark_all_seen, run_tests
 
 TESTS_DIR = '/srv/hw-worker/tests'
 RESULTS_DIR = '/srv/hw-worker/results'
+
+
+class _TeeWriter:
+    """Write to both the original stream and /dev/kmsg."""
+
+    def __init__(self, original):
+        self._original = original
+        try:
+            self._kmsg = open('/dev/kmsg', 'w', encoding='utf-8',
+                              errors='ignore')
+        except (PermissionError, FileNotFoundError, OSError):
+            self._kmsg = None
+
+    def write(self, text):
+        self._original.write(text)
+        if self._kmsg and text.strip():
+            # kmsg prepends its own priority/timestamp, just send the text
+            try:
+                self._kmsg.write(f'nipa-hw-worker: {text}')
+                self._kmsg.flush()
+            except OSError:
+                pass
+
+    def flush(self):
+        self._original.flush()
+
+    def __getattr__(self, name):
+        return getattr(self._original, name)
 
 # kselftest net.config keys (see drivers/net/README.rst)
 _NET_CONFIG_KEYS = ['NETIF', 'LOCAL_V4', 'LOCAL_V6', 'REMOTE_V4', 'REMOTE_V6',
@@ -185,6 +214,8 @@ def setup_test_interfaces(test_dir):
 
 def main():
     """Find pending tests, run them, and write results."""
+    sys.stdout = _TeeWriter(sys.stdout)
+
     tests_dir = TESTS_DIR
     results_base = RESULTS_DIR
 
