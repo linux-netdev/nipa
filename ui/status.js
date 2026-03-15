@@ -1064,6 +1064,29 @@ function flakes_doit(data_raw)
     flakes_add_summary(flakes, "total", total);
 }
 
+function hw_machines_loaded(data)
+{
+    var table = document.getElementById("hw-machines");
+    var hdr = document.getElementById("hw-machines-hdr");
+
+    // Build header from machine names
+    $.each(data, function(i, m) {
+        var th = document.createElement("th");
+        th.innerText = m.name;
+        hdr.appendChild(th);
+    });
+
+    // Single row with states
+    var row = table.insertRow();
+    $.each(data, function(i, m) {
+        var cell = row.insertCell();
+        var state = m.state;
+        if (m.reserved_by)
+            state += " (" + m.reserved_by + ")";
+        cell.innerText = state;
+    });
+}
+
 function do_it()
 {
     /*
@@ -1089,5 +1112,8 @@ function do_it()
     });
     $(document).ready(function() {
         $.get("query/flaky-tests", flakes_doit)
+    });
+    $(document).ready(function() {
+        $.get("mc/get_machine_info?caller=status-ui", hw_machines_loaded)
     });
 }
