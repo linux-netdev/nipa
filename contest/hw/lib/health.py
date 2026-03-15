@@ -112,4 +112,5 @@ class HealthChecker(threading.Thread):
                         print(f"Health: error checking {machine.get('name', machine_id)}: {e}")
             except Exception as e:
                 print(f"Health: error in check round: {e}")
+            print("Health: check round complete")
             self._stop_event.wait(self.interval)

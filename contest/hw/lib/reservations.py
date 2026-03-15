@@ -155,7 +155,7 @@ class ReservationManager:
             if ipaddr and self._ssh_reboot(ipaddr):
                 print(f"Reservation: SSH reboot sent to machine {mid} ({ipaddr})")
                 with self.lock:
-                    machine['state'] = MachineState.MISS_ONE
+                    machine['state'] = MachineState.REBOOT_ISSUED
             else:
                 # Fall back to BMC power cycle
                 bmc = self.bmc_map.get(mid)
@@ -163,7 +163,7 @@ class ReservationManager:
                     print(f"Reservation: BMC power cycle for machine {mid}")
                     bmc.power_cycle()
                     with self.lock:
-                        machine['state'] = MachineState.MISS_ONE
+                        machine['state'] = MachineState.REBOOT_ISSUED
 
     @staticmethod
     def _ssh_reboot(ipaddr):
