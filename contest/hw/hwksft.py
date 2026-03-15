@@ -133,12 +133,15 @@ def test(binfo, rinfo, cbarg):  # pylint: disable=unused-argument
     machine_ip_map = {m['id']: m['mgmt_ipaddr'] for m in all_machines}
     machine_ips = [machine_ip_map[mid] for mid in machine_ids]
 
-    # Record peer machine IP so deployer can set REMOTE_ARGS
+    # Record peer machine IP for cross-machine setups
     if nic.get('peer_id'):
         for n in all_nics:
             if n['id'] == nic['peer_id']:
-                nic_deploy_info['peer_machine_ip'] = machine_ip_map.get(
-                    n['machine_id'], machine_ips[0])
+                peer_machine_id = n['machine_id']
+                # Only set peer_machine_ip if peer is on a different machine
+                if peer_machine_id != nic['machine_id']:
+                    nic_deploy_info['peer_machine_ip'] = machine_ip_map.get(
+                        peer_machine_id, machine_ips[0])
                 break
 
     # Propagate optional test env variables from config

@@ -155,9 +155,15 @@ def deploy_artifacts(_config, machine_ips, reservation_id, nic_info, tree_path,
             config_lines.append(f'REMOTE_IFNAME={peer.get("ifname", "")}')
             config_lines.append(f'REMOTE_V4={peer.get("ip4addr", "")}')
             config_lines.append(f'REMOTE_V6={peer.get("ip6addr", "")}')
-            config_lines.append('REMOTE_TYPE=ssh')
-            peer_ip = nic_info.get('peer_machine_ip', machine_ips[0])
-            config_lines.append(f'REMOTE_ARGS=root@{peer_ip}')
+            peer_ip = nic_info.get('peer_machine_ip')
+            if peer_ip:
+                # Cross-machine: peer is on a different machine
+                config_lines.append('REMOTE_TYPE=ssh')
+                config_lines.append(f'REMOTE_ARGS=root@{peer_ip}')
+            else:
+                # Same machine: use netns for the peer
+                config_lines.append('REMOTE_TYPE=netns')
+                config_lines.append('REMOTE_ARGS=nipa-peer')
 
         if nic_info.get('disruptive'):
             config_lines.append(f'DISRUPTIVE={nic_info["disruptive"]}')

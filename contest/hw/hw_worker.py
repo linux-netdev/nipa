@@ -18,6 +18,9 @@ RESULTS_DIR = '/srv/hw-worker/results'
 _NET_CONFIG_KEYS = ['NETIF', 'LOCAL_V4', 'LOCAL_V6', 'REMOTE_V4', 'REMOTE_V6',
                     'LOCAL_PREFIX_V6', 'REMOTE_TYPE', 'REMOTE_ARGS']
 
+# Variables exported to the environment (not written to net.config)
+_ENV_ONLY_KEYS = ['DISRUPTIVE']
+
 
 def _parse_env_file(path):
     """Parse a simple KEY=VALUE env file."""
@@ -35,18 +38,44 @@ def _parse_env_file(path):
     return env
 
 
-def _ensure_link_up(ifname):
-    """Bring a network interface up and wait for carrier."""
-    ret = subprocess.run(['ip', 'link', 'set', ifname, 'up'],
-                         capture_output=True, check=False)
-    if ret.returncode != 0:
-        stderr = ret.stderr.decode('utf-8', 'ignore').strip()
-        raise RuntimeError(f"Failed to bring up {ifname}: {stderr}")
+def _ip(args, host=None, netns=None, check=True):
+    """Run an ip command, optionally on a remote host or in a netns.
 
-    # Wait for carrier (link partner detected)
+    host:  SSH destination (e.g. root@10.0.0.1) — run via ssh
+    netns: namespace name — run via ip -netns
+    Neither: run locally.
+    """
+    if host:
+        ret = subprocess.run(
+            ['ssh', '-o', 'ConnectTimeout=10',
+             '-o', 'StrictHostKeyChecking=no',
+             '-o', 'BatchMode=yes',
+             host, f'ip {args}'],
+            capture_output=True, timeout=30, check=False
+        )
+    elif netns:
+        ret = subprocess.run(
+            ['ip', '-netns', netns] + args.split(),
+            capture_output=True, timeout=30, check=False
+        )
+    else:
+        ret = subprocess.run(
+            ['ip'] + args.split(),
+            capture_output=True, timeout=30, check=False
+        )
+    if check and ret.returncode != 0:
+        stderr = ret.stderr.decode('utf-8', 'ignore').strip()
+        where = host or netns or 'local'
+        raise RuntimeError(f"ip {args} failed on {where}: {stderr}")
+    return ret
+
+
+def _ensure_link_up(ifname, **kwargs):
+    """Bring a network interface up and wait for carrier."""
+    _ip(f'link set {ifname} up', **kwargs)
+
     for _ in range(30):
-        ret = subprocess.run(['ip', '-json', 'link', 'show', 'dev', ifname],
-                             capture_output=True, check=False)
+        ret = _ip(f'-json link show dev {ifname}', check=False, **kwargs)
         try:
             info = json.loads(ret.stdout)[0]
             if info.get('operstate', '').upper() == 'UP':
@@ -54,19 +83,19 @@ def _ensure_link_up(ifname):
         except (json.JSONDecodeError, IndexError):
             pass
         time.sleep(1)
-    print(f"Warning: {ifname} carrier not detected after 30s")
+    where = kwargs.get('host') or kwargs.get('netns') or 'local'
+    print(f"Warning: {ifname} carrier not detected on {where} after 30s")
 
 
-def _ensure_addr(ifname, addr):
+def _ensure_addr(ifname, addr, **kwargs):
     """Add an IP address to an interface if not already present."""
     bare_addr = addr.split('/')[0]
-    ret = subprocess.run(['ip', 'addr', 'show', 'dev', ifname],
-                         capture_output=True, check=False)
+    ret = _ip(f'addr show dev {ifname}', check=False, **kwargs)
     if bare_addr in ret.stdout.decode():
         return
     if '/' not in addr:
         addr += '/64' if ':' in addr else '/24'
-    subprocess.run(['ip', 'addr', 'add', addr, 'dev', ifname], check=True)
+    _ip(f'addr add {addr} dev {ifname}', **kwargs)
 
 
 def setup_test_interfaces(test_dir):
@@ -85,20 +114,39 @@ def setup_test_interfaces(test_dir):
     # Configure DUT interface
     netif = env.get('NETIF')
     if netif:
+        # Preserve IPv6 addresses across link flaps
+        subprocess.run(['sysctl', '-w', f'net.ipv6.conf.{netif}.keep_addr_on_down=1'],
+                       capture_output=True, check=False)
         _ensure_link_up(netif)
         if env.get('LOCAL_V4'):
             _ensure_addr(netif, env['LOCAL_V4'])
         if env.get('LOCAL_V6'):
             _ensure_addr(netif, env['LOCAL_V6'])
 
-    # Configure peer interface (for loopback / same-machine peers)
+    # Configure peer interface
     remote_ifname = env.get('REMOTE_IFNAME')
-    if remote_ifname:
-        _ensure_link_up(remote_ifname)
+    remote_type = env.get('REMOTE_TYPE')
+    remote_args = env.get('REMOTE_ARGS', '')
+
+    # Build kwargs for _ip/_ensure_* helpers
+    peer_kwargs = {}
+    if remote_type == 'ssh' and remote_args:
+        peer_kwargs['host'] = remote_args
+    elif remote_type == 'netns' and remote_args:
+        ns = remote_args
+        # Create netns and move peer interface into it
+        _ip(f'netns add {ns}', check=False)
+        _ip(f'link set {remote_ifname} netns {ns}')
+        _ip('link set lo up', netns=ns)
+        peer_kwargs['netns'] = ns
+        print(f"Moved {remote_ifname} to netns {ns}")
+
+    if remote_ifname and peer_kwargs:
+        _ensure_link_up(remote_ifname, **peer_kwargs)
         if env.get('REMOTE_V4'):
-            _ensure_addr(remote_ifname, env['REMOTE_V4'])
+            _ensure_addr(remote_ifname, env['REMOTE_V4'], **peer_kwargs)
         if env.get('REMOTE_V6'):
-            _ensure_addr(remote_ifname, env['REMOTE_V6'])
+            _ensure_addr(remote_ifname, env['REMOTE_V6'], **peer_kwargs)
 
     # Wait for peer to be reachable
     peer_ip = env.get('REMOTE_V4', '').split('/')[0]
@@ -128,6 +176,11 @@ def setup_test_interfaces(test_dir):
                 with open(path, 'w', encoding='utf-8') as fp:
                     fp.write(config_content)
                 print(f"Wrote {path}")
+
+    # Export env-only variables (not net.config) for the test framework
+    for key in _ENV_ONLY_KEYS:
+        if env.get(key):
+            os.environ[key] = env[key]
 
 
 def main():
