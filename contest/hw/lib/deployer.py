@@ -371,6 +371,16 @@ def reboot_machine(config, mc, reservation_id, machine_ids, machine_ips):
     if ssh_ok:
         print(f"reboot_machine: rebooting {primary_ip} via SSH")
         _ssh(primary_ip, 'reboot', check=False, timeout=5)
+        # Wait for the machine to actually go down before checking
+        # if it's back. Without this delay, _wait_for_ssh may succeed
+        # immediately because the machine hasn't shut down yet.
+        time.sleep(10)
+        # Verify the machine actually went down
+        probe = _ssh_retcode(primary_ip, 'true', timeout=5)
+        if probe == 0:
+            print(f"reboot_machine: WARNING: {primary_ip} still responsive "
+                  "after reboot, waiting longer")
+            time.sleep(30)
         try:
             _wait_for_ssh(primary_ip, timeout=power_cycle_timeout, keepalive=_refresh)
             print(f"reboot_machine: {primary_ip} is back")
