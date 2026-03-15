@@ -498,8 +498,9 @@ class TestCrashRecovery(unittest.TestCase):
             with mock.patch('lib.deployer._wait_for_ssh'):
                 result = wait_for_results(config, mc, 42, [1], ['10.0.0.1'])
 
-        mc.power_cycle.assert_called_once_with(1)
-        self.assertTrue(result.ok)
+        mc.power_cycle.assert_not_called()
+        self.assertFalse(result.ok)
+        self.assertTrue(result.needs_power_cycle)
 
     @mock.patch('subprocess.run')
     @mock.patch('time.monotonic')

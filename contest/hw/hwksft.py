@@ -22,8 +22,8 @@ from lib.deployer import (build_kernel, build_ksft, deploy_artifacts,  # noqa: E
                           kexec_machine, wait_for_results, fetch_results,
                           parse_results, process_crashes, set_log_file,
                           WaitResult, grab_hw_worker_journal, grab_sol_logs,
-                          reboot_machine, CRASH_SENTINEL,
-                          _journal_has_crash_sentinel)
+                          reboot_machine,
+                          CRASH_SENTINEL, _journal_has_crash_sentinel)
 
 # Config:
 #
@@ -207,7 +207,9 @@ def test(binfo, rinfo, cbarg):  # pylint: disable=unused-argument
             wait_result = wait_for_results(config, mc, reservation_id,
                                            machine_ids, machine_ips)
 
-            # 8. Grab debug artifacts for this attempt
+            # 8. Grab debug artifacts for this attempt.
+            # If machine is hung (needs_power_cycle), it may still
+            # respond to SSH briefly — try to grab what we can.
             try:
                 grab_hw_worker_journal(machine_ips[0],
                                        results_path, suffix=attempt_sfx)
@@ -219,26 +221,32 @@ def test(binfo, rinfo, cbarg):  # pylint: disable=unused-argument
             except Exception as e:
                 print(f"Warning: failed to grab SOL logs: {e}")
 
-            # 9. Copy back results
-            fetch_results(machine_ips, reservation_id, results_path)
+            # 9. Check if we need to retry
+            needs_retry = wait_result.needs_power_cycle
+            if not needs_retry:
+                try:
+                    needs_retry = _journal_has_crash_sentinel(machine_ips[0])
+                except Exception:
+                    pass
 
-            # 10. Check if hw-worker detected a crash and wants a reboot
-            needs_reboot = False
-            try:
-                needs_reboot = _journal_has_crash_sentinel(machine_ips[0])
-            except Exception:
-                pass
-
-            if not needs_reboot:
+            if not needs_retry:
                 break
 
+            if wait_result.needs_power_cycle:
+                print(f"Machine hung (attempt {attempt+1}), rebooting")
+            else:
+                print(f"hw-worker detected crash (attempt {attempt+1}), rebooting")
+            reboot_machine(config, mc, reservation_id,
+                           machine_ids, machine_ips)
+
+            # Do the reboot even if we are about to give up, otherwise
+            # if machine is hung we won't be able to fetch results
             if attempt >= max_crash_retries:
                 print(f"Max crash retries ({max_crash_retries}) reached, giving up")
                 break
 
-            print(f"hw-worker detected crash (attempt {attempt+1}), rebooting")
-            reboot_machine(config, mc, reservation_id,
-                           machine_ids, machine_ips)
+        # 10. Copy back results
+        fetch_results(machine_ips, reservation_id, results_path)
 
         # 11. Parse results
         cases = parse_results(results_path, link)

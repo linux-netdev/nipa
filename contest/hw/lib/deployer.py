@@ -28,6 +28,7 @@ class WaitResult:
     """Result of wait_for_results()."""
     ok: bool
     error: str = ''
+    needs_power_cycle: bool = False
 
 
 def set_log_file(fp):
@@ -336,18 +337,10 @@ def wait_for_results(config, mc, reservation_id, machine_ids, machine_ips):
                     # No new SOL output after crash — machine may be hung
                     crash_age = time.monotonic() - crash_detected_at[mid]
                     if crash_age >= crash_wait_time:
-                        print(f"wait_for_results: machine {mid} hung, power cycling")
-                        mc.power_cycle(mid)
-                        power_cycle_timeout = config.getint(
-                            'hw', 'max_power_cycle_timeout', fallback=600)
-                        _wait_for_ssh(ipaddr, timeout=power_cycle_timeout,
-                                      keepalive=lambda: mc.reservation_refresh(reservation_id))
-                        # Machine rebooted into default kernel, hw-worker
-                        # will see kernel mismatch and exit.  The service
-                        # state will flip to inactive/failed, caught on
-                        # the next iteration.
-                        del crash_detected_at[mid]
-                        print(f"wait_for_results: machine {mid} back after power cycle")
+                        print(f"wait_for_results: machine {mid} hung")
+                        return WaitResult(ok=False,
+                                          error='machine hung after crash',
+                                          needs_power_cycle=True)
                 # else: SOL still progressing post-crash, hw-worker may
                 # still be running and will detect the crash via dmesg
 
@@ -378,7 +371,7 @@ def reboot_machine(config, mc, reservation_id, machine_ids, machine_ips):
     _ssh(primary_ip, 'reboot', check=False, timeout=5)
 
     try:
-        _wait_for_ssh(primary_ip, timeout=boot_timeout, keepalive=_refresh)
+        _wait_for_ssh(primary_ip, timeout=power_cycle_timeout, keepalive=_refresh)
         print(f"reboot_machine: {primary_ip} is back")
     except TimeoutError:
         # SSH reboot didn't work, hard cycle via BMC
