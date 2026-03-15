@@ -164,6 +164,12 @@ def test(binfo, rinfo, cbarg):  # pylint: disable=unused-argument
     else:
         raise RuntimeError(f"Failed to reserve machines after {max_retries} attempts")
 
+    # Write reservation ID so results can be correlated with hw-worker state
+    # on the test machine (/srv/hw-worker/tests/$reservation_id)
+    with open(os.path.join(results_path, 'reservation-id'), 'w',
+              encoding='utf-8') as fp:
+        fp.write(f'{reservation_id}\n')
+
     max_crash_retries = config.getint('hw', 'max_crash_retries', fallback=2)
     cases = None
     sol_start_ids = {}
