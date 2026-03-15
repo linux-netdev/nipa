@@ -361,8 +361,25 @@ class DmesgReader:
             if not data:
                 break
             # kmsg format: "priority,sequence,timestamp,-;message\n"
-            # Just keep the raw lines — hwksft doesn't parse them.
-            lines.append(data.decode('utf-8', 'ignore'))
+            # Convert to dmesg-style: "[  timestamp] message"
+            raw = data.decode('utf-8', 'ignore')
+            for raw_line in raw.splitlines():
+                parts = raw_line.split(';', 1)
+                if len(parts) == 2:
+                    header, msg = parts
+                    fields = header.split(',')
+                    if len(fields) >= 3:
+                        # timestamp is in microseconds
+                        try:
+                            ts_us = int(fields[2])
+                            ts_s = ts_us / 1_000_000
+                            lines.append(f'[{ts_s:>12.6f}] {msg}\n')
+                        except ValueError:
+                            lines.append(f'{msg}\n')
+                    else:
+                        lines.append(f'{msg}\n')
+                else:
+                    lines.append(f'{raw_line}\n')
 
         return ''.join(lines)
 
