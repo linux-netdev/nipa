@@ -6,18 +6,30 @@
 import argparse
 import json
 import os
+import re
 import sys
-import unicodedata
 
 import requests
 
 from lib.mc_client import MCClient, resolve_machines
 
 
-def _sanitize(text):
-    """Strip control characters except newline."""
+def _sanitize(text, keep_color=False):
+    """Strip ANSI escape sequences and control characters.
+
+    If keep_color is True, SGR sequences (color/formatting, ending
+    with 'm') are preserved.  All other escape sequences and control
+    characters (except newline) are removed.
+    """
+    if keep_color:
+        # Strip non-SGR escape sequences (cursor movement, erase, etc.)
+        text = re.sub(r'\x1b\[[0-9;]*[^0-9;m]', '', text)
+    else:
+        # Strip all ANSI escape sequences
+        text = re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', text)
+    # Strip remaining control characters except newline
     return ''.join(c for c in text
-                   if c == '\n' or unicodedata.category(c)[0] != 'C')
+                   if c == '\n' or not (0 <= ord(c) < 32 or ord(c) == 127))
 
 
 def cmd_machines(args, mc):
@@ -77,6 +89,7 @@ def cmd_resolve(args, mc):
 
 def cmd_sol(args, mc):
     """Fetch SOL logs."""
+    color = args.color
     if args.follow:
         # Fetch last 10 lines to start, then poll for new ones
         data = mc.get_sol_logs(args.machine_id, start_id=args.start_id,
@@ -84,7 +97,7 @@ def cmd_sol(args, mc):
         lines = list(reversed(data.get('lines', [])))
         for entry in lines:
             ts = entry.get('ts', '')
-            print(f"{ts}  {_sanitize(entry['line'])}", end='')
+            print(f"{ts}  {_sanitize(entry['line'], keep_color=color)}", end='')
         last_id = data.get('last_id', 0)
 
         import time
@@ -95,7 +108,8 @@ def cmd_sol(args, mc):
                                        limit=args.limit)
                 for entry in data.get('lines', []):
                     ts = entry.get('ts', '')
-                    print(f"{ts}  {_sanitize(entry['line'])}", end='', flush=True)
+                    print(f"{ts}  {_sanitize(entry['line'], keep_color=color)}",
+                          end='', flush=True)
                 last_id = data.get('last_id', last_id)
         except KeyboardInterrupt:
             return 0
@@ -107,7 +121,7 @@ def cmd_sol(args, mc):
         return 0
     for entry in data.get('lines', []):
         ts = entry.get('ts', '')
-        print(f"{ts}  {_sanitize(entry['line'])}", end='')
+        print(f"{ts}  {_sanitize(entry['line'], keep_color=color)}", end='')
     last_id = data.get('last_id', 0)
     print(f"last_id={last_id}", file=sys.stderr)
     return 0
@@ -214,6 +228,8 @@ def main(argv=None):
                        help='follow output like tail -f')
     p_sol.add_argument('--interval', type=float, default=2,
                        help='poll interval in seconds for -f (default: 2)')
+    p_sol.add_argument('--color', action='store_true',
+                       help='preserve ANSI color/formatting in output')
 
     p_reserve = sub.add_parser('reserve', help='reserve machines')
     p_reserve.add_argument('--machine-ids', required=True,
