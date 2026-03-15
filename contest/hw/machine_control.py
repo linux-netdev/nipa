@@ -383,7 +383,7 @@ def reservation_close():
 
 def main():
     """Initialize services and run Flask app."""
-    global db_pool, health_checker, res_mgr, sol_listener  # pylint: disable=global-statement
+    global db_pool, health_checker, res_mgr  # pylint: disable=global-statement
 
     config = configparser.ConfigParser()
     cfg_paths = ['hw.config', 'machine_control.config']
@@ -412,17 +412,11 @@ def main():
     # ReservationManager to prevent TOCTOU races
     machines_lock = threading.Lock()
 
-    # Start SOL collector (one ipmitool session per machine)
-    sol_listener = SOLCollector(db_pool, bmc_map)
-    sol_listener.start()
-
-    # Start health checker
+    # Create managers (but don't start threads yet — gunicorn will fork)
     health_interval = config.getint('control', 'health_check_interval', fallback=300)
     health_checker = HealthChecker(machines, bmc_map, interval=health_interval,
                                    lock=machines_lock)
-    health_checker.start()
 
-    # Start reservation timeout checker
     res_timeout = config.getint('control', 'reservation_timeout', fallback=600)
     res_mgr = ReservationManager(db_pool, res_timeout, machines, bmc_map,
                                  lock=machines_lock)
@@ -430,8 +424,13 @@ def main():
     # Recover any active reservations that survived a restart
     _recover_reservations(db_pool, res_mgr)
 
-    res_timeout_thread = ReservationTimeoutThread(res_mgr)
-    res_timeout_thread.start()
+    def _start_threads():
+        """Start background threads — called after gunicorn fork."""
+        sol_listener = SOLCollector(db_pool, bmc_map)
+        sol_listener.start()
+        health_checker.start()
+        res_timeout_thread = ReservationTimeoutThread(res_mgr)
+        res_timeout_thread.start()
 
     # Run with gunicorn if available, otherwise fall back to Flask dev server
     flask_host = config.get('flask', 'host', fallback='0.0.0.0')
@@ -444,12 +443,14 @@ def main():
             def load_config(self):
                 self.cfg.set('bind', f'{flask_host}:{flask_port}')
                 self.cfg.set('workers', 1)
+                self.cfg.set('post_worker_init', lambda w: _start_threads())
 
             def load(self):
                 return app
 
         MCGunicorn().run()
     except ImportError:
+        _start_threads()
         app.run(host=flask_host, port=flask_port)
 
 
