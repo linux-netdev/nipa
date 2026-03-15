@@ -193,6 +193,16 @@ def cmd_health_check(args, mc):
     return 0
 
 
+def cmd_sysrq(args, mc):
+    """Send a SysRq key to a machine via SOL."""
+    result = mc.send_sysrq(args.machine_id, args.key)
+    if args.json:
+        print(json.dumps(result, indent=2))
+        return 0
+    print(f"Sent SysRq '{args.key}' to machine {args.machine_id}")
+    return 0
+
+
 def main(argv=None):
     """Entry point: parse args and dispatch subcommand."""
     parser = argparse.ArgumentParser(
@@ -254,6 +264,13 @@ def main(argv=None):
     p_hc.add_argument('--machine-id', type=int, required=True,
                       help='machine ID')
 
+    p_sysrq = sub.add_parser('sysrq',
+                             help='send SysRq key to a machine via SOL')
+    p_sysrq.add_argument('--machine-id', type=int, required=True,
+                         help='machine ID')
+    p_sysrq.add_argument('--key', required=True,
+                         help='SysRq key (e.g. c=crashdump, b=reboot, e=SIGTERM)')
+
     args = parser.parse_args(argv)
 
     if not args.command:
@@ -275,6 +292,7 @@ def main(argv=None):
         'close': cmd_close,
         'power-cycle': cmd_power_cycle,
         'health-check': cmd_health_check,
+        'sysrq': cmd_sysrq,
     }
     try:
         return commands[args.command](args, mc)

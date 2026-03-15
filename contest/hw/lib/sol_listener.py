@@ -34,6 +34,8 @@ class SOLCollector:
         self.bmc_map = bmc_map
         self._stop_event = threading.Event()
         self._threads = []
+        self._master_fds = {}  # machine_id -> master_fd
+        self._fds_lock = threading.Lock()
 
     def start(self):
         """Start a reader thread for each machine."""
@@ -47,6 +49,22 @@ class SOLCollector:
     def stop(self):
         """Signal all sessions to stop."""
         self._stop_event.set()
+
+    def send_sysrq(self, machine_id, key):
+        """Send a SysRq key via the SOL session.
+
+        Writes ipmitool's break escape sequence (~B) followed by the
+        key character to the active SOL pty.  Returns True on success.
+        """
+        with self._fds_lock:
+            fd = self._master_fds.get(machine_id)
+        if fd is None:
+            return False
+        try:
+            os.write(fd, b'~B' + key.encode('ascii'))
+            return True
+        except OSError:
+            return False
 
     def _insert_chunk(self, machine_id, line, eol):
         ts = datetime.datetime.now(datetime.UTC)
@@ -114,6 +132,8 @@ class SOLCollector:
             print(f"SOL: session started for machine {machine_id} "
                   f"(BMC {bmc.bmc_ipaddr})")
 
+            with self._fds_lock:
+                self._master_fds[machine_id] = master_fd
             try:
                 while not self._stop_event.is_set():
                     try:
@@ -129,6 +149,8 @@ class SOLCollector:
                         except Exception as e:
                             print(f"SOL: DB error for machine {machine_id}: {e}")
             finally:
+                with self._fds_lock:
+                    self._master_fds.pop(machine_id, None)
                 os.close(master_fd)
                 proc.terminate()
                 try:

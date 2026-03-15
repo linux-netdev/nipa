@@ -302,6 +302,33 @@ def health_check():
     })
 
 
+@app.route('/send_sysrq', methods=['POST'])
+def send_sysrq():
+    """Send a SysRq key to a machine via the active SOL session."""
+    data = request.get_json() or {}
+    machine_id = data.get('machine_id')
+    key = data.get('key', '')
+
+    if machine_id is None:
+        return jsonify({'error': 'machine_id required'}), 400
+
+    if len(key) != 1 or not key.isascii():
+        return jsonify({'error': 'key must be a single ASCII character'}), 400
+
+    if not _check_auth(machine_id):
+        return jsonify({'error': 'unauthorized'}), 403
+
+    if sol_listener is None:
+        return jsonify({'error': 'SOL not running'}), 503
+
+    ok = sol_listener.send_sysrq(machine_id, key)
+    if not ok:
+        return jsonify({'error': f'No active SOL session for machine {machine_id}'}), 404
+
+    print(f"SysRq: sent '{key}' to machine {machine_id}")
+    return jsonify({'ok': True, 'machine_id': machine_id, 'key': key})
+
+
 @app.route('/reserve', methods=['POST'])
 def reserve():
     """Atomically reserve a group of machines."""
@@ -383,7 +410,7 @@ def reservation_close():
 
 def main():
     """Initialize services and run Flask app."""
-    global db_pool, health_checker, res_mgr  # pylint: disable=global-statement
+    global db_pool, health_checker, res_mgr, sol_listener  # pylint: disable=global-statement
 
     config = configparser.ConfigParser()
     cfg_paths = ['hw.config', 'machine_control.config']
@@ -426,6 +453,7 @@ def main():
 
     def _start_threads():
         """Start background threads — called after gunicorn fork."""
+        global sol_listener  # pylint: disable=global-statement
         sol_listener = SOLCollector(db_pool, bmc_map)
         sol_listener.start()
         health_checker.start()

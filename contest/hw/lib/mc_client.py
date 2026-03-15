@@ -96,6 +96,17 @@ class MCClient:
         r.raise_for_status()
         return r.json()
 
+    def send_sysrq(self, machine_id, key):
+        """Send a SysRq key to a machine via SOL."""
+        data = {
+            'caller': self.caller,
+            'machine_id': machine_id,
+            'key': key,
+        }
+        r = requests.post(f'{self.base_url}/send_sysrq', json=data, timeout=30)
+        r.raise_for_status()
+        return r.json()
+
 
 def resolve_nic_id(nic_info_list, vendor, model):
     """Resolve a NIC id from vendor and model strings."""
