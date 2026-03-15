@@ -360,25 +360,30 @@ def _journal_has_crash_sentinel(ipaddr):
 def reboot_machine(config, mc, reservation_id, machine_ids, machine_ips):
     """Reboot the machine via SSH, falling back to BMC power cycle."""
     primary_ip = machine_ips[0]
-    boot_timeout = config.getint('hw', 'max_kexec_boot_timeout', fallback=300)
     power_cycle_timeout = config.getint('hw', 'max_power_cycle_timeout', fallback=600)
 
     def _refresh():
         mc.reservation_refresh(reservation_id)
 
-    # Try SSH reboot first
-    print(f"reboot_machine: rebooting {primary_ip} via SSH")
-    _ssh(primary_ip, 'reboot', check=False, timeout=5)
+    # Check if SSH is responsive at all before trying reboot
+    ssh_ok = _ssh_retcode(primary_ip, 'true', timeout=10) == 0
+    if ssh_ok:
+        print(f"reboot_machine: rebooting {primary_ip} via SSH")
+        _ssh(primary_ip, 'reboot', check=False, timeout=5)
+        try:
+            _wait_for_ssh(primary_ip, timeout=power_cycle_timeout, keepalive=_refresh)
+            print(f"reboot_machine: {primary_ip} is back")
+            return
+        except TimeoutError:
+            print(f"reboot_machine: SSH reboot timed out, falling back to BMC")
+    else:
+        print(f"reboot_machine: SSH not responsive on {primary_ip}")
 
-    try:
-        _wait_for_ssh(primary_ip, timeout=power_cycle_timeout, keepalive=_refresh)
-        print(f"reboot_machine: {primary_ip} is back")
-    except TimeoutError:
-        # SSH reboot didn't work, hard cycle via BMC
-        print(f"reboot_machine: SSH reboot timed out, power cycling")
-        mc.power_cycle(machine_ids[0])
-        _wait_for_ssh(primary_ip, timeout=power_cycle_timeout, keepalive=_refresh)
-        print(f"reboot_machine: {primary_ip} back after power cycle")
+    # BMC power cycle
+    print(f"reboot_machine: power cycling {primary_ip} via BMC")
+    mc.power_cycle(machine_ids[0])
+    _wait_for_ssh(primary_ip, timeout=power_cycle_timeout, keepalive=_refresh)
+    print(f"reboot_machine: {primary_ip} back after power cycle")
 
 
 def fetch_results(machine_ips, reservation_id, results_path):
