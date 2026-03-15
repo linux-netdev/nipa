@@ -187,7 +187,7 @@ def test(binfo, rinfo, cbarg):  # pylint: disable=unused-argument
                              tree_path, kernel_version, filters=filters)
             set_log_file(None)
 
-        for attempt in range(max_crash_retries + 1):
+        for attempt in range(max_crash_retries):
             attempt_sfx = f'-{attempt}' if attempt > 0 else ''
 
             # Record SOL position before kexec
@@ -197,15 +197,26 @@ def test(binfo, rinfo, cbarg):  # pylint: disable=unused-argument
                 sol_start_ids[mid] = sol.get('last_id', 0)
 
             # 6. kexec into new kernel
+            kexec_failed = False
             with open(os.path.join(results_path, f'deploy{attempt_sfx}'), 'a',
                       encoding='utf-8') as fp:
                 set_log_file(fp)
-                kexec_machine(config, machine_ips, reservation_id, mc=mc)
+                try:
+                    kexec_machine(config, machine_ips, reservation_id, mc=mc)
+                except TimeoutError:
+                    print(f"kexec: machine not reachable after kexec, "
+                          "treating as crash")
+                    kexec_failed = True
                 set_log_file(None)
 
-            # 7. Wait for hw-worker with crash monitoring
-            wait_result = wait_for_results(config, mc, reservation_id,
-                                           machine_ids, machine_ips)
+            if kexec_failed:
+                wait_result = WaitResult(ok=False,
+                                         error='machine not reachable after kexec',
+                                         needs_power_cycle=True)
+            else:
+                # 7. Wait for hw-worker with crash monitoring
+                wait_result = wait_for_results(config, mc, reservation_id,
+                                               machine_ids, machine_ips)
 
             # 8. Grab debug artifacts for this attempt.
             # If machine is hung (needs_power_cycle), it may still
@@ -241,7 +252,7 @@ def test(binfo, rinfo, cbarg):  # pylint: disable=unused-argument
 
             # Do the reboot even if we are about to give up, otherwise
             # if machine is hung we won't be able to fetch results
-            if attempt >= max_crash_retries:
+            if attempt >= max_crash_retries - 1:
                 print(f"Max crash retries ({max_crash_retries}) reached, giving up")
                 break
 
