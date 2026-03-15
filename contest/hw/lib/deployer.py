@@ -275,7 +275,7 @@ def wait_for_results(config, mc, reservation_id, machine_ids, machine_ips):
     """
     max_test_time = config.getint('hw', 'max_test_time', fallback=3600)
     sol_poll_interval = config.getint('hw', 'sol_poll_interval', fallback=15)
-    crash_wait_time = config.getint('hw', 'crash_wait_time', fallback=120)
+    crash_wait_time = config.getint('hw', 'crash_wait_time', fallback=600)
 
     start_time = time.monotonic()
     # Seed SOL cursors to current position so we only see new output
