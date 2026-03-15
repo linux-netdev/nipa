@@ -9,8 +9,15 @@ import re
 import shutil
 import string
 import subprocess
+import sys
 import time
 from dataclasses import dataclass, field
+
+# Add project root for cross-package imports
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                '..', '..', '..'))
+
+from contest.remote.lib.crash import has_crash  # noqa: E402
 
 
 # Log file handle, set by set_log_file() before builds start.
@@ -44,20 +51,7 @@ def _run(cmd, check=True, capture_output=False, **kwargs):
                           check=check, **kwargs)
 
 
-def _has_crash(output):
-    """Check if output contains kernel crash markers.
 
-    Mirrors contest/remote/lib/crash.py:has_crash().
-    """
-    return (output.find('] RIP: ') != -1 or
-            output.find('] Call Trace:') != -1 or
-            output.find('] ref_tracker: ') != -1 or
-            output.find('unreferenced object 0x') != -1)
-
-
-def _has_reboot(output):
-    """Check if output contains early-boot marker indicating self-reboot."""
-    return output.find('[    0.000000]') != -1
 
 
 def build_kernel(config, tree_path):
@@ -216,25 +210,25 @@ def kexec_machine(config, machine_ips, reservation_id, mc=None):
         print(f"kexec: {ipaddr} is back")
 
 
-def grab_hw_worker_journal(ipaddr, results_path):
+def grab_hw_worker_journal(ipaddr, results_path, suffix=''):
     """Fetch hw-worker journal from the test machine and save locally."""
     journal = _ssh(ipaddr,
                    'journalctl -u nipa-hw-worker.service -b --no-pager',
                    check=False)
     if journal:
-        journal_file = os.path.join(results_path, 'hw-worker-journal')
+        journal_file = os.path.join(results_path, f'hw-worker-journal{suffix}')
         with open(journal_file, 'w', encoding='utf-8') as fp:
             fp.write(journal)
 
 
-def grab_sol_logs(mc, machine_ids, results_path, sol_start_ids):
+def grab_sol_logs(mc, machine_ids, results_path, sol_start_ids, suffix=''):
     """Fetch SOL output for the test session and save locally.
 
     Only fetches lines after sol_start_ids (captured before kexec).
     Paginates until the server returns no more lines.
     """
     for mid in machine_ids:
-        sol_file = os.path.join(results_path, f'sol-machine-{mid}')
+        sol_file = os.path.join(results_path, f'sol-machine-{mid}{suffix}')
 
         if mid not in sol_start_ids:
             with open(sol_file, 'w', encoding='utf-8') as fp:
@@ -258,17 +252,22 @@ def grab_sol_logs(mc, machine_ids, results_path, sol_start_ids):
                 cursor = new_cursor
 
 
-def wait_for_results(config, mc, reservation_id, machine_ids, machine_ips):
-    """Main wait loop with crash monitoring.
+CRASH_SENTINEL = "NIPA DETECTED SYSTEM CRASH, REBOOT ME PLEASE"
 
-    Polls SOL logs via mc.get_sol_logs() to detect crashes.
-    On crash: waits crash_wait_time, power cycles,
-    re-kexecs, lets hw-worker resume remaining tests.
+
+def wait_for_results(config, mc, reservation_id, machine_ids, machine_ips):
+    """Wait for hw-worker service to exit, monitoring SOL for hard crashes.
+
+    Returns WaitResult(ok=True) when service exits cleanly,
+    WaitResult(ok=False) on failure/timeout.
+
+    SOL is monitored for crash markers.  If a crash is detected and no
+    new SOL output arrives for crash_wait_time seconds, the machine is
+    assumed hung and we power-cycle it (this makes the service exit).
     """
     max_test_time = config.getint('hw', 'max_test_time', fallback=3600)
     sol_poll_interval = config.getint('hw', 'sol_poll_interval', fallback=15)
     crash_wait_time = config.getint('hw', 'crash_wait_time', fallback=120)
-    boot_timeout = config.getint('hw', 'max_kexec_boot_timeout', fallback=300)
 
     start_time = time.monotonic()
     # Seed SOL cursors to current position so we only see new output
@@ -293,10 +292,6 @@ def wait_for_results(config, mc, reservation_id, machine_ids, machine_ips):
             return WaitResult(ok=False, error=msg)
 
         # Check if hw-worker service has exited.
-        # For Type=oneshot services, is-active returns "activating" (rc=3)
-        # while running, "active" (rc=0) after success with RemainAfterExit=yes,
-        # and "failed"/"inactive" after failure/stop.  Use show -p ActiveState
-        # to distinguish "still running" from "done".
         primary_ip = machine_ips[0]
         state = _ssh(primary_ip,
                      'systemctl show -p ActiveState --value nipa-hw-worker.service',
@@ -308,8 +303,6 @@ def wait_for_results(config, mc, reservation_id, machine_ids, machine_ips):
             print(f"wait_for_results: {msg}")
             return WaitResult(ok=False, error=msg)
         elif state in ('inactive', 'active'):
-            # inactive = exited normally (RemainAfterExit=no)
-            # active = exited normally (RemainAfterExit=yes)
             print("wait_for_results: hw-worker completed")
             return WaitResult(ok=True)
 
@@ -320,10 +313,9 @@ def wait_for_results(config, mc, reservation_id, machine_ids, machine_ips):
             sol_text = '\n'.join(entry['line'] for entry in sol.get('lines', []))
             new_last_id = sol.get('last_id', sol_last_ids[mid])
 
-            if _has_crash(sol_text):
+            if has_crash(sol_text):
                 if mid not in crash_detected_at:
                     crash_detected_at[mid] = time.monotonic()
-                    # Find and log the specific crash lines
                     crash_lines = [l for l in sol_text.split('\n')
                                    if any(m in l for m in ('] RIP: ', '] Call Trace:',
                                                            '] ref_tracker: ',
@@ -332,63 +324,60 @@ def wait_for_results(config, mc, reservation_id, machine_ids, machine_ips):
                         print(f"wait_for_results: crash on machine {mid}: {cl.strip()}")
 
             if mid in crash_detected_at:
-                if _has_reboot(sol_text):
-                    # Machine is already rebooting itself, skip power cycle
-                    print(f"wait_for_results: self-reboot on machine {mid}")
-                    _crash_recover(config, mc, mid, ipaddr,
-                                   reservation_id, boot_timeout,
-                                   skip_power_cycle=True)
-                    del crash_detected_at[mid]
-                elif new_last_id == sol_last_ids[mid]:
-                    # No new SOL output after crash
+                if new_last_id == sol_last_ids[mid]:
+                    # No new SOL output after crash — machine may be hung
                     crash_age = time.monotonic() - crash_detected_at[mid]
                     if crash_age >= crash_wait_time:
-                        print(f"wait_for_results: recovering machine {mid}")
-                        _crash_recover(config, mc, mid, ipaddr,
-                                       reservation_id, boot_timeout)
+                        print(f"wait_for_results: machine {mid} hung, power cycling")
+                        mc.power_cycle(mid)
+                        power_cycle_timeout = config.getint(
+                            'hw', 'max_power_cycle_timeout', fallback=600)
+                        _wait_for_ssh(ipaddr, timeout=power_cycle_timeout,
+                                      keepalive=lambda: mc.reservation_refresh(reservation_id))
+                        # Machine rebooted into default kernel, hw-worker
+                        # will see kernel mismatch and exit.  The service
+                        # state will flip to inactive/failed, caught on
+                        # the next iteration.
                         del crash_detected_at[mid]
-                # else: SOL still progressing post-crash, keep waiting
+                        print(f"wait_for_results: machine {mid} back after power cycle")
+                # else: SOL still progressing post-crash, hw-worker may
+                # still be running and will detect the crash via dmesg
 
             sol_last_ids[mid] = new_last_id
 
         time.sleep(sol_poll_interval)
 
 
-def _crash_recover(config, mc, machine_id, ipaddr, reservation_id,
-                   boot_timeout, skip_power_cycle=False):
-    """Recover a machine after a kernel crash.
+def _journal_has_crash_sentinel(ipaddr):
+    """Check if hw-worker journal contains the crash sentinel."""
+    journal = _ssh(ipaddr,
+                   'journalctl -u nipa-hw-worker.service -b --no-pager',
+                   check=False)
+    return CRASH_SENTINEL in journal
 
-    1. Power cycle (boots into default kernel) — skipped if machine
-       is already rebooting itself (self-reboot detected in SOL).
-    2. Wait for SSH
-    3. Re-kexec into test kernel
 
-    This is intentionally synchronous and blocks the SOL poll loop:
-    recovery takes several minutes, and the poll loop needs the machine
-    back before it can continue monitoring anyway.
+def reboot_machine(config, mc, reservation_id, machine_ids, machine_ips):
+    """Reboot the machine via SSH, falling back to BMC power cycle."""
+    primary_ip = machine_ips[0]
+    boot_timeout = config.getint('hw', 'max_kexec_boot_timeout', fallback=300)
+    power_cycle_timeout = config.getint('hw', 'max_power_cycle_timeout', fallback=600)
 
-    No explicit coordination with hw-worker is needed: on the default
-    kernel hw-worker sees a version mismatch and exits immediately.
-    The subsequent kexec kills everything on the machine anyway, so
-    even if hw-worker is still running its check when kexec arrives,
-    the outcome is the same.
-    """
     def _refresh():
         mc.reservation_refresh(reservation_id)
 
-    if not skip_power_cycle:
-        print(f"crash_recover: power cycling machine {machine_id}")
-        mc.power_cycle(machine_id)
-        # Power cycle goes through BMC + BIOS POST, takes much longer than kexec
-        power_cycle_timeout = config.getint('hw', 'max_power_cycle_timeout', fallback=600)
-        print(f"crash_recover: waiting for SSH on {ipaddr} (timeout {power_cycle_timeout}s)")
-        _wait_for_ssh(ipaddr, timeout=power_cycle_timeout, keepalive=_refresh)
-    else:
-        print(f"crash_recover: waiting for SSH on {ipaddr} after self-reboot (timeout {boot_timeout}s)")
-        _wait_for_ssh(ipaddr, timeout=boot_timeout, keepalive=_refresh)
+    # Try SSH reboot first
+    print(f"reboot_machine: rebooting {primary_ip} via SSH")
+    _ssh(primary_ip, 'reboot', check=False, timeout=5)
 
-    print(f"crash_recover: SSH is back on {ipaddr}, re-kexecing")
-    kexec_machine(config, [ipaddr], reservation_id, mc=mc)
+    try:
+        _wait_for_ssh(primary_ip, timeout=boot_timeout, keepalive=_refresh)
+        print(f"reboot_machine: {primary_ip} is back")
+    except TimeoutError:
+        # SSH reboot didn't work, hard cycle via BMC
+        print(f"reboot_machine: SSH reboot timed out, power cycling")
+        mc.power_cycle(machine_ids[0])
+        _wait_for_ssh(primary_ip, timeout=power_cycle_timeout, keepalive=_refresh)
+        print(f"reboot_machine: {primary_ip} back after power cycle")
 
 
 def fetch_results(machine_ips, reservation_id, results_path):

@@ -25,7 +25,9 @@ from lib.mc_client import MCClient, resolve_machines, resolve_nic_id  # noqa: E4
 from lib.deployer import (build_kernel, build_ksft, deploy_artifacts,  # noqa: E402
                           kexec_machine, wait_for_results, fetch_results,
                           parse_results, set_log_file, WaitResult,
-                          grab_hw_worker_journal, grab_sol_logs)
+                          grab_hw_worker_journal, grab_sol_logs,
+                          reboot_machine, CRASH_SENTINEL,
+                          _journal_has_crash_sentinel)
 
 # Config:
 #
@@ -165,6 +167,7 @@ def test(binfo, rinfo, cbarg):  # pylint: disable=unused-argument
     else:
         raise RuntimeError(f"Failed to reserve machines after {max_retries} attempts")
 
+    max_crash_retries = config.getint('hw', 'max_crash_retries', fallback=2)
     cases = None
     sol_start_ids = {}
     try:
@@ -173,28 +176,64 @@ def test(binfo, rinfo, cbarg):  # pylint: disable=unused-argument
             set_log_file(fp)
             deploy_artifacts(config, machine_ips, reservation_id, nic_deploy_info,
                              tree_path, kernel_version)
+            set_log_file(None)
 
-            # 6. Record SOL position before kexec so we can grab just this session
+        for attempt in range(max_crash_retries + 1):
+            attempt_sfx = f'-{attempt}' if attempt > 0 else ''
+
+            # Record SOL position before kexec
             sol_start_ids = {}
             for mid in machine_ids:
                 sol = mc.get_sol_logs(mid, limit=1, sort='desc')
                 sol_start_ids[mid] = sol.get('last_id', 0)
 
-            # 7. kexec into new kernel
-            kexec_machine(config, machine_ips, reservation_id, mc=mc)
-            set_log_file(None)
+            # 6. kexec into new kernel
+            with open(os.path.join(results_path, f'deploy{attempt_sfx}'), 'a',
+                      encoding='utf-8') as fp:
+                set_log_file(fp)
+                kexec_machine(config, machine_ips, reservation_id, mc=mc)
+                set_log_file(None)
 
-        # 7. Wait for hw-worker with crash monitoring
-        wait_result = wait_for_results(config, mc, reservation_id,
-                                       machine_ids, machine_ips)
+            # 7. Wait for hw-worker with crash monitoring
+            wait_result = wait_for_results(config, mc, reservation_id,
+                                           machine_ids, machine_ips)
 
-        # 8. Copy back results
-        fetch_results(machine_ips, reservation_id, results_path)
+            # 8. Grab debug artifacts for this attempt
+            try:
+                grab_hw_worker_journal(machine_ips[0],
+                                       results_path, suffix=attempt_sfx)
+            except Exception as e:
+                print(f"Warning: failed to grab hw-worker journal: {e}")
+            try:
+                grab_sol_logs(mc, machine_ids, results_path, sol_start_ids,
+                              suffix=attempt_sfx)
+            except Exception as e:
+                print(f"Warning: failed to grab SOL logs: {e}")
 
-        # 9. Parse results
+            # 9. Copy back results
+            fetch_results(machine_ips, reservation_id, results_path)
+
+            # 10. Check if hw-worker detected a crash and wants a reboot
+            needs_reboot = False
+            try:
+                needs_reboot = _journal_has_crash_sentinel(machine_ips[0])
+            except Exception:
+                pass
+
+            if not needs_reboot:
+                break
+
+            if attempt >= max_crash_retries:
+                print(f"Max crash retries ({max_crash_retries}) reached, giving up")
+                break
+
+            print(f"hw-worker detected crash (attempt {attempt+1}), rebooting")
+            reboot_machine(config, mc, reservation_id,
+                           machine_ids, machine_ips)
+
+        # 11. Parse results
         cases = parse_results(reservation_id, results_path, link)
         if not wait_result.ok:
-            # Write error to disk so it's visible via the UI result link
             with open(os.path.join(results_path, 'error'), 'w',
                       encoding='utf-8') as fp:
                 fp.write(wait_result.error + '\n')
@@ -206,16 +245,6 @@ def test(binfo, rinfo, cbarg):  # pylint: disable=unused-argument
             })
     finally:
         set_log_file(None)
-        # 10. Grab hw-worker journal for debugging
-        try:
-            grab_hw_worker_journal(machine_ips[0], results_path)
-        except Exception as e:
-            print(f"Warning: failed to grab hw-worker journal: {e}")
-        # 11. Grab SOL output for the test session
-        try:
-            grab_sol_logs(mc, machine_ids, results_path, sol_start_ids)
-        except Exception as e:
-            print(f"Warning: failed to grab SOL logs: {e}")
         # 12. Release reservation
         try:
             mc.reservation_close(reservation_id)

@@ -223,9 +223,11 @@ def main():
     results_dir = os.path.join(results_base, reservation_id)
     os.makedirs(results_dir, exist_ok=True)
 
-    run_tests(test_dir, results_dir)
+    crashed = run_tests(test_dir, results_dir)
 
     print(f"Completed, results in {results_dir}")
+    if crashed:
+        print("NIPA DETECTED SYSTEM CRASH, REBOOT ME PLEASE")
 
 
 if __name__ == '__main__':

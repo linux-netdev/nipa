@@ -5,9 +5,15 @@
 import json
 import os
 import re
-import select
 import subprocess
+import sys
 import time
+
+# Add project root for cross-package imports
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                '..', '..', '..'))
+
+from contest.remote.lib.crash import has_crash  # noqa: E402
 
 
 def find_newest_unseen(tests_dir):
@@ -138,17 +144,20 @@ def run_tests(test_dir, results_dir):
     """Execute kselftest in 'installed' form.
 
     For each test:
-      1. Check if test_name is in .attempted -- if so, skip (crash recovery)
-      2. Write test_name to .attempted + fsync (crash-safe bookkeeping)
-      3. Run via: ./run_kselftest.sh -t <target>:<test>
-      4. Capture stdout/stderr, save to results_dir/<dir_name>/
-      5. Drain dmesg output produced during the test, save to dmesg file
-      6. Save metadata (retcode, time, target, prog) to info file
+      1. Check dmesg for crash from previous test -- if found, stop
+      2. Check if test_name is in .attempted -- if so, skip (crash recovery)
+      3. Write test_name to .attempted + fsync (crash-safe bookkeeping)
+      4. Run via: ./run_kselftest.sh -t <target>:<test>
+      5. Capture stdout/stderr, save to results_dir/<dir_name>/
+      6. Drain dmesg output produced during the test, save to dmesg file
+      7. Save metadata (retcode, time, target, prog) to info file
+
+    Returns True if a kernel crash was detected, False otherwise.
     """
     tests = _list_tests(test_dir)
     if not tests:
         print("No tests found")
-        return
+        return False
 
     print(f"Found {len(tests)} tests")
 
@@ -165,12 +174,22 @@ def run_tests(test_dir, results_dir):
             fp.write(boot_lines)
         print(f"Saved {len(boot_lines.splitlines())} lines of boot dmesg")
 
+    crashed = has_crash(boot_lines) if boot_lines else False
+    if crashed:
+        print("Kernel crash detected during boot")
+
     for test_idx, (target, prog) in enumerate(tests):
         test_name = f"{target}:{prog}"
         safe_name = _namify(prog)
         dir_name = f"{test_idx}-{safe_name}"
 
         if test_name in previously_attempted:
+            continue
+
+        # Check for crash from a previous test before starting a new one
+        if crashed:
+            print(f"[{test_idx+1}/{len(tests)}] Skipping {test_name}: "
+                  "crash detected in previous test")
             continue
 
         print(f"[{test_idx+1}/{len(tests)}] Running {test_name}")
@@ -212,6 +231,10 @@ def run_tests(test_dir, results_dir):
             with open(os.path.join(test_results_dir, 'dmesg'), 'w',
                       encoding='utf-8') as fp:
                 fp.write(test_dmesg)
+            if has_crash(test_dmesg):
+                crashed = True
+                print(f"[{test_idx+1}/{len(tests)}] {test_name}: "
+                      "kernel crash detected in dmesg")
 
         # Save output and metadata
         with open(os.path.join(test_results_dir, 'stdout'), 'w', encoding='utf-8') as fp:
@@ -225,6 +248,7 @@ def run_tests(test_dir, results_dir):
         print(f"[{test_idx+1}/{len(tests)}] {test_name}: rc={retcode} ({elapsed}s)")
 
     dmesg.close()
+    return crashed
 
 
 class DmesgReader:

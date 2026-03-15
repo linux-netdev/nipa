@@ -296,64 +296,46 @@ class TestDeployer(unittest.TestCase):
 
 
 class TestCrashRecovery(unittest.TestCase):
-    @mock.patch('subprocess.run')
-    def test_crash_recover_with_power_cycle(self, mock_run):
-        """Default recovery path: power cycle then SSH wait."""
-        mock_run.return_value = mock.Mock(returncode=0, stdout=b'', stderr=b'')
+    def test_crash_detected(self):
+        """Verify crash marker detection via shared library."""
+        from contest.remote.lib.crash import has_crash
 
-        from lib.deployer import _crash_recover
+        self.assertTrue(has_crash("stuff ] RIP: 0010:func+0x42/0x100 stuff"))
+        self.assertFalse(has_crash("everything is fine, no crashes here"))
+        self.assertTrue(has_crash("blah ] Call Trace: blah"))
+        self.assertTrue(has_crash("] ref_tracker: something"))
+        self.assertTrue(has_crash("unreferenced object 0xdead"))
+
+    def test_journal_crash_sentinel(self):
+        """Verify crash sentinel detection in journal."""
+        from lib.deployer import CRASH_SENTINEL
+
+        journal_with = f"some stuff\n{CRASH_SENTINEL}\nmore stuff"
+        self.assertIn(CRASH_SENTINEL, journal_with)
+
+        journal_without = "some stuff\nCompleted, results in /srv\n"
+        self.assertNotIn(CRASH_SENTINEL, journal_without)
+
+    @mock.patch('subprocess.run')
+    @mock.patch('time.monotonic')
+    @mock.patch('time.sleep')
+    def test_reboot_machine_ssh(self, _mock_sleep, mock_monotonic, mock_run):
+        """Verify reboot_machine tries SSH first."""
+        from lib.deployer import reboot_machine
+
+        mock_run.return_value = mock.Mock(returncode=0, stdout=b'', stderr=b'')
+        mock_monotonic.side_effect = [0, 10, 20]
 
         config = mock.Mock()
         config.getint.return_value = 300
 
         mc = mock.Mock()
-        mc.power_cycle.return_value = {'retcode': 0}
+        mc.reservation_refresh.return_value = {'ok': True}
 
-        _crash_recover(config, mc, 1, '10.0.0.1', 42, 300)
+        reboot_machine(config, mc, 42, [1], ['10.0.0.1'])
 
-        mc.power_cycle.assert_called_once_with(1)
-
-    @mock.patch('subprocess.run')
-    def test_crash_recover_skip_power_cycle(self, mock_run):
-        """Self-reboot path: skip power cycle, still wait for SSH."""
-        mock_run.return_value = mock.Mock(returncode=0, stdout=b'', stderr=b'')
-
-        from lib.deployer import _crash_recover
-
-        config = mock.Mock()
-        config.getint.return_value = 300
-
-        mc = mock.Mock()
-
-        _crash_recover(config, mc, 1, '10.0.0.1', 42, 300,
-                       skip_power_cycle=True)
-
+        # Should not have called power_cycle (SSH reboot succeeded)
         mc.power_cycle.assert_not_called()
-        # SSH calls should still happen (wait + kexec)
-        self.assertTrue(mock_run.call_count > 0)
-
-    def test_sol_crash_detected(self):
-        """Verify crash marker detection."""
-        from lib.deployer import _has_crash
-
-        crash_output = "some stuff ] RIP: 0010:some_func+0x42/0x100 more stuff"
-        self.assertTrue(_has_crash(crash_output))
-
-        normal_output = "everything is fine, no crashes here"
-        self.assertFalse(_has_crash(normal_output))
-
-        call_trace = "blah ] Call Trace: blah"
-        self.assertTrue(_has_crash(call_trace))
-
-    def test_sol_reboot_detected(self):
-        """Verify self-reboot detection via early-boot timestamp."""
-        from lib.deployer import _has_reboot
-
-        boot_output = "[    0.000000] Linux version 6.12.0 (root@build) ..."
-        self.assertTrue(_has_reboot(boot_output))
-
-        normal_output = "[  123.456789] Normal kernel message"
-        self.assertFalse(_has_reboot(normal_output))
 
     @mock.patch('subprocess.run')
     @mock.patch('time.monotonic')
@@ -467,10 +449,9 @@ class TestCrashRecovery(unittest.TestCase):
     @mock.patch('subprocess.run')
     @mock.patch('time.monotonic')
     @mock.patch('time.sleep')
-    def test_self_reboot_skips_power_cycle(self, _mock_sleep,
-                                           mock_monotonic, mock_run):
-        """Full flow: crash detected, then self-reboot seen in SOL,
-        verify power_cycle is NOT called."""
+    def test_sol_crash_triggers_power_cycle_when_hung(self, _mock_sleep,
+                                                       mock_monotonic, mock_run):
+        """Crash in SOL + no new output for crash_wait_time -> power cycle."""
         mock_run.return_value = mock.Mock(returncode=0, stdout=b'', stderr=b'')
         _clock = {'t': 0}
 
@@ -486,59 +467,44 @@ class TestCrashRecovery(unittest.TestCase):
         config.getint.side_effect = lambda section, key, fallback=None: {
             'max_test_time': 3600,
             'sol_poll_interval': 15,
-            'crash_wait_time': 120,
-            'max_kexec_boot_timeout': 300,
+            'crash_wait_time': 30,
+            'max_power_cycle_timeout': 600,
         }.get(key, fallback)
 
         mc = mock.Mock()
-        # Seed: initial SOL cursor position
-        # Poll 1: SOL shows crash
-        # Poll 2: SOL shows reboot (early boot line) -> triggers recovery
-        # Poll 3: clean (after recovery, hw-worker completes)
+        mc.reservation_refresh.return_value = {'ok': True}
         mc.get_sol_logs.side_effect = [
             {'last_id': 50, 'lines': []},  # seed
-            {
-                'last_id': 100,
-                'lines': [{'line': '] RIP: 0010:bad_func+0x10'}],
-            },
-            {
-                'last_id': 200,
-                'lines': [{'line': '[    0.000000] Linux version 6.12'}],
-            },
-            {
-                'last_id': 300,
-                'lines': [{'line': 'all good'}],
-            },
+            {'last_id': 100, 'lines': [{'line': '] RIP: 0010:bad+0x10'}]},
+            {'last_id': 100, 'lines': []},  # no new output
+            {'last_id': 100, 'lines': []},  # still hung
+            {'last_id': 100, 'lines': []},  # crash_wait_time exceeded
         ]
 
-        # hw-worker: activating on polls 1-2 (crash + reboot), done on poll 3
         poll_num = {'n': 0}
 
         def ssh_side_effect(ip, cmd, check=True, timeout=30):
             if 'systemctl show' in cmd:
                 poll_num['n'] += 1
-                if poll_num['n'] <= 2:
-                    return 'activating\n'
-                return 'inactive\n'
+                if poll_num['n'] >= 5:
+                    return 'inactive\n'
+                return 'activating\n'
             return ''
 
-        with mock.patch('lib.deployer._ssh',
-                         side_effect=ssh_side_effect):
-            with mock.patch('lib.deployer._crash_recover') as mock_recover:
-                wait_for_results(config, mc, 42, [1], ['10.0.0.1'])
+        with mock.patch('lib.deployer._ssh', side_effect=ssh_side_effect):
+            with mock.patch('lib.deployer._wait_for_ssh'):
+                result = wait_for_results(config, mc, 42, [1], ['10.0.0.1'])
 
-                # Should have been called with skip_power_cycle=True
-                mock_recover.assert_called_once()
-                _, kwargs = mock_recover.call_args
-                self.assertTrue(kwargs.get('skip_power_cycle', False))
+        mc.power_cycle.assert_called_once_with(1)
+        self.assertTrue(result.ok)
 
     @mock.patch('subprocess.run')
     @mock.patch('time.monotonic')
     @mock.patch('time.sleep')
     def test_no_power_cycle_if_sol_progressing(self, _mock_sleep,
                                                mock_monotonic, mock_run):
-        """Crash detected but SOL still producing output (no reboot marker),
-        verify no premature recovery."""
+        """Crash detected but SOL still producing output,
+        verify no premature power cycle."""
         mock_run.return_value = mock.Mock(returncode=0, stdout=b'', stderr=b'')
         mock_monotonic.side_effect = [
             0,     # start_time
@@ -554,25 +520,16 @@ class TestCrashRecovery(unittest.TestCase):
             'max_test_time': 3600,
             'sol_poll_interval': 15,
             'crash_wait_time': 120,
-            'max_kexec_boot_timeout': 300,
         }.get(key, fallback)
 
         mc = mock.Mock()
-        # Seed + Poll 1: crash in SOL
-        # Poll 2: more crash output (SOL progressing, no reboot)
+        mc.reservation_refresh.return_value = {'ok': True}
         mc.get_sol_logs.side_effect = [
             {'last_id': 50, 'lines': []},  # seed
-            {
-                'last_id': 100,
-                'lines': [{'line': '] RIP: 0010:bad_func+0x10'}],
-            },
-            {
-                'last_id': 200,
-                'lines': [{'line': '] Call Trace: more crash stuff'}],
-            },
+            {'last_id': 100, 'lines': [{'line': '] RIP: 0010:bad+0x10'}]},
+            {'last_id': 200, 'lines': [{'line': '] Call Trace: more'}]},
         ]
 
-        # hw-worker: activating on poll 1, inactive on poll 2
         poll_num = {'n': 0}
 
         def ssh_side_effect(ip, cmd, check=True, timeout=30):
@@ -583,14 +540,11 @@ class TestCrashRecovery(unittest.TestCase):
                 return 'inactive\n'
             return ''
 
-        with mock.patch('lib.deployer._ssh',
-                         side_effect=ssh_side_effect):
-            with mock.patch('lib.deployer._crash_recover') as mock_recover:
-                wait_for_results(config, mc, 42, [1], ['10.0.0.1'])
+        with mock.patch('lib.deployer._ssh', side_effect=ssh_side_effect):
+            result = wait_for_results(config, mc, 42, [1], ['10.0.0.1'])
 
-                # SOL was progressing — no recovery should have been triggered
-                mock_recover.assert_not_called()
-
+        mc.power_cycle.assert_not_called()
+        self.assertTrue(result.ok)
 
 class TestResolve(unittest.TestCase):
     def test_machine_resolution_two_machines(self):
