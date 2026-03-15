@@ -176,6 +176,38 @@ def _has_real_crash(dmesg_text, filters):
     return True
 
 
+def _run_one_test(test_dir, output_dir, target, prog):
+    """Run a single test and save stdout/stderr. Returns (retcode, elapsed)."""
+    t1 = time.monotonic()
+    try:
+        ret = subprocess.run(
+            ['./run_kselftest.sh', '-t', f'{target}:{prog}'],
+            cwd=test_dir,
+            capture_output=True,
+            timeout=600,
+            check=False
+        )
+        retcode = ret.returncode
+        stdout = ret.stdout.decode('utf-8', 'ignore')
+        stderr = ret.stderr.decode('utf-8', 'ignore')
+        if not stdout and not stderr:
+            print(f"  {target}:{prog}: no output (rc={retcode})")
+    except subprocess.TimeoutExpired:
+        retcode = 1
+        stdout = ''
+        stderr = 'test timed out'
+        print(f"  {target}:{prog}: timed out")
+    t2 = time.monotonic()
+    elapsed = round(t2 - t1, 1)
+
+    with open(os.path.join(output_dir, 'stdout'), 'w', encoding='utf-8') as fp:
+        fp.write(stdout)
+    with open(os.path.join(output_dir, 'stderr'), 'w', encoding='utf-8') as fp:
+        fp.write(stderr)
+
+    return retcode, elapsed
+
+
 def run_tests(test_dir, results_dir):
     """Execute kselftest in 'installed' form.
 
@@ -241,31 +273,12 @@ def run_tests(test_dir, results_dir):
         os.makedirs(test_results_dir, exist_ok=True)
 
         # Run the test
-        t1 = time.monotonic()
-        try:
-            ret = subprocess.run(
-                ['./run_kselftest.sh', '-t', f'{target}:{prog}'],
-                cwd=test_dir,
-                capture_output=True,
-                timeout=600,
-                check=False
-            )
-            retcode = ret.returncode
-            stdout = ret.stdout.decode('utf-8', 'ignore')
-            stderr = ret.stderr.decode('utf-8', 'ignore')
-            if not stdout and not stderr:
-                print(f"[{test_idx+1}/{len(tests)}] {test_name}: "
-                      f"no output (rc={retcode})")
-        except subprocess.TimeoutExpired:
-            retcode = 1
-            stdout = ''
-            stderr = 'test timed out'
-            print(f"[{test_idx+1}/{len(tests)}] {test_name}: timed out")
-        t2 = time.monotonic()
-        elapsed = round(t2 - t1, 1)
+        retcode, elapsed = _run_one_test(test_dir, test_results_dir,
+                                         target, prog)
 
         # Drain dmesg produced during this test
         test_dmesg = dmesg.drain()
+        crash_fps = set()
         if test_dmesg:
             with open(os.path.join(test_results_dir, 'dmesg'), 'w',
                       encoding='utf-8') as fp:
@@ -278,15 +291,41 @@ def run_tests(test_dir, results_dir):
                 _lines, fps = extract_crash(test_dmesg, '', lambda: filters)
                 print(f"[{test_idx+1}/{len(tests)}] {test_name}: "
                       f"kernel crash in dmesg (ignored: {', '.join(fps)})")
+            # Always extract fingerprints for the info file
+            if has_crash(test_dmesg):
+                _lines, crash_fps = extract_crash(test_dmesg, '', lambda: filters)
 
-        # Save output and metadata
-        with open(os.path.join(test_results_dir, 'stdout'), 'w', encoding='utf-8') as fp:
-            fp.write(stdout)
-        with open(os.path.join(test_results_dir, 'stderr'), 'w', encoding='utf-8') as fp:
-            fp.write(stderr)
+        # Retry if the test failed and no crash
+        retry_retcode = None
+        if retcode not in (0, 4) and not crashed:
+            print(f"[{test_idx+1}/{len(tests)}] Retrying {test_name}")
+            retry_dir = os.path.join(results_dir, f'{dir_name}-retry')
+            os.makedirs(retry_dir, exist_ok=True)
+            retry_retcode, _retry_elapsed = _run_one_test(
+                test_dir, retry_dir, target, prog)
+            # Drain retry dmesg
+            retry_dmesg = dmesg.drain()
+            if retry_dmesg:
+                with open(os.path.join(retry_dir, 'dmesg'), 'w',
+                          encoding='utf-8') as fp:
+                    fp.write(retry_dmesg)
+                if _has_real_crash(retry_dmesg, filters):
+                    crashed = True
+                if has_crash(retry_dmesg):
+                    _lines, rfps = extract_crash(retry_dmesg, '', lambda: filters)
+                    crash_fps.update(rfps)
+            print(f"[{test_idx+1}/{len(tests)}] {test_name}: "
+                  f"retry rc={retry_retcode}")
+
+        # Save metadata
+        info = {'retcode': retcode, 'time': elapsed,
+                'target': target, 'prog': prog}
+        if retry_retcode is not None:
+            info['retry_retcode'] = retry_retcode
+        if crash_fps:
+            info['crashes'] = list(crash_fps)
         with open(os.path.join(test_results_dir, 'info'), 'w', encoding='utf-8') as fp:
-            json.dump({'retcode': retcode, 'time': elapsed,
-                       'target': target, 'prog': prog}, fp)
+            json.dump(info, fp)
 
         print(f"[{test_idx+1}/{len(tests)}] {test_name}: rc={retcode} ({elapsed}s)")
 

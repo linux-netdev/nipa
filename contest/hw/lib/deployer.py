@@ -416,6 +416,17 @@ def fetch_results(machine_ips, reservation_id, results_path):
               check=False)
 
 
+def _retcode_to_result(retcode, stdout):
+    """Map a test return code + stdout to pass/fail/skip."""
+    if retcode == 4:
+        return 'skip'
+    if retcode != 0:
+        return 'fail'
+    if 'ok' not in stdout.lower():
+        return 'skip'
+    return 'pass'
+
+
 def parse_results(results_path, link):
     """Parse fetched test output into a vmksft-p-style result list.
 
@@ -454,13 +465,19 @@ def parse_results(results_path, link):
                     stdout = fp.read()
 
             # Determine result
-            result = 'pass'
-            if retcode == 4:
-                result = 'skip'
-            elif retcode != 0:
-                result = 'fail'
-            if 'ok' not in stdout.lower() and result == 'pass':
-                result = 'skip'
+            result = _retcode_to_result(retcode, stdout)
+
+            # Determine retry result if present
+            retry_result = None
+            if 'retry_retcode' in info:
+                retry_stdout = ''
+                retry_dir = os.path.join(output_dir, entry + '-retry')
+                retry_stdout_path = os.path.join(retry_dir, 'stdout')
+                if os.path.exists(retry_stdout_path):
+                    with open(retry_stdout_path, encoding='utf-8') as fp:
+                        retry_stdout = fp.read()
+                retry_result = _retcode_to_result(info['retry_retcode'],
+                                                  retry_stdout)
 
             safe_name = re.sub(r'[^0-9a-zA-Z]+', '-', prog)
             if safe_name and safe_name[-1] == '-':
@@ -474,6 +491,10 @@ def parse_results(results_path, link):
             }
             if 'time' in info:
                 outcome['time'] = info['time']
+            if retry_result is not None:
+                outcome['retry'] = retry_result
+            if info.get('crashes'):
+                outcome['crashes'] = info['crashes']
             cases.append(outcome)
 
     # Check .attempted for crashed tests (attempted but no output)
