@@ -408,10 +408,6 @@ coordinate crash recovery between hwksft and hw-worker:
   tests in this list are skipped and reported as failures. This ensures
   a crashing test is never retried.
 
-``.seen``
-  Standard "already picked up" marker (an empty file created in each
-  test directory). Prevents re-discovery of old test sets.
-
 hw-worker
 =========
 
@@ -428,11 +424,9 @@ Operation
    ``uname -r``. If the running kernel doesn't match, this is a boot into
    the wrong kernel (e.g. default kernel after power cycle) — exit
    immediately.
-3. Mark all entries under ``/srv/hw-worker/tests`` as "seen" (create a
-   ``.seen`` file in each directory). This prevents loop-testing the same set.
-4. Open ``/dev/kmsg`` and drain existing boot messages to
+3. Open ``/dev/kmsg`` and drain existing boot messages to
    ``results_dir/boot-dmesg``.
-5. Run the tests. For each test:
+4. Run the tests. For each test:
     a. Check if test name is in ``.attempted`` — if so, skip (crash recovery).
     b. Write test name to ``.attempted`` + fsync before execution.
     c. Run via ``./run_kselftest.sh -t <target>:<test>`` (installed form).
@@ -440,10 +434,10 @@ Operation
     e. Drain ``/dev/kmsg`` — if any dmesg output was produced during
        the test, save it to ``results_dir/<idx>-<name>/dmesg``.
     f. Save metadata to ``results_dir/<idx>-<name>/info`` (JSON).
-6. Results are saved under ``/srv/hw-worker/results/$reservation_id/``.
+5. Results are saved under ``/srv/hw-worker/results/$reservation_id/``.
    hw-worker does **not** determine pass/fail — that is done by hwksft
    when it copies back and parses the output files.
-7. Service exits.
+6. Service exits.
 
 Output artifacts
 ----------------

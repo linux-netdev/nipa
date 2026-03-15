@@ -10,31 +10,21 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from lib.runner import (find_newest_unseen, mark_all_seen, load_attempted,
+from lib.runner import (find_newest_test, load_attempted,
                         mark_attempted, run_tests, DmesgReader)
 from lib.nipa import namify
 
 
-class TestFindNewestUnseen(unittest.TestCase):
-    def test_single_unseen(self):
+class TestFindNewestTest(unittest.TestCase):
+    def test_single_dir(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             test_dir = os.path.join(tmpdir, 'test1')
             os.makedirs(test_dir)
 
-            result = find_newest_unseen(tmpdir)
+            result = find_newest_test(tmpdir)
             self.assertEqual(result, test_dir)
 
-    def test_all_seen(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            test_dir = os.path.join(tmpdir, 'test1')
-            os.makedirs(test_dir)
-            with open(os.path.join(test_dir, '.seen'), 'w') as fp:
-                fp.write('')
-
-            result = find_newest_unseen(tmpdir)
-            self.assertIsNone(result)
-
-    def test_multiple_unseen_picks_newest(self):
+    def test_multiple_picks_newest(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             dir1 = os.path.join(tmpdir, 'test1')
             dir2 = os.path.join(tmpdir, 'test2')
@@ -46,41 +36,17 @@ class TestFindNewestUnseen(unittest.TestCase):
             time.sleep(0.1)
             os.utime(dir2, None)
 
-            result = find_newest_unseen(tmpdir)
+            result = find_newest_test(tmpdir)
             self.assertEqual(result, dir2)
 
     def test_empty_dir(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            result = find_newest_unseen(tmpdir)
+            result = find_newest_test(tmpdir)
             self.assertIsNone(result)
 
     def test_nonexistent_dir(self):
-        result = find_newest_unseen('/nonexistent/path')
+        result = find_newest_test('/nonexistent/path')
         self.assertIsNone(result)
-
-
-class TestMarkAllSeen(unittest.TestCase):
-    def test_marks_all(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            for name in ['test1', 'test2', 'test3']:
-                os.makedirs(os.path.join(tmpdir, name))
-
-            mark_all_seen(tmpdir)
-
-            for name in ['test1', 'test2', 'test3']:
-                self.assertTrue(
-                    os.path.exists(os.path.join(tmpdir, name, '.seen'))
-                )
-
-    def test_already_seen_not_error(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            test_dir = os.path.join(tmpdir, 'test1')
-            os.makedirs(test_dir)
-            with open(os.path.join(test_dir, '.seen'), 'w') as fp:
-                fp.write('')
-
-            # Should not raise
-            mark_all_seen(tmpdir)
 
 
 class TestKernelVersionCheck(unittest.TestCase):
@@ -493,10 +459,6 @@ class TestMainFlow(unittest.TestCase):
             self.assertTrue(os.path.isdir(test_output))
             self.assertTrue(os.path.exists(os.path.join(test_output, 'info')))
             self.assertTrue(os.path.exists(os.path.join(test_output, 'stdout')))
-
-            # .seen should be created
-            seen_path = os.path.join(test_dir, '.seen')
-            self.assertTrue(os.path.exists(seen_path))
 
     @mock.patch('os.uname')
     @mock.patch('lib.runner.DmesgReader')

@@ -9,7 +9,7 @@ import subprocess
 import sys
 import time
 
-from lib.runner import find_newest_unseen, mark_all_seen, run_tests
+from lib.runner import find_newest_test, run_tests
 
 
 TESTS_DIR = '/srv/hw-worker/tests'
@@ -219,7 +219,7 @@ def main():
     tests_dir = TESTS_DIR
     results_base = RESULTS_DIR
 
-    test_dir = find_newest_unseen(tests_dir)
+    test_dir = find_newest_test(tests_dir)
     if test_dir is None:
         print("No outstanding tests found")
         return
@@ -242,8 +242,6 @@ def main():
         print(test_dir,
               f"Kernel mismatch: running {actual}, expected {expected}")
         return
-
-    mark_all_seen(tests_dir)
 
     print(test_dir, "Starting tests")
 

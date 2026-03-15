@@ -10,8 +10,8 @@ import time
 from lib.nipa import has_crash, extract_crash, namify
 
 
-def find_newest_unseen(tests_dir):
-    """Scan tests_dir for subdirectories without .seen file.
+def find_newest_test(tests_dir):
+    """Scan tests_dir for the newest test subdirectory.
 
     Returns the newest one (by mtime) or None.
     """
@@ -23,8 +23,6 @@ def find_newest_unseen(tests_dir):
         full = os.path.join(tests_dir, entry)
         if not os.path.isdir(full):
             continue
-        if os.path.exists(os.path.join(full, '.seen')):
-            continue
         candidates.append((os.path.getmtime(full), full))
 
     if not candidates:
@@ -32,21 +30,6 @@ def find_newest_unseen(tests_dir):
 
     candidates.sort(reverse=True)
     return candidates[0][1]
-
-
-def mark_all_seen(tests_dir):
-    """Touch .seen file in every subdirectory of tests_dir."""
-    if not os.path.isdir(tests_dir):
-        return
-
-    for entry in os.listdir(tests_dir):
-        full = os.path.join(tests_dir, entry)
-        if not os.path.isdir(full):
-            continue
-        seen_path = os.path.join(full, '.seen')
-        if not os.path.exists(seen_path):
-            with open(seen_path, 'w', encoding='utf-8') as fp:
-                fp.write('')
 
 
 def load_attempted(test_dir):
