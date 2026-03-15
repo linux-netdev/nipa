@@ -298,7 +298,7 @@ class TestDeployer(unittest.TestCase):
 class TestCrashRecovery(unittest.TestCase):
     def test_crash_detected(self):
         """Verify crash marker detection via shared library."""
-        from contest.remote.lib.crash import has_crash
+        from lib.nipa import has_crash
 
         self.assertTrue(has_crash("stuff ] RIP: 0010:func+0x42/0x100 stuff"))
         self.assertFalse(has_crash("everything is fine, no crashes here"))

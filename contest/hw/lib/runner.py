@@ -6,14 +6,9 @@ import json
 import os
 import re
 import subprocess
-import sys
 import time
 
-# Add project root for cross-package imports
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                '..', '..', '..'))
-
-from contest.remote.lib.crash import has_crash  # noqa: E402
+from lib.nipa import has_crash
 
 
 def find_newest_unseen(tests_dir):

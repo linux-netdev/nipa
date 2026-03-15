@@ -9,15 +9,10 @@ import re
 import shutil
 import string
 import subprocess
-import sys
 import time
 from dataclasses import dataclass, field
 
-# Add project root for cross-package imports
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                '..', '..', '..'))
-
-from contest.remote.lib.crash import has_crash  # noqa: E402
+from lib.nipa import has_crash
 
 
 # Log file handle, set by set_log_file() before builds start.

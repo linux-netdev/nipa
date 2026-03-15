@@ -10,16 +10,10 @@ import subprocess
 import sys
 import time
 
-# Add the project root to path for cross-package imports
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
+# Add contest/hw to path so lib.* imports work
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# pylint: disable=wrong-import-position,wrong-import-order
-# Imports below require sys.path manipulation for cross-package access.
-
-from core import NipaLifetime  # noqa: E402  # pylint: disable=import-error
-
-from contest.remote.lib.cbarg import CbArg  # noqa: E402
-from contest.remote.lib.fetcher import Fetcher  # noqa: E402
+from lib.nipa import NipaLifetime, CbArg, Fetcher  # noqa: E402
 
 from lib.mc_client import MCClient, resolve_machines, resolve_nic_id  # noqa: E402
 from lib.deployer import (build_kernel, build_ksft, deploy_artifacts,  # noqa: E402
