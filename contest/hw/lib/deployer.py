@@ -12,7 +12,8 @@ import subprocess
 import time
 from dataclasses import dataclass, field
 
-from lib.nipa import has_crash, extract_crash
+from lib.nipa import (has_crash, extract_crash, guess_indicators,
+                      result_from_indicators, parse_nested_tests, namify)
 
 
 # Log file handle, set by set_log_file() before builds start.
@@ -416,17 +417,6 @@ def fetch_results(machine_ips, reservation_id, results_path):
               check=False)
 
 
-def _retcode_to_result(retcode, stdout):
-    """Map a test return code + stdout to pass/fail/skip."""
-    if retcode == 4:
-        return 'skip'
-    if retcode != 0:
-        return 'fail'
-    if 'ok' not in stdout.lower():
-        return 'skip'
-    return 'pass'
-
-
 def parse_results(results_path, link):
     """Parse fetched test output into a vmksft-p-style result list.
 
@@ -464,11 +454,16 @@ def parse_results(results_path, link):
                 with open(stdout_path, encoding='utf-8') as fp:
                     stdout = fp.read()
 
-            # Determine result
-            result = _retcode_to_result(retcode, stdout)
+            # Determine result using indicators
+            indicators = guess_indicators(stdout)
+            result = result_from_indicators(retcode, indicators)
+
+            # Parse nested subtests
+            nested = parse_nested_tests(stdout, namify)
 
             # Determine retry result if present
             retry_result = None
+            retry_nested = None
             if 'retry_retcode' in info:
                 retry_stdout = ''
                 retry_dir = os.path.join(output_dir, entry + '-retry')
@@ -476,16 +471,19 @@ def parse_results(results_path, link):
                 if os.path.exists(retry_stdout_path):
                     with open(retry_stdout_path, encoding='utf-8') as fp:
                         retry_stdout = fp.read()
-                retry_result = _retcode_to_result(info['retry_retcode'],
-                                                  retry_stdout)
+                retry_indicators = guess_indicators(retry_stdout)
+                retry_result = result_from_indicators(info['retry_retcode'],
+                                                      retry_indicators)
+                if nested:
+                    retry_nested = list(nested)
+                    parse_nested_tests(retry_stdout, namify,
+                                       prev_results=retry_nested)
 
-            safe_name = re.sub(r'[^0-9a-zA-Z]+', '-', prog)
-            if safe_name and safe_name[-1] == '-':
-                safe_name = safe_name[:-1]
+            safe_name = namify(prog)
 
             outcome = {
                 'test': safe_name or entry,
-                'group': f'selftests-{re.sub(r"[^0-9a-zA-Z]+", "-", target).rstrip("-")}',
+                'group': f'selftests-{namify(target)}',
                 'result': result,
                 'link': link,
             }
@@ -495,6 +493,10 @@ def parse_results(results_path, link):
                 outcome['retry'] = retry_result
             if info.get('crashes'):
                 outcome['crashes'] = info['crashes']
+            if retry_nested:
+                outcome['results'] = retry_nested
+            elif nested:
+                outcome['results'] = nested
             cases.append(outcome)
 
     # Check .attempted for crashed tests (attempted but no output)

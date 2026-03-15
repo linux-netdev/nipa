@@ -7,7 +7,6 @@ import fcntl
 import json
 import os
 import psutil
-import re
 import select
 import shutil
 import signal
@@ -469,18 +468,3 @@ def new_vm(results_path, vm_id, thr=None, vm=None, config=None, cwd=None):
             vm.dump_log(results_path + f'/vm-crashed-{thr_pfx}{vm_id}-{i}')
             vm.stop()
 
-
-def guess_indicators(output):
-    return {
-        "fail": output.find("[FAIL]") != -1 or output.find("[fail]") != -1 or \
-                output.find(" FAIL:") != -1 or \
-                output.find("\nnot ok 1 selftests: ") != -1 or \
-                output.find("\n# not ok 1") != -1,
-        "skip": output.find("[SKIP]") != -1 or output.find("[skip]") != -1 or \
-                output.find(" # SKIP") != -1 or output.find("SKIP:") != -1,
-        "pass": output.find("[OKAY]") != -1 or output.find("[PASS]") != -1 or \
-                output.find("[ OK ]") != -1 or output.find("[OK]") != -1 or \
-                output.find("[ ok ]") != -1 or output.find("[pass]") != -1 or \
-                output.find("PASSED all ") != -1 or output.find("\nok 1 selftests: ") != -1 or \
-                bool(re.search(r"# Totals: pass:[1-9]\d* fail:0 (xfail:0 )?(xpass:0 )?skip:0 error:0", output)),
-    }

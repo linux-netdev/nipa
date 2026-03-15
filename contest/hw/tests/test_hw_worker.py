@@ -11,7 +11,8 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from lib.runner import (find_newest_unseen, mark_all_seen, load_attempted,
-                        mark_attempted, run_tests, DmesgReader, _namify)
+                        mark_attempted, run_tests, DmesgReader)
+from lib.nipa import namify
 
 
 class TestFindNewestUnseen(unittest.TestCase):
@@ -258,19 +259,19 @@ class TestAttemptedTracking(unittest.TestCase):
 
 class TestNamify(unittest.TestCase):
     def test_simple(self):
-        self.assertEqual(_namify('test_name'), 'test-name')
+        self.assertEqual(namify('test_name'), 'test-name')
 
     def test_special_chars(self):
-        self.assertEqual(_namify('test/name.sh'), 'test-name-sh')
+        self.assertEqual(namify('test/name.sh'), 'test-name-sh')
 
     def test_trailing_dash(self):
-        self.assertEqual(_namify('test/'), 'test')
+        self.assertEqual(namify('test/'), 'test')
 
     def test_empty(self):
-        self.assertEqual(_namify(''), 'no-name')
+        self.assertEqual(namify(''), 'no-name')
 
     def test_none(self):
-        self.assertEqual(_namify(None), 'no-name')
+        self.assertEqual(namify(None), 'no-name')
 
 
 class TestRunTests(unittest.TestCase):

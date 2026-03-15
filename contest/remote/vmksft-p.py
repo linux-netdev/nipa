@@ -4,7 +4,6 @@
 import datetime
 import shutil
 import os
-import re
 import queue
 import subprocess
 import sys
@@ -17,6 +16,7 @@ from lib import wait_loadavg
 from lib import CbArg
 from lib import Fetcher, namify
 from lib import VM, new_vm, guess_indicators
+from lib import parse_nested_tests
 
 
 """
@@ -70,63 +70,6 @@ def get_prog_list(vm, targets, test_path):
     vm.tree_cmd("rm -rf " + tmpdir)
     return [(e.split(":")[0].strip(), e.split(":")[1].strip()) for e in targets]
 
-
-def _parse_nested_tests(full_run, prev_results):
-    tests = []
-    nested_tests = False
-
-    result_re = re.compile(r"(not )?ok (\d+)( -)? ([^#]*[^ ])( +# +)?([^ ].*)?$")
-    time_re = re.compile(r"time=(\d+)ms")
-
-    for line in full_run.split('\n'):
-        # nested subtests support: we parse the comments from 'TAP version'
-        if nested_tests:
-            if line.startswith("# "):
-                line = line[2:]
-            else:
-                nested_tests = False
-        elif line.startswith("# TAP version "):
-            nested_tests = True
-            continue
-
-        if not nested_tests:
-            continue
-
-        if line.startswith("ok "):
-            result = "pass"
-        elif line.startswith("not ok "):
-            result = "fail"
-        else:
-            continue
-
-        v = result_re.match(line).groups()
-        r = {'test': namify(v[3])}
-
-        if len(v) > 5 and v[4] and v[5]:
-            if v[5].lower().startswith('skip'):
-                result = "skip"
-
-            t = time_re.findall(v[5].lower())
-            if t:
-                r['time'] = round(int(t[-1]) / 1000.) # take the last one
-
-        r['result'] = result
-
-        if prev_results is not None:
-            for entry in prev_results:
-                if entry['test'] == r['test']:
-                    entry['retry'] = result
-                    break
-            else:
-                # the first run didn't validate this test: add it to the list
-                r['result'] = 'skip'
-                r['retry'] = result
-                prev_results.append(r)
-        else:
-            tests.append(r)
-
-    # return an empty list when there are prev results: no replacement needed
-    return tests
 
 def _vm_thread(config, results_path, thr_id, hard_stop, in_queue, out_queue):
     test_path = config.get('ksft', 'test_path', fallback='tools/testing/selftests')
@@ -216,7 +159,7 @@ def _vm_thread(config, results_path, thr_id, hard_stop, in_queue, out_queue):
                 prev_results = None
 
             # this will only parse nested tests inside the TAP comments
-            nested_tests = _parse_nested_tests(vm.log_out, prev_results)
+            nested_tests = parse_nested_tests(vm.log_out, namify, prev_results)
             if nested_tests:
                 outcome['results'] = nested_tests
 

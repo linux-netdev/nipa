@@ -4,11 +4,10 @@
 
 import json
 import os
-import re
 import subprocess
 import time
 
-from lib.nipa import has_crash, extract_crash
+from lib.nipa import has_crash, extract_crash, namify
 
 
 def find_newest_unseen(tests_dir):
@@ -124,15 +123,6 @@ def _list_tests(test_dir):
             tests.append((parts[0].strip(), parts[1].strip()))
     return tests
 
-
-def _namify(what):
-    """Convert test name to a safe identifier."""
-    if not what:
-        return "no-name"
-    name = re.sub(r'[^0-9a-zA-Z]+', '-', what)
-    if name and name[-1] == '-':
-        name = name[:-1]
-    return name
 
 
 def load_filters(test_dir):
@@ -251,7 +241,7 @@ def run_tests(test_dir, results_dir):
 
     for test_idx, (target, prog) in enumerate(tests):
         test_name = f"{target}:{prog}"
-        safe_name = _namify(prog)
+        safe_name = namify(prog)
         dir_name = f"{test_idx}-{safe_name}"
 
         if test_name in previously_attempted:

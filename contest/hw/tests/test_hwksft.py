@@ -263,8 +263,12 @@ class TestDeployer(unittest.TestCase):
             output_base = os.path.join(tmpdir, 'test-outputs')
 
             for idx, (target, prog, rc, stdout_text) in enumerate([
-                ('net', 'test1.sh', 0, 'ok 1 test1\n'),
-                ('net', 'test2.sh', 1, 'not ok 1 test2\n'),
+                ('net', 'test1.sh', 0,
+                 'TAP version 13\n1..1\n'
+                 'ok 1 selftests: net: test1.sh\n'),
+                ('net', 'test2.sh', 1,
+                 'TAP version 13\n1..1\n'
+                 'not ok 1 selftests: net: test2.sh\n'),
             ]):
                 test_dir = os.path.join(output_base, f'{idx}-{prog.replace(".", "-")}')
                 os.makedirs(test_dir)

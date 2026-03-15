@@ -19,6 +19,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
 from contest.remote.lib.crash import has_crash  # noqa: E402, F401
 from contest.remote.lib.crash import extract_crash  # noqa: E402, F401
 from contest.remote.lib.crash import crash_finger_print  # noqa: E402, F401
+from contest.remote.lib.results import guess_indicators  # noqa: E402, F401
+from contest.remote.lib.results import result_from_indicators  # noqa: E402, F401
+from contest.remote.lib.results import parse_nested_tests  # noqa: E402, F401
 from contest.remote.lib.cbarg import CbArg  # noqa: E402, F401
 from contest.remote.lib.fetcher import Fetcher  # noqa: E402, F401
+from contest.remote.lib.fetcher import namify  # noqa: E402, F401
 from core import NipaLifetime  # noqa: E402, F401
