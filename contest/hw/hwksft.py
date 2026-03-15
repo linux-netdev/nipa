@@ -4,7 +4,9 @@
 """NIPA HW kselftest orchestrator service."""
 
 import datetime
+import json
 import os
+import requests
 import shutil
 import subprocess
 import sys
@@ -18,8 +20,8 @@ from lib.nipa import NipaLifetime, CbArg, Fetcher  # noqa: E402
 from lib.mc_client import MCClient, resolve_machines, resolve_nic_id  # noqa: E402
 from lib.deployer import (build_kernel, build_ksft, deploy_artifacts,  # noqa: E402
                           kexec_machine, wait_for_results, fetch_results,
-                          parse_results, set_log_file, WaitResult,
-                          grab_hw_worker_journal, grab_sol_logs,
+                          parse_results, process_crashes, set_log_file,
+                          WaitResult, grab_hw_worker_journal, grab_sol_logs,
                           reboot_machine, CRASH_SENTINEL,
                           _journal_has_crash_sentinel)
 
@@ -31,6 +33,7 @@ from lib.deployer import (build_kernel, build_ksft, deploy_artifacts,  # noqa: E
 # init=force / continue / next
 # [remote]
 # branches=https://url-to-branches-manifest
+# filters=https://url-to-filters.json  (optional, crash ignore list)
 # [local]
 # base_path=/common/path
 # json_path=base-relative/path/to/json
@@ -164,12 +167,24 @@ def test(binfo, rinfo, cbarg):  # pylint: disable=unused-argument
     max_crash_retries = config.getint('hw', 'max_crash_retries', fallback=2)
     cases = None
     sol_start_ids = {}
+
+    # Load crash filters
+    filters = None
+    filters_url = config.get('remote', 'filters', fallback=None)
+    if filters_url:
+        try:
+            r = requests.get(filters_url, timeout=30)
+            filters = json.loads(r.content.decode('utf-8'))
+            print(f"Loaded crash filters from {filters_url}")
+        except Exception as e:
+            print(f"Warning: failed to load crash filters: {e}")
+
     try:
         # 5. Deploy artifacts via SCP
         with open(os.path.join(results_path, 'deploy'), 'w', encoding='utf-8') as fp:
             set_log_file(fp)
             deploy_artifacts(config, machine_ips, reservation_id, nic_deploy_info,
-                             tree_path, kernel_version)
+                             tree_path, kernel_version, filters=filters)
             set_log_file(None)
 
         for attempt in range(max_crash_retries + 1):
@@ -226,7 +241,14 @@ def test(binfo, rinfo, cbarg):  # pylint: disable=unused-argument
                            machine_ids, machine_ips)
 
         # 11. Parse results
-        cases = parse_results(reservation_id, results_path, link)
+        cases = parse_results(results_path, link)
+
+        # 12. Post-process crashes: decode stack traces, extract fingerprints
+        try:
+            process_crashes(results_path, tree_path, filters)
+        except Exception as e:
+            print(f"Warning: crash post-processing failed: {e}")
+
         if not wait_result.ok:
             with open(os.path.join(results_path, 'error'), 'w',
                       encoding='utf-8') as fp:

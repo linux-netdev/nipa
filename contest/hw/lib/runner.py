@@ -8,7 +8,7 @@ import re
 import subprocess
 import time
 
-from lib.nipa import has_crash
+from lib.nipa import has_crash, extract_crash
 
 
 def find_newest_unseen(tests_dir):
@@ -135,6 +135,47 @@ def _namify(what):
     return name
 
 
+def load_filters(test_dir):
+    """Load crash filters from filters.json in the test directory.
+
+    Returns the filter dict, or None if no filters file.
+    """
+    path = os.path.join(test_dir, 'filters.json')
+    if not os.path.exists(path):
+        print(f"Warning: no filters file at {path}")
+        return None
+    try:
+        with open(path, encoding='utf-8') as fp:
+            return json.load(fp)
+    except (json.JSONDecodeError, ValueError) as e:
+        print(f"Warning: failed to parse {path}: {e}")
+        return None
+
+
+def _has_real_crash(dmesg_text, filters):
+    """Check dmesg for crashes. Returns True if crash is real (not ignored).
+
+    Uses extract_crash to get fingerprints, then checks them against
+    the ignore-crashes list in filters.
+    """
+    if not has_crash(dmesg_text):
+        return False
+
+    _crash_lines, finger_prints = extract_crash(
+        dmesg_text, '', lambda: filters)
+
+    if not finger_prints:
+        # Crash detected but no fingerprints extracted — treat as real
+        return True
+
+    if filters and 'ignore-crashes' in filters:
+        ignore = set(filters['ignore-crashes'])
+        if not finger_prints - ignore:
+            return False  # all fingerprints are ignored
+
+    return True
+
+
 def run_tests(test_dir, results_dir):
     """Execute kselftest in 'installed' form.
 
@@ -160,6 +201,9 @@ def run_tests(test_dir, results_dir):
     for test_name in previously_attempted:
         print(f"Skipping previously attempted (crashed): {test_name}")
 
+    # Load crash filters (deployed by hwksft)
+    filters = load_filters(test_dir)
+
     # Open dmesg once, drain boot messages
     dmesg = DmesgReader()
     boot_lines = dmesg.drain()
@@ -169,7 +213,7 @@ def run_tests(test_dir, results_dir):
             fp.write(boot_lines)
         print(f"Saved {len(boot_lines.splitlines())} lines of boot dmesg")
 
-    crashed = has_crash(boot_lines) if boot_lines else False
+    crashed = _has_real_crash(boot_lines, filters) if boot_lines else False
     if crashed:
         print("Kernel crash detected during boot")
 
@@ -226,10 +270,14 @@ def run_tests(test_dir, results_dir):
             with open(os.path.join(test_results_dir, 'dmesg'), 'w',
                       encoding='utf-8') as fp:
                 fp.write(test_dmesg)
-            if has_crash(test_dmesg):
+            if _has_real_crash(test_dmesg, filters):
                 crashed = True
                 print(f"[{test_idx+1}/{len(tests)}] {test_name}: "
                       "kernel crash detected in dmesg")
+            elif has_crash(test_dmesg):
+                _lines, fps = extract_crash(test_dmesg, '', lambda: filters)
+                print(f"[{test_idx+1}/{len(tests)}] {test_name}: "
+                      f"kernel crash in dmesg (ignored: {', '.join(fps)})")
 
         # Save output and metadata
         with open(os.path.join(test_results_dir, 'stdout'), 'w', encoding='utf-8') as fp:

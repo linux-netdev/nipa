@@ -12,7 +12,7 @@ import subprocess
 import time
 from dataclasses import dataclass, field
 
-from lib.nipa import has_crash
+from lib.nipa import has_crash, extract_crash
 
 
 # Log file handle, set by set_log_file() before builds start.
@@ -106,7 +106,7 @@ def build_ksft(config, tree_path):
 
 
 def deploy_artifacts(_config, machine_ips, reservation_id, nic_info, tree_path,
-                     kernel_version):
+                     kernel_version, filters=None):
     """SCP kernel + ksft bundle to test machines.
 
     Deploys to /srv/hw-worker/tests/$reservation_id/ on each machine.
@@ -131,6 +131,18 @@ def deploy_artifacts(_config, machine_ips, reservation_id, nic_info, tree_path,
         # Write expected kernel version for hw-worker to verify
         _ssh(ipaddr,
              f"cat > {remote_dir}/.kernel-version << 'HEREDOC'\n{kernel_version}\nHEREDOC")
+
+        # Deploy crash filters if available
+        if filters:
+            import tempfile as _tmpfile
+            with _tmpfile.NamedTemporaryFile(mode='w', suffix='.json',
+                                             delete=False) as fp:
+                json.dump(filters, fp)
+                tmp_path = fp.name
+            try:
+                _scp(tmp_path, ipaddr, f'{remote_dir}/filters.json')
+            finally:
+                os.unlink(tmp_path)
 
     # Write test config on the primary machine (first in list)
     if nic_info and machine_ips:
@@ -384,14 +396,15 @@ def fetch_results(machine_ips, reservation_id, results_path):
     remote_results = f'/srv/hw-worker/results/{reservation_id}'
     remote_tests = f'/srv/hw-worker/tests/{reservation_id}'
 
-    # Copy the entire results directory tree
+    # Copy the entire results directory tree.
+    # Use rsync to put contents directly into test-outputs/ without
+    # creating a reservation_id subdirectory.
     local_results = os.path.join(results_path, 'test-outputs')
     os.makedirs(local_results, exist_ok=True)
-    # Use scp -r to grab all test output directories
     ret = subprocess.run(
-        ['scp', '-r', '-o', 'StrictHostKeyChecking=no',
-         '-o', 'BatchMode=yes',
-         f'root@{primary_ip}:{remote_results}/', local_results],
+        ['rsync', '-a', '-e',
+         'ssh -o StrictHostKeyChecking=no -o BatchMode=yes',
+         f'root@{primary_ip}:{remote_results}/', local_results + '/'],
         capture_output=True, timeout=300, check=False
     )
     if ret.returncode != 0:
@@ -403,17 +416,13 @@ def fetch_results(machine_ips, reservation_id, results_path):
               check=False)
 
 
-def parse_results(reservation_id, results_path, link):
+def parse_results(results_path, link):
     """Parse fetched test output into a vmksft-p-style result list.
 
     Reads info/stdout files from the test-outputs directory and
     the .attempted file to identify crashed tests.
     """
-    # Find the actual results subdir (scp -r creates reservation_id/ inside)
-    local_results = os.path.join(results_path, 'test-outputs')
-    output_dir = os.path.join(local_results, str(reservation_id))
-    if not os.path.isdir(output_dir):
-        output_dir = local_results
+    output_dir = os.path.join(results_path, 'test-outputs')
 
     # Parse each test output directory
     cases = []
@@ -487,6 +496,84 @@ def parse_results(reservation_id, results_path, link):
                 })
 
     return cases
+
+
+def process_crashes(results_path, tree_path, filters):
+    """Post-process crash data from test output directories.
+
+    For each test that has a dmesg file with crash markers:
+    1. Extract crash lines and compute fingerprints
+    2. Decode the crash with scripts/decode_stacktrace.sh
+    3. Save decoded output + fingerprints to a crash file
+    4. Record crashes in the test's result entry
+
+    Also processes boot-dmesg.
+    """
+    output_dir = os.path.join(results_path, 'test-outputs')
+
+    all_finger_prints = set()
+
+    # Process boot-dmesg
+    boot_dmesg = os.path.join(output_dir, 'boot-dmesg')
+    if os.path.exists(boot_dmesg):
+        with open(boot_dmesg, encoding='utf-8') as fp:
+            dmesg_text = fp.read()
+        if has_crash(dmesg_text):
+            fps = _decode_and_save_crash(dmesg_text, output_dir, 'boot-crash',
+                                         tree_path, filters)
+            all_finger_prints.update(fps)
+
+    # Process per-test dmesg files
+    if os.path.isdir(output_dir):
+        for entry in sorted(os.listdir(output_dir)):
+            test_dir = os.path.join(output_dir, entry)
+            dmesg_path = os.path.join(test_dir, 'dmesg')
+            if not os.path.isdir(test_dir) or not os.path.exists(dmesg_path):
+                continue
+            with open(dmesg_path, encoding='utf-8') as fp:
+                dmesg_text = fp.read()
+            if has_crash(dmesg_text):
+                fps = _decode_and_save_crash(dmesg_text, test_dir, 'crash',
+                                             tree_path, filters)
+                all_finger_prints.update(fps)
+
+    return all_finger_prints
+
+
+def _decode_and_save_crash(dmesg_text, out_dir, filename, tree_path, filters):
+    """Extract, decode, and save crash data from dmesg text.
+
+    Returns the set of fingerprints found.
+    """
+    crash_lines, finger_prints = extract_crash(dmesg_text, '', lambda: filters)
+
+    if not crash_lines:
+        return finger_prints
+
+    # Try to decode with scripts/decode_stacktrace.sh
+    decoded = '\n'.join(crash_lines)
+    decode_script = os.path.join(tree_path, 'scripts', 'decode_stacktrace.sh')
+    vmlinux = os.path.join(tree_path, 'vmlinux')
+    if os.path.exists(decode_script) and os.path.exists(vmlinux):
+        try:
+            proc = subprocess.Popen(
+                [decode_script, vmlinux, 'auto', './'],
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE, cwd=tree_path
+            )
+            stdout, _stderr = proc.communicate(
+                '\n'.join(crash_lines).encode('utf-8'), timeout=30)
+            decoded = stdout.decode('utf-8', 'ignore')
+        except (subprocess.TimeoutExpired, OSError) as e:
+            print(f"Warning: decode_stacktrace failed: {e}")
+
+    crash_file = os.path.join(out_dir, filename)
+    with open(crash_file, 'a', encoding='utf-8') as fp:
+        fp.write("======================================\n")
+        fp.write(decoded)
+        fp.write("\n\nFinger prints:\n" + "\n".join(finger_prints) + "\n")
+
+    return finger_prints
 
 
 # --- SSH/SCP helpers ---

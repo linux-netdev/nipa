@@ -241,7 +241,7 @@ class TestDeployer(unittest.TestCase):
 
     @mock.patch('subprocess.run')
     def test_fetch_results(self, mock_run):
-        """fetch_results SCPs files from remote."""
+        """fetch_results copies files from remote."""
         mock_run.return_value = mock.Mock(returncode=0, stdout=b'', stderr=b'')
 
         from lib.deployer import fetch_results
@@ -250,18 +250,17 @@ class TestDeployer(unittest.TestCase):
             with mock.patch('lib.deployer._scp_from'):
                 fetch_results(['10.0.0.1'], 42, tmpdir)
 
-            # Should have called scp -r
-            scp_calls = [c for c in mock_run.call_args_list
-                         if 'scp' in str(c)]
-            self.assertTrue(len(scp_calls) >= 1)
+            # Should have called rsync
+            rsync_calls = [c for c in mock_run.call_args_list
+                           if 'rsync' in str(c)]
+            self.assertTrue(len(rsync_calls) >= 1)
 
     def test_parse_results(self):
         """parse_results reads info/stdout files and builds result list."""
         from lib.deployer import parse_results
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            res_id = '42'
-            output_base = os.path.join(tmpdir, 'test-outputs', res_id)
+            output_base = os.path.join(tmpdir, 'test-outputs')
 
             for idx, (target, prog, rc, stdout_text) in enumerate([
                 ('net', 'test1.sh', 0, 'ok 1 test1\n'),
@@ -282,7 +281,7 @@ class TestDeployer(unittest.TestCase):
             with open(os.path.join(tmpdir, 'attempted.json'), 'w') as fp:
                 json.dump(attempted, fp)
 
-            cases = parse_results(42, tmpdir, 'http://test/results/123')
+            cases = parse_results(tmpdir, 'http://test/results/123')
 
         # test1 pass, test2 fail, test3 crashed
         self.assertEqual(len(cases), 3)
