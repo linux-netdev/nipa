@@ -92,6 +92,7 @@ class ReservationManager:
             self.active[reservation_id] = {
                 'caller': caller,
                 'machine_ids': machine_ids,
+                'reserved_at': now,
                 'last_refresh': now,
                 'timeout': timeout,
             }

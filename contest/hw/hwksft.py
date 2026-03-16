@@ -77,6 +77,8 @@ def test(binfo, rinfo, cbarg):  # pylint: disable=unused-argument
 
     tree_path = config.get('local', 'tree_path')
     mc_url = config.get('hw', 'machine_control_url')
+    executor_name = config.get('executor', 'name')
+    mc = MCClient(mc_url, caller=executor_name)
     nic_vendor = config.get('hw', 'nic_vendor')
     nic_model = config.get('hw', 'nic_model')
     mc = MCClient(mc_url)

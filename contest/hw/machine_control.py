@@ -114,6 +114,7 @@ def _recover_reservations(pool, mgr):
         mgr.active[rid] = {
             'caller': info['caller'],
             'machine_ids': info['machine_ids'],
+            'reserved_at': now,
             'last_refresh': now,
             'timeout': mgr.default_timeout,
         }
@@ -165,6 +166,9 @@ def get_machine_info():
             if mid in rinfo['machine_ids']:
                 info['reservation_id'] = rid
                 info['reserved_by'] = rinfo['caller']
+                elapsed = (datetime.datetime.now(datetime.UTC) -
+                           rinfo['reserved_at']).total_seconds()
+                info['reserved_secs'] = int(elapsed)
                 break
         result.append(info)
     return jsonify(result)

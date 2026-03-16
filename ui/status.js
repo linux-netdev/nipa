@@ -1081,8 +1081,10 @@ function hw_machines_loaded(data)
     $.each(data, function(i, m) {
         var cell = row.insertCell();
         var state = m.state;
-        if (m.reserved_by)
-            state += " (" + m.reserved_by + ")";
+        if (m.reserved_by) {
+            var mins = Math.round(m.reserved_secs / 60);
+            state += " (" + m.reserved_by + ", " + mins + "m)";
+        }
         cell.innerText = state;
     });
 }
