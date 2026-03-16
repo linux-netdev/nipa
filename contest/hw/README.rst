@@ -240,9 +240,10 @@ machine_state
 
 If the machine is not reserved service SSHs to it every 5min and
 checks uptime and kernel version. If SSH fails machine state progresses
-HEALTHY -> MISS_ONE -> MISS_TWO. If SSH fails again, power cycle is
-issued and machine enters REBOOT_ISSUED, where it stays until it
-starts responding to SSH again.
+HEALTHY -> MISS_ONE -> MISS_TWO. After three missed checks the machine
+is power-cycled via BMC (POWER_CYCLE_ISSUED). If the machine is still
+down after power cycle, the miss counter restarts (MISS_ONE) and the
+cycle repeats.
 
 If the machine is RESERVED the machine state is just tracking last
 refresh time to potentially time out the reservation.
@@ -253,7 +254,7 @@ to reserve a machine not in HEALTHY state we respond with try again.
 Refreshed every 5min, and immediately after reservation is released.
 
  - machine ID
- - state, enum: RESERVED, HEALTHY, MISS_ONE, MISS_TWO, REBOOT_ISSUED
+ - state, enum: RESERVED, HEALTHY, MISS_ONE, MISS_TWO, POWER_CYCLE_ISSUED
  - last_reservation: CLOSED, TIMEOUT
  - reservation_last_refresh
  - uptime

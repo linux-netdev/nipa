@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from lib.bmc import BMC
 from lib.health import HealthChecker, MachineState
-from lib.sol_listener import SOLListener
+from lib.sol_listener import SOLCollector as SOLListener
 from lib.reservations import ReservationManager
 
 
@@ -169,11 +169,12 @@ class TestHealthChecker(unittest.TestCase):
             mock_run.return_value = mock.Mock(returncode=1)
             hc.check_machine(1, machines[1])
 
-        self.assertEqual(machines[1]['state'], MachineState.REBOOT_ISSUED)
+        # SSH unreachable -> power cycle
+        self.assertEqual(machines[1]['state'], MachineState.POWER_CYCLE_ISSUED)
         bmc_map[1].power_cycle.assert_called_once()
 
-    def test_reboot_issued_to_healthy(self):
-        machines = self._make_machines({1: MachineState.REBOOT_ISSUED})
+    def test_power_cycle_issued_to_healthy(self):
+        machines = self._make_machines({1: MachineState.POWER_CYCLE_ISSUED})
         bmc_map = self._make_bmc_map()
         hc = HealthChecker(machines, bmc_map)
 
@@ -182,6 +183,18 @@ class TestHealthChecker(unittest.TestCase):
             hc.check_machine(1, machines[1])
 
         self.assertEqual(machines[1]['state'], MachineState.HEALTHY)
+
+    def test_power_cycle_issued_still_down(self):
+        machines = self._make_machines({1: MachineState.POWER_CYCLE_ISSUED})
+        bmc_map = self._make_bmc_map()
+        hc = HealthChecker(machines, bmc_map)
+
+        with mock.patch('subprocess.run') as mock_run:
+            mock_run.return_value = mock.Mock(returncode=1)
+            hc.check_machine(1, machines[1])
+
+        # Restart miss counter
+        self.assertEqual(machines[1]['state'], MachineState.MISS_ONE)
 
     def test_reserved_skipped(self):
         machines = self._make_machines({1: MachineState.RESERVED})
@@ -339,7 +352,7 @@ class TestReservationManager(unittest.TestCase):
 
         mgr.check_timeouts()
 
-        self.assertEqual(machines[1]['state'], MachineState.HEALTHY)
+        self.assertEqual(machines[1]['state'], MachineState.POWER_CYCLE_ISSUED)
         self.assertNotIn(42, mgr.active)
         bmc_map[1].power_cycle.assert_called_once()
 
@@ -349,8 +362,8 @@ class TestReservationManager(unittest.TestCase):
 
         ok, err = mgr.close('test-caller', 42)
         self.assertTrue(ok)
-        self.assertEqual(machines[1]['state'], MachineState.HEALTHY)
-        self.assertEqual(machines[2]['state'], MachineState.HEALTHY)
+        self.assertEqual(machines[1]['state'], MachineState.POWER_CYCLE_ISSUED)
+        self.assertEqual(machines[2]['state'], MachineState.POWER_CYCLE_ISSUED)
         bmc_map[1].power_cycle.assert_called_once()
         bmc_map[2].power_cycle.assert_called_once()
 
@@ -491,7 +504,7 @@ class TestFlaskEndpoints(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
 
         self.assertEqual(
-            self.mc_mod.machines[1]['state'], MachineState.HEALTHY
+            self.mc_mod.machines[1]['state'], MachineState.POWER_CYCLE_ISSUED
         )
 
     def test_reservation_refresh(self):

@@ -5,6 +5,7 @@
 import enum
 import subprocess
 import threading
+import time
 
 
 class MachineState(enum.Enum):
@@ -14,7 +15,12 @@ class MachineState(enum.Enum):
     RESERVED = "RESERVED"
     MISS_ONE = "MISS_ONE"
     MISS_TWO = "MISS_TWO"
-    REBOOT_ISSUED = "REBOOT_ISSUED"
+    SSH_REBOOT_ISSUED = "SSH_REBOOT_ISSUED"
+    POWER_CYCLE_ISSUED = "POWER_CYCLE_ISSUED"
+
+
+# How long to wait for an SSH reboot before escalating to power cycle (sec)
+SSH_REBOOT_TIMEOUT = 600
 
 
 class HealthChecker(threading.Thread):
@@ -24,23 +30,18 @@ class HealthChecker(threading.Thread):
     State transitions:
       HEALTHY -> MISS_ONE (SSH fail)
       MISS_ONE -> MISS_TWO (SSH fail again)
-      MISS_TWO -> REBOOT_ISSUED (SSH fail, triggers power cycle)
-      REBOOT_ISSUED -> HEALTHY (SSH succeeds)
+      MISS_TWO -> POWER_CYCLE_ISSUED (SSH fail, BMC power cycle)
+      SSH_REBOOT_ISSUED -> POWER_CYCLE_ISSUED (>10min and still down)
+      SSH_REBOOT_ISSUED -> HEALTHY (SSH succeeds)
+      POWER_CYCLE_ISSUED -> MISS_ONE (SSH fail, restart miss counter)
+      POWER_CYCLE_ISSUED -> HEALTHY (SSH succeeds)
       Any state -> HEALTHY (SSH succeeds)
+
+    SSH_REBOOT_ISSUED is set by the reservation manager when it reboots
+    a machine via SSH after releasing a reservation. The health checker
+    monitors it and escalates to power cycle if SSH doesn't come back.
     """
     def __init__(self, machines, bmc_map, interval=300, lock=None):
-        """
-        Parameters
-        ----------
-        machines : dict
-            machine_id -> {'name': str, 'mgmt_ipaddr': str, 'state': MachineState}
-        bmc_map : dict
-            machine_id -> BMC instance
-        interval : int
-            Seconds between health check rounds
-        lock : threading.Lock, optional
-            External lock for machines dict; creates own if not provided
-        """
         super().__init__(daemon=True)
         self.machines = machines
         self.bmc_map = bmc_map
@@ -77,13 +78,13 @@ class HealthChecker(threading.Thread):
         alive = self._ssh_check(ipaddr)
 
         with self.lock:
-            # Re-check in case state changed while we were polling
             state = machine['state']
             if state == MachineState.RESERVED:
                 return
 
             if alive:
                 machine['state'] = MachineState.HEALTHY
+                machine.pop('ssh_reboot_at', None)
             elif state == MachineState.HEALTHY:
                 machine['state'] = MachineState.MISS_ONE
                 print(f"Health: {machine['name']} missed one check")
@@ -91,14 +92,25 @@ class HealthChecker(threading.Thread):
                 machine['state'] = MachineState.MISS_TWO
                 print(f"Health: {machine['name']} missed two checks")
             elif state == MachineState.MISS_TWO:
-                machine['state'] = MachineState.REBOOT_ISSUED
-                print(f"Health: {machine['name']} missed three checks, rebooting")
                 bmc = self.bmc_map.get(machine_id)
                 if bmc:
                     bmc.power_cycle()
-            elif state == MachineState.REBOOT_ISSUED:
-                # Still waiting for reboot to take effect
-                pass
+                machine['state'] = MachineState.POWER_CYCLE_ISSUED
+                print(f"Health: {machine['name']} missed three checks, "
+                      "power cycling")
+            elif state == MachineState.SSH_REBOOT_ISSUED:
+                elapsed = time.monotonic() - machine.get('ssh_reboot_at', 0)
+                if elapsed >= SSH_REBOOT_TIMEOUT:
+                    bmc = self.bmc_map.get(machine_id)
+                    if bmc:
+                        bmc.power_cycle()
+                    machine['state'] = MachineState.POWER_CYCLE_ISSUED
+                    machine.pop('ssh_reboot_at', None)
+                    print(f"Health: {machine['name']} SSH reboot timed out, "
+                          "power cycling")
+            elif state == MachineState.POWER_CYCLE_ISSUED:
+                machine['state'] = MachineState.MISS_ONE
+                print(f"Health: {machine['name']} still down after power cycle")
 
     def run(self):
         while not self._stop_event.is_set():
