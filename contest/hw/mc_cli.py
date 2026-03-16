@@ -91,9 +91,10 @@ def cmd_sol(args, mc):
     """Fetch SOL logs."""
     color = args.color
     if args.follow:
-        # Fetch last 10 lines to start, then poll for new ones
+        # Fetch last lines to start, then poll for new ones
+        tail_n = args.tail or 10
         data = mc.get_sol_logs(args.machine_id, start_id=args.start_id,
-                               limit=10, sort='desc')
+                               limit=tail_n, sort='desc')
         lines = list(reversed(data.get('lines', [])))
         for entry in lines:
             ts = entry.get('ts', '')
@@ -113,6 +114,19 @@ def cmd_sol(args, mc):
                 last_id = data.get('last_id', last_id)
         except KeyboardInterrupt:
             return 0
+
+    if args.tail:
+        data = mc.get_sol_logs(args.machine_id, limit=args.tail, sort='desc')
+        if args.json:
+            print(json.dumps(data, indent=2))
+            return 0
+        lines = list(reversed(data.get('lines', [])))
+        for entry in lines:
+            ts = entry.get('ts', '')
+            print(f"{ts}  {_sanitize(entry['line'], keep_color=color)}", end='')
+        last_id = data.get('last_id', 0)
+        print(f"last_id={last_id}", file=sys.stderr)
+        return 0
 
     data = mc.get_sol_logs(args.machine_id, start_id=args.start_id,
                            limit=args.limit)
@@ -238,6 +252,8 @@ def main(argv=None):
                        help='follow output like tail -f')
     p_sol.add_argument('--interval', type=float, default=2,
                        help='poll interval in seconds for -f (default: 2)')
+    p_sol.add_argument('-n', '--tail', type=int, default=None,
+                       help='show last N lines (like tail -N)')
     p_sol.add_argument('--color', action='store_true',
                        help='preserve ANSI color/formatting in output')
 
