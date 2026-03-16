@@ -170,6 +170,16 @@ class ReservationManager:
     def _ssh_reboot(ipaddr):
         """Try to reboot a machine via SSH. Returns True on success."""
         try:
+            # Probe if SSH is responsive before issuing reboot
+            ret = subprocess.run(
+                ['ssh', '-o', 'ConnectTimeout=5',
+                 '-o', 'StrictHostKeyChecking=no',
+                 '-o', 'BatchMode=yes',
+                 f'root@{ipaddr}', 'true'],
+                capture_output=True, timeout=10, check=False
+            )
+            if ret.returncode != 0:
+                return False
             subprocess.run(
                 ['ssh', '-o', 'ConnectTimeout=5',
                  '-o', 'StrictHostKeyChecking=no',
