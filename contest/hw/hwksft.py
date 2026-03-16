@@ -22,7 +22,7 @@ from lib.deployer import (build_kernel, build_ksft, deploy_artifacts,  # noqa: E
                           kexec_machine, wait_for_results, fetch_results,
                           parse_results, process_crashes, set_log_file,
                           WaitResult, grab_hw_worker_journal, grab_sol_logs,
-                          reboot_machine,
+                          reboot_machine, check_healthy_ssh,
                           CRASH_SENTINEL, _journal_has_crash_sentinel)
 
 # Config:
@@ -263,7 +263,13 @@ def test(binfo, rinfo, cbarg):  # pylint: disable=unused-argument
                 print(f"Max crash retries ({max_crash_retries}) reached, giving up")
                 break
 
-        # 10. Copy back results
+        # 10. Ensure machine is reachable before fetching results
+        if not check_healthy_ssh(machine_ips[0]):
+            print("Machine unreachable, rebooting before fetching results")
+            reboot_machine(config, mc, reservation_id,
+                           machine_ids, machine_ips)
+
+        # 11. Copy back results
         fetch_results(machine_ips, reservation_id, results_path)
 
         # 11. Parse results

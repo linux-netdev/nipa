@@ -358,6 +358,11 @@ def _journal_has_crash_sentinel(ipaddr):
     return CRASH_SENTINEL in journal
 
 
+def check_healthy_ssh(ipaddr):
+    """Check if a machine is reachable via SSH. Returns True if healthy."""
+    return _ssh_retcode(ipaddr, 'true', timeout=10) == 0
+
+
 def reboot_machine(config, mc, reservation_id, machine_ids, machine_ips):
     """Reboot the machine via SSH, falling back to BMC power cycle."""
     primary_ip = machine_ips[0]
@@ -367,8 +372,7 @@ def reboot_machine(config, mc, reservation_id, machine_ids, machine_ips):
         mc.reservation_refresh(reservation_id)
 
     # Check if SSH is responsive at all before trying reboot
-    ssh_ok = _ssh_retcode(primary_ip, 'true', timeout=10) == 0
-    if ssh_ok:
+    if check_healthy_ssh(primary_ip):
         print(f"reboot_machine: rebooting {primary_ip} via SSH")
         _ssh(primary_ip, 'reboot', check=False, timeout=5)
         # Wait for the machine to actually go down before checking
