@@ -159,10 +159,9 @@ def test(binfo, rinfo, cbarg):  # pylint: disable=unused-argument
         if 'reservation_id' in result:
             reservation_id = result['reservation_id']
             break
-        wait = min(retry_time * (1.5 ** attempt), 300)
         print(f"Reserve failed ({result.get('error', '?')}), "
-              f"retry {attempt+1}/{max_retries} in {wait:.0f}s")
-        time.sleep(wait)
+              f"retry {attempt+1}/{max_retries} in {retry_time}s")
+        time.sleep(retry_time)
     else:
         raise RuntimeError(f"Failed to reserve machines after {max_retries} attempts")
 
