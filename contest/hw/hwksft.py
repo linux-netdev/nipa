@@ -82,7 +82,6 @@ def test(binfo, rinfo, cbarg):  # pylint: disable=unused-argument
     mc = MCClient(mc_url, caller=executor_name)
     nic_vendor = config.get('hw', 'nic_vendor')
     nic_model = config.get('hw', 'nic_model')
-    mc = MCClient(mc_url)
 
     # 1. Build kernel + ksft
     try:
