@@ -127,6 +127,37 @@ def _ensure_addr(ifname, addr, **kwargs):
     _ip(f'addr add {addr} dev {ifname}', **kwargs)
 
 
+def _collect_device_info(ifname):
+    """Collect devlink device info for the test interface.
+
+    Returns a dict matching ``devlink -j dev info $dev | jq '.[][]'``
+    or None if the info cannot be obtained.
+    """
+    # Find PCI address via ip link
+    ret = subprocess.run(['ip', '-d', '-j', 'link', 'show', 'dev', ifname],
+                         capture_output=True, timeout=10, check=False)
+    if ret.returncode != 0:
+        return None
+    try:
+        pci_addr = json.loads(ret.stdout)[0].get('parentdev')
+    except (json.JSONDecodeError, IndexError):
+        return None
+    if not pci_addr:
+        return None
+
+    devlink_dev = f'pci/{pci_addr}'
+    ret = subprocess.run(['devlink', '-j', 'dev', 'info', devlink_dev],
+                         capture_output=True, timeout=10, check=False)
+    if ret.returncode != 0:
+        return None
+    try:
+        data = json.loads(ret.stdout)
+        # Strip outer nests: {"info":{"pci/...": {actual data}}}
+        return data['info'][devlink_dev]
+    except (json.JSONDecodeError, KeyError):
+        return None
+
+
 def setup_test_interfaces(test_dir):
     """Configure test NICs and write net.config from nic-test.env.
 
@@ -251,6 +282,19 @@ def main():
     reservation_id = os.path.basename(test_dir)
     results_dir = os.path.join(results_base, reservation_id)
     os.makedirs(results_dir, exist_ok=True)
+
+    # Collect devlink device info for the test NIC
+    env = _parse_env_file(os.path.join(test_dir, 'nic-test.env'))
+    netif = env.get('NETIF')
+    if netif:
+        dev_info = _collect_device_info(netif)
+        if dev_info:
+            with open(os.path.join(results_dir, 'device-info.json'), 'w',
+                      encoding='utf-8') as fp:
+                json.dump(dev_info, fp)
+            print(f"Collected device info for {netif}")
+        else:
+            print(f"Warning: could not collect device info for {netif}")
 
     crashed = run_tests(test_dir, results_dir)
 

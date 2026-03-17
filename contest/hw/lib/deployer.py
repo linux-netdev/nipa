@@ -437,6 +437,15 @@ def fetch_results(machine_ips, reservation_id, results_path):
               check=False)
 
 
+def read_device_info(results_path):
+    """Read device-info.json written by hw_worker, or return None."""
+    path = os.path.join(results_path, 'test-outputs', 'device-info.json')
+    if not os.path.exists(path):
+        return None
+    with open(path, encoding='utf-8') as fp:
+        return json.load(fp)
+
+
 def parse_results(results_path, link):
     """Parse fetched test output into a vmksft-p-style result list.
 

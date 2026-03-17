@@ -23,6 +23,7 @@ from lib.deployer import (build_kernel, build_ksft, deploy_artifacts,  # noqa: E
                           parse_results, process_crashes, set_log_file,
                           WaitResult, grab_hw_worker_journal, grab_sol_logs,
                           reboot_machine, check_healthy_ssh,
+                          read_device_info,
                           CRASH_SENTINEL, _journal_has_crash_sentinel)
 
 # Config:
@@ -272,7 +273,12 @@ def test(binfo, rinfo, cbarg):  # pylint: disable=unused-argument
         # 11. Copy back results
         fetch_results(machine_ips, reservation_id, results_path)
 
-        # 11. Parse results
+        # Populate device info from hw_worker's devlink collection
+        dev_info = read_device_info(results_path)
+        if dev_info:
+            rinfo['device'] = dev_info
+
+        # 12. Parse results
         cases = parse_results(results_path, link)
 
         # 12. Post-process crashes: decode stack traces, extract fingerprints
