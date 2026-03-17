@@ -110,44 +110,49 @@ def build_ksft(config, tree_path):
 
 def deploy_artifacts(_config, machine_ips, reservation_id, nic_info, tree_path,
                      kernel_version, filters=None):
-    """SCP kernel + ksft bundle to test machines.
+    """SCP kernel + ksft bundle to the DUT.
 
-    Deploys to /srv/hw-worker/tests/$reservation_id/ on each machine.
+    Deploys to /srv/hw-worker/tests/$reservation_id/ on the DUT (first
+    machine in machine_ips).  In dual-host setups the remote/peer machine
+    is not touched — hw_worker configures it via SSH at test time.
     Also writes the test runner config file with NIC addressing info.
     """
     remote_dir = f'/srv/hw-worker/tests/{reservation_id}'
     kernel_image = os.path.join(tree_path, 'arch/x86/boot/bzImage')
     ksft_tarball = os.path.join(tree_path, 'ksft-install.tar.gz')
 
-    for ipaddr in machine_ips:
-        print(f"deploy: {ipaddr} -> {remote_dir}")
-        # Create remote directory
-        _ssh(ipaddr, f'mkdir -p {remote_dir}')
+    # Only deploy to the DUT (first machine).  In dual-host setups the
+    # remote/peer machine stays on its base kernel and is configured via
+    # SSH by hw_worker — it does not need the test kernel or selftests.
+    dut_ip = machine_ips[0]
+    print(f"deploy: {dut_ip} -> {remote_dir}")
+    # Create remote directory
+    _ssh(dut_ip, f'mkdir -p {remote_dir}')
 
-        # Copy kernel
-        _scp(kernel_image, ipaddr, f'{remote_dir}/bzImage')
+    # Copy kernel
+    _scp(kernel_image, dut_ip, f'{remote_dir}/bzImage')
 
-        # Copy ksft tarball and extract
-        _scp(ksft_tarball, ipaddr, f'{remote_dir}/ksft-install.tar.gz')
-        _ssh(ipaddr, f'tar xzf {remote_dir}/ksft-install.tar.gz -C {remote_dir}')
+    # Copy ksft tarball and extract
+    _scp(ksft_tarball, dut_ip, f'{remote_dir}/ksft-install.tar.gz')
+    _ssh(dut_ip, f'tar xzf {remote_dir}/ksft-install.tar.gz -C {remote_dir}')
 
-        # Write expected kernel version for hw-worker to verify
-        _ssh(ipaddr,
-             f"cat > {remote_dir}/.kernel-version << 'HEREDOC'\n{kernel_version}\nHEREDOC")
+    # Write expected kernel version for hw-worker to verify
+    _ssh(dut_ip,
+         f"cat > {remote_dir}/.kernel-version << 'HEREDOC'\n{kernel_version}\nHEREDOC")
 
-        # Deploy crash filters if available
-        if filters:
-            import tempfile as _tmpfile
-            with _tmpfile.NamedTemporaryFile(mode='w', suffix='.json',
-                                             delete=False) as fp:
-                json.dump(filters, fp)
-                tmp_path = fp.name
-            try:
-                _scp(tmp_path, ipaddr, f'{remote_dir}/filters.json')
-            finally:
-                os.unlink(tmp_path)
+    # Deploy crash filters if available
+    if filters:
+        import tempfile as _tmpfile
+        with _tmpfile.NamedTemporaryFile(mode='w', suffix='.json',
+                                         delete=False) as fp:
+            json.dump(filters, fp)
+            tmp_path = fp.name
+        try:
+            _scp(tmp_path, dut_ip, f'{remote_dir}/filters.json')
+        finally:
+            os.unlink(tmp_path)
 
-    # Write test config on the primary machine (first in list)
+    # Write test config on the DUT
     if nic_info and machine_ips:
         config_lines = []
         config_lines.append(f'NETIF={nic_info.get("ifname", "")}')
@@ -173,12 +178,12 @@ def deploy_artifacts(_config, machine_ips, reservation_id, nic_info, tree_path,
             config_lines.append(f'DISRUPTIVE={nic_info["disruptive"]}')
 
         config_content = '\n'.join(config_lines) + '\n'
-        _ssh(machine_ips[0],
+        _ssh(dut_ip,
              f"cat > {remote_dir}/nic-test.env << 'HEREDOC'\n{config_content}HEREDOC")
 
 
 def kexec_machine(config, machine_ips, reservation_id, mc=None):
-    """SSH to each machine and kexec into the new kernel."""
+    """SSH to the DUT and kexec into the new kernel."""
     remote_dir = f'/srv/hw-worker/tests/{reservation_id}'
     boot_timeout = config.getint('hw', 'max_kexec_boot_timeout', fallback=300)
 
@@ -186,38 +191,40 @@ def kexec_machine(config, machine_ips, reservation_id, mc=None):
         if mc:
             mc.reservation_refresh(reservation_id)
 
-    for ipaddr in machine_ips:
-        # Use the existing initramfs so LVM/DM can assemble the root FS.
-        # On the kexec'd test kernel there's no matching initramfs under
-        # /boot, so fall back to the cached path from a previous lookup.
-        initrd = _ssh(ipaddr,
-                      'ls /boot/initramfs-$(uname -r).img 2>/dev/null || '
-                      'ls /boot/initrd.img-$(uname -r) 2>/dev/null || true').strip()
-        if initrd:
-            _initrd_cache[ipaddr] = initrd
-        elif ipaddr in _initrd_cache:
-            cached = _initrd_cache[ipaddr]
-            if _ssh_retcode(ipaddr, f'test -f {cached}') == 0:
-                initrd = cached
-                print(f"kexec: {ipaddr} using cached initrd {initrd}")
+    # Only kexec the DUT (first machine).  In dual-host setups the
+    # remote/peer machine stays on its base kernel.
+    dut_ip = machine_ips[0]
 
-        kexec_cmd = f'kexec -l {remote_dir}/bzImage --reuse-cmdline'
-        if initrd:
-            kexec_cmd += f' --initrd={initrd}'
-            if initrd != _initrd_cache.get(ipaddr, initrd):
-                print(f"kexec: {ipaddr} using initrd {initrd}")
-        else:
-            print(f"kexec: {ipaddr} no initrd found, booting without")
-        _ssh(ipaddr, kexec_cmd)
-        print(f"kexec: {ipaddr}: ", kexec_cmd)
-        # kexec -e will kill the SSH session, so ignore errors
-        _ssh(ipaddr, 'kexec -e', check=False, timeout=5)
+    # Use the existing initramfs so LVM/DM can assemble the root FS.
+    # On the kexec'd test kernel there's no matching initramfs under
+    # /boot, so fall back to the cached path from a previous lookup.
+    initrd = _ssh(dut_ip,
+                  'ls /boot/initramfs-$(uname -r).img 2>/dev/null || '
+                  'ls /boot/initrd.img-$(uname -r) 2>/dev/null || true').strip()
+    if initrd:
+        _initrd_cache[dut_ip] = initrd
+    elif dut_ip in _initrd_cache:
+        cached = _initrd_cache[dut_ip]
+        if _ssh_retcode(dut_ip, f'test -f {cached}') == 0:
+            initrd = cached
+            print(f"kexec: {dut_ip} using cached initrd {initrd}")
 
-    # Wait for machines to come back
-    for ipaddr in machine_ips:
-        print(f"kexec: waiting for {ipaddr} to come back (timeout {boot_timeout}s)")
-        _wait_for_ssh(ipaddr, timeout=boot_timeout, keepalive=_refresh)
-        print(f"kexec: {ipaddr} is back")
+    kexec_cmd = f'kexec -l {remote_dir}/bzImage --reuse-cmdline'
+    if initrd:
+        kexec_cmd += f' --initrd={initrd}'
+        if initrd != _initrd_cache.get(dut_ip, initrd):
+            print(f"kexec: {dut_ip} using initrd {initrd}")
+    else:
+        print(f"kexec: {dut_ip} no initrd found, booting without")
+    _ssh(dut_ip, kexec_cmd)
+    print(f"kexec: {dut_ip}: ", kexec_cmd)
+    # kexec -e will kill the SSH session, so ignore errors
+    _ssh(dut_ip, 'kexec -e', check=False, timeout=5)
+
+    # Wait for DUT to come back
+    print(f"kexec: waiting for {dut_ip} to come back (timeout {boot_timeout}s)")
+    _wait_for_ssh(dut_ip, timeout=boot_timeout, keepalive=_refresh)
+    print(f"kexec: {dut_ip} is back")
 
 
 def grab_hw_worker_journal(ipaddr, results_path, suffix=''):
