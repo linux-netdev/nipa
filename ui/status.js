@@ -593,7 +593,7 @@ function reset_summary(summary, branch)
 function contest_create_table(stream_name, container)
 {
     var h4 = document.createElement("h4");
-    h4.innerText = stream_name;
+    h4.innerText = "Branch stream: " + stream_name;
     container.appendChild(h4);
 
     var table = document.createElement("table");
