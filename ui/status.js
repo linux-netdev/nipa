@@ -458,34 +458,6 @@ function wrap_link(objA, objB, text)
     return "<a href=\"" + url + "\">" + text + "</a>";
 }
 
-function load_fails(data_raw)
-{
-    var fail_table = document.getElementById("recent-fails");
-    var crash_table = document.getElementById("recent-crashes");
-
-    $.each(data_raw, function(idx0, v) {
-	$.each(v.results, function(idx1, r) {
-	    if (r.result != "pass" && nipa_pw_reported(v, r)) {
-		let i = 0, row = fail_table.insertRow();
-		row.insertCell(i++).innerHTML = v.branch;
-		row.insertCell(i++).innerHTML = v.remote;
-		row.insertCell(i++).innerHTML = r.test;
-		row.insertCell(i++).innerHTML = colorify_basic(r.result);
-		if ("retry" in r)
-		    row.insertCell(i++).innerHTML = colorify_basic(r.retry);
-	    }
-
-	    if ("crashes" in r) {
-		for (crash of r.crashes) {
-		    let i = 0, row = crash_table.insertRow();
-		    row.insertCell(i++).innerHTML = wrap_link(r, v, r.test);
-		    row.insertCell(i++).innerHTML = crash;
-		}
-	    }
-	});
-    });
-}
-
 function load_partial_tests(data)
 {
     let table = document.getElementById("test-presence");
@@ -741,6 +713,38 @@ function load_result_table_one(data_raw, table, reported, avgs)
 		cnt.innerHTML = link_to_contest + str_psf.str + "</a>";
 		res.innerHTML = str_psf.overall;
 		time.innerHTML = msec_to_str(t_end - t_start);
+
+		// Add inline failure and crash rows
+		$.each(v.results, function(i, r) {
+		    // Always show crashes, they are important
+		    if ("crashes" in r) {
+			/* keep going */;
+		    } else if (nipa_pw_reported(v, r) != reported) {
+			return 1;
+		    } else if (r.result == "pass") {
+			return 1;
+		    }
+
+		    var frow = table.insertRow();
+		    frow.insertCell(0); // branch - empty
+		    var fcell = frow.insertCell(1);
+		    fcell.innerHTML = r.test;
+		    fcell.setAttribute("style", "text-align: right");
+		    frow.insertCell(2).innerHTML = colorify_basic(r.result);
+		    if ("retry" in r)
+			frow.insertCell(3).innerHTML = colorify_basic(r.retry);
+
+		    if ("crashes" in r) {
+			$.each(r.crashes, function(ci, crash) {
+			    var crow = table.insertRow();
+			    crow.insertCell(0); // branch - empty
+			    var ccell = crow.insertCell(1);
+			    ccell.innerHTML = crash;
+			    ccell.setAttribute("colspan", "4");
+			    ccell.setAttribute("style", "background-color: rgba(255, 0, 0, 0.1)");
+			});
+		    }
+		});
 	    } else {
 		var pend;
 
@@ -957,7 +961,6 @@ function load_result_table(data_raw, reload)
     });
 
     if (!reload) {
-	load_fails(data_raw);
 	load_partial_tests(data_raw);
     }
 }
