@@ -729,7 +729,7 @@ function load_result_table_one(data_raw, table, reported, avgs)
 		    var frow = table.insertRow();
 		    frow.insertCell(0); // branch - empty
 		    var fcell = frow.insertCell(1);
-		    fcell.innerHTML = r.test;
+		    fcell.innerHTML = wrap_link(r, v, r.test);
 		    fcell.setAttribute("style", "text-align: right");
 
 		    let result = r.result, retry = null;
