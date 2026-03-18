@@ -212,19 +212,58 @@ function systemd_add_one(table, system, sname, v)
     mem.setAttribute("style", "text-align: right");
 }
 
-function systemd(data_raw, data_local, data_remote)
+function systemd_is_okay(v)
+{
+    if (v.TriggeredBy == 0) {
+	let state = v.ActiveState + " / " + v.SubState;
+	return state == "active / running" && v.TasksCurrent <= 1;
+    } else {
+	return v.Result == "success";
+    }
+}
+
+let systemd_entries = [];
+
+function reload_systemd()
 {
     var table = document.getElementById("systemd");
+    const summarize = document.getElementById("systemd-summary").checked;
+    var hidden = 0;
+
+    $("#systemd tr").slice(1).remove();
+
+    $.each(systemd_entries, function(i, e) {
+	if (summarize && systemd_is_okay(e.v)) {
+	    hidden++;
+	    return 1;
+	}
+	systemd_add_one(table, e.system, e.name, e.v);
+    });
+
+    if (summarize && hidden) {
+	var row = table.insertRow();
+	var cell = row.insertCell(0);
+	cell.innerHTML = '<span style="font-style: italic;"><b>' + hidden + ' / ' + systemd_entries.length + '</b> trivial services in good state hidden</span>';
+	cell.setAttribute("colspan", "5");
+	cell.setAttribute("style", "text-align: right");
+    }
+}
+
+function systemd(data_raw, data_local, data_remote)
+{
+    systemd_entries = [];
 
     $.each(data_local, function(i, v) {
-	systemd_add_one(table, data_raw, i, v);
+	systemd_entries.push({system: data_raw, name: i, v: v});
     });
 
     $.each(data_remote, function(name, remote) {
 	$.each(remote["services"], function(service, v) {
-	    systemd_add_one(table, remote, name + "/" + service, v);
+	    systemd_entries.push({system: remote, name: name + "/" + service, v: v});
 	});
     });
+
+    reload_systemd();
 }
 
 function load_runners(data_raw)
@@ -365,6 +404,9 @@ function status_system(data_raw)
     load_runners(data_raw["runners"]);
     load_runtime(data_raw["log-files"]);
     load_db_size(data_raw["db"]["data"]);
+
+    let summary_checkbox = document.getElementById("systemd-summary");
+    summary_checkbox.addEventListener("change", reload_systemd);
 }
 
 function msec_to_str(msec) {
