@@ -152,6 +152,7 @@ function colorify_basic(value)
 {
     return colorify_str_any(value, {"fail": "red",
 				    "pass": "green",
+				    "flake": "orange",
 				    "pending": "#809fff"});
 }
 
@@ -730,9 +731,18 @@ function load_result_table_one(data_raw, table, reported, avgs)
 		    var fcell = frow.insertCell(1);
 		    fcell.innerHTML = r.test;
 		    fcell.setAttribute("style", "text-align: right");
-		    frow.insertCell(2).innerHTML = colorify_basic(r.result);
-		    if ("retry" in r)
-			frow.insertCell(3).innerHTML = colorify_basic(r.retry);
+
+		    let result = r.result, retry = null;
+		    if ("retry" in r && r.retry == "pass")
+			result = "flake";
+		    else if ("retry" in r)
+			retry = r.retry;
+		    frow.insertCell(2).innerHTML = colorify_basic(result);
+		    if (retry)
+			frow.insertCell(3).innerHTML = colorify_basic(retry);
+		    else
+			frow.insertCell(3).innerText = "";
+		    frow.insertCell(4).innerText = "";
 
 		    if ("crashes" in r) {
 			$.each(r.crashes, function(ci, crash) {
