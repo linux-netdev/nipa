@@ -617,6 +617,26 @@ function reset_summary(summary, branch)
     summary["hidden"] = 0;
 }
 
+function contest_create_table(stream_name, container)
+{
+    var h4 = document.createElement("h4");
+    h4.innerText = stream_name;
+    container.appendChild(h4);
+
+    var table = document.createElement("table");
+    container.appendChild(table);
+
+    var hdr = table.insertRow();
+    var headers = ["Branch", "Remote", "Time", "Tests", "Result"];
+    $.each(headers, function(i, name) {
+	var th = document.createElement("th");
+	th.innerText = name;
+	hdr.appendChild(th);
+    });
+
+    return table;
+}
+
 function load_result_table_one(data_raw, table, reported, avgs)
 {
     const summarize = document.getElementById("contest-summary").checked;
@@ -774,8 +794,6 @@ var awol_executors;
 
 function load_result_table(data_raw, reload)
 {
-    var table = document.getElementById("contest");
-    var table_nr = document.getElementById("contest-purgatory");
     var branch_pull_status = {};
     var branch_start = {};
 
@@ -910,10 +928,34 @@ function load_result_table(data_raw, reload)
 	return 0;
     });
 
-    $("#contest tr").slice(1).remove();
-    $("#contest-purgatory tr").slice(1).remove();
-    load_result_table_one(data_raw, table, true, avgs);
-    load_result_table_one(data_raw, table_nr, false, avgs);
+    // Collect unique stream prefixes in alphabetical order
+    var stream_set = new Set();
+    $.each(data_raw, function(i, v) {
+	stream_set.add(v.br_pfx);
+    });
+    var stream_order = Array.from(stream_set).sort();
+
+    var contest_div = document.getElementById("contest-tables");
+    var purgatory_div = document.getElementById("contest-purgatory-tables");
+
+    // Delete the previously loaded tables
+    contest_div.innerHTML = "";
+    purgatory_div.innerHTML = "<h3>Not reporting to patchwork:</h3>";
+
+    $.each(stream_order, function(i, pfx) {
+	var stream_data = [];
+	$.each(data_raw, function(i, v) {
+	    if (v.br_pfx == pfx)
+		stream_data.push(v);
+	});
+
+	var table = contest_create_table(pfx, contest_div);
+	load_result_table_one(stream_data, table, true, avgs);
+
+	var table_nr = contest_create_table(pfx, purgatory_div);
+	load_result_table_one(stream_data, table_nr, false, avgs);
+    });
+
     if (!reload) {
 	load_fails(data_raw);
 	load_partial_tests(data_raw);
