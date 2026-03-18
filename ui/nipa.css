@@ -18,7 +18,7 @@ tr:nth-child(even) {
 }
 
 .summary-row td {
-    border-width: 1px 1px 6px 1px;
+    border-width: 1px 1px 0.5em 1px;
     border-color: white;
     text-align: right;
     font-style: italic;
