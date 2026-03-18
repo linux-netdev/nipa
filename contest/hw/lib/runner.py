@@ -299,6 +299,8 @@ def run_tests(test_dir, results_dir):
             info['crashes'] = list(crash_fps)
         with open(os.path.join(test_results_dir, 'info'), 'w', encoding='utf-8') as fp:
             json.dump(info, fp)
+            fp.flush()
+            os.fsync(fp.fileno())
 
         print(f"[{test_idx+1}/{len(tests)}] {test_name}: rc={retcode} ({elapsed}s)")
 

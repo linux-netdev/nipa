@@ -469,8 +469,18 @@ def parse_results(results_path, link):
             if not os.path.exists(info_path):
                 continue
 
-            with open(info_path, encoding='utf-8') as fp:
-                info = json.load(fp)
+            try:
+                with open(info_path, encoding='utf-8') as fp:
+                    info = json.load(fp)
+            except (json.JSONDecodeError, ValueError):
+                print(f"parse_results: bad JSON in {info_path}, marking as fail")
+                cases.append({
+                    'test': entry,
+                    'group': 'selftests-hw',
+                    'result': 'fail',
+                    'link': link,
+                })
+                continue
 
             retcode = info.get('retcode', 1)
             target = info.get('target', 'unknown')
