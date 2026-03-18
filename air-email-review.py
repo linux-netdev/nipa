@@ -5,6 +5,7 @@
 
 import argparse
 import configparser
+import email
 import os
 import re
 import subprocess
@@ -13,6 +14,7 @@ import tempfile
 import textwrap
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+from urllib.parse import urlparse
 import requests
 
 
@@ -97,6 +99,36 @@ class AirReplyClient:
         )
         response.raise_for_status()
         return response.json()
+
+
+def fetch_original_subject(session: requests.Session,
+                           archive_url: str) -> Optional[str]:
+    """Fetch the original Subject from the email archive.
+
+    Patchwork mangles subjects (strips PATCH prefix, reformats tags),
+    so we fetch the raw email from the archive to get the real Subject.
+    """
+    if not archive_url:
+        return None
+
+    # lore.kernel.org serves raw email when /raw is appended
+    parsed = urlparse(archive_url)
+    if parsed.hostname == 'lore.kernel.org':
+        raw_url = archive_url.rstrip('/') + '/raw'
+    else:
+        raw_url = archive_url
+
+    try:
+        response = session.get(raw_url, timeout=30)
+        response.raise_for_status()
+    except requests.exceptions.RequestException:
+        return None
+
+    msg = email.message_from_string(response.text)
+    subject = msg.get('Subject')
+    if subject:
+        return subject
+    return None
 
 
 def extract_commit_subject(review_text: str) -> str:
@@ -612,6 +644,12 @@ Configuration file:
 
             patch_info = patch_info_list[i]
             message_id = patch_info.get('msgid', '')
+
+            # Fetch original subject from archive to avoid Patchwork mangling
+            archive_url = patch_info.get('list_archive_url')
+            original_subject = fetch_original_subject(client.session, archive_url)
+            if original_subject:
+                patch_info['name'] = original_subject
 
             # Skip empty reviews (None or empty string)
             if review_text is None or review_text.strip() == '':
