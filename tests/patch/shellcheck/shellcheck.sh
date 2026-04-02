@@ -5,7 +5,8 @@ HEAD=$(git rev-parse HEAD)
 rc=0
 
 # SC2317 = unreachable code, gets confused by test case definitions
-SC_FLAGS="-x -e SC2317"
+# SC2329 = function not invoked, gets confused by test case definitions
+SC_FLAGS="-x -e SC2317 -e SC2329"
 
 pr() {
     echo " ====== $* ======" | tee -a /dev/stderr
