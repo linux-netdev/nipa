@@ -62,10 +62,16 @@ def build_kernel(config, tree_path):
     _run(['make', '-C', tree_path, 'defconfig'])
 
     # Apply extra kconfig fragments (space-separated list)
-    extra_kconfig = config.get('build', 'extra_kconfig', fallback=None)
-    if extra_kconfig:
-        configs = extra_kconfig.split()
-        _run(['scripts/kconfig/merge_config.sh', '-m', '.config'] + configs,
+    extra_configs = []
+    extra_configs += config.get('build', 'extra_kconfig', fallback="").split()
+    targets = config.get('ksft', 'target', fallback='net').split()
+    for target in targets:
+        one_config = f"tools/testing/selftests/{target}/config"
+        if os.path.exists(os.path.join(tree_path, one_config)):
+            extra_configs.append(one_config)
+
+    if extra_configs:
+        _run(['scripts/kconfig/merge_config.sh', '-m', '.config'] + extra_configs,
              cwd=tree_path)
         _run(['make', '-C', tree_path, 'olddefconfig'])
 
