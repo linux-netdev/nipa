@@ -127,6 +127,14 @@ def _ensure_addr(ifname, addr, **kwargs):
     _ip(f'addr add {addr} dev {ifname}', **kwargs)
 
 
+def _install_prefix_route(ifname, prefix, local_v6, **kwargs):
+    """
+    Install a route on remote with a nexthop so that remote doesn't try
+    to resolve the L2 for all the containers, just sends the traffic to us.
+    """
+    _ip(f'-6 route add {prefix} via {local_v6} dev {ifname}', **kwargs)
+
+
 def _collect_device_info(ifname):
     """Collect devlink device info for the test interface.
 
@@ -207,6 +215,9 @@ def setup_test_interfaces(test_dir):
             _ensure_addr(remote_ifname, env['REMOTE_V4'], **peer_kwargs)
         if env.get('REMOTE_V6'):
             _ensure_addr(remote_ifname, env['REMOTE_V6'], **peer_kwargs)
+        if env.get('LOCAL_PREFIX_V6'):
+            _install_prefix_route(remote_ifname, env['LOCAL_PREFIX_V6'],
+                                  env['LOCAL_V6'], **peer_kwargs)
 
     # Wait for peer to be reachable
     peer_ip = env.get('REMOTE_V4', '').split('/')[0]

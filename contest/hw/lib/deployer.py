@@ -157,7 +157,12 @@ def deploy_artifacts(_config, machine_ips, reservation_id, nic_info, tree_path,
         config_lines = []
         config_lines.append(f'NETIF={nic_info.get("ifname", "")}')
         config_lines.append(f'LOCAL_V4={nic_info.get("ip4addr", "")}')
-        config_lines.append(f'LOCAL_V6={nic_info.get("ip6addr", "")}')
+
+        ipv6=nic_info.get("ip6addr", "")
+        config_lines.append(f'LOCAL_V6={ipv6}')
+        if ipv6:
+            local_pfx=ipv6.split("::")[0] + "::2:0:0/96"
+            config_lines.append(f'LOCAL_PREFIX_V6={local_pfx}')
 
         peer = nic_info.get('peer')
         if peer:
