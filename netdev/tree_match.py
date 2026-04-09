@@ -75,6 +75,7 @@ def _tree_name_should_be_local_files(raw_email):
         'drivers/net/ethernet/',
         'kernel/bpf/',
         'tools/net/',
+        'tools/testing/selftests/drivers/net/',
         'tools/testing/selftests/tc-testing/',
         'tools/testing/selftests/net/',
 
