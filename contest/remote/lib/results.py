@@ -17,7 +17,7 @@ def guess_indicators(output):
     return {
         "fail": output.find("[FAIL]") != -1 or output.find("[fail]") != -1 or
                 output.find(" FAIL:") != -1 or
-                output.find("\nnot ok 1 selftests: ") != -1 or
+                bool(re.search(r"\nnot ok \d+( \d+)? selftests: ", output)) or
                 output.find("\n# not ok 1") != -1,
         "skip": output.find("[SKIP]") != -1 or output.find("[skip]") != -1 or
                 output.find(" # SKIP") != -1 or output.find("SKIP:") != -1,
@@ -25,7 +25,7 @@ def guess_indicators(output):
                 output.find("[ OK ]") != -1 or output.find("[OK]") != -1 or
                 output.find("[ ok ]") != -1 or output.find("[pass]") != -1 or
                 output.find("PASSED all ") != -1 or
-                output.find("\nok 1 selftests: ") != -1 or
+                bool(re.search(r"\nok \d+( \d+)? selftests: ", output)) or
                 bool(re.search(
                     r"# Totals: pass:[1-9]\d* fail:0 (xfail:0 )?(xpass:0 )?skip:0 error:0",
                     output)),
@@ -62,7 +62,7 @@ def parse_nested_tests(full_run, namify_fn, prev_results=None):
     nested_tests = False
 
     result_re = re.compile(
-        r"(not )?ok (\d+)( -)? ([^#]*[^ ])( +# +)?([^ ].*)?$")
+        r"(not )?ok (\d+)( \d+)?( -)? ([^#]*[^ ])( +# +)?([^ ].*)?$")
     time_re = re.compile(r"time=(\d+)ms")
 
     for line in full_run.split('\n'):
@@ -87,13 +87,13 @@ def parse_nested_tests(full_run, namify_fn, prev_results=None):
             continue
 
         v = result_re.match(line).groups()
-        r = {'test': namify_fn(v[3])}
+        r = {'test': namify_fn(v[4])}
 
-        if len(v) > 5 and v[4] and v[5]:
-            if v[5].lower().startswith('skip'):
+        if len(v) > 6 and v[5] and v[6]:
+            if v[6].lower().startswith('skip'):
                 result = "skip"
 
-            t = time_re.findall(v[5].lower())
+            t = time_re.findall(v[6].lower())
             if t:
                 r['time'] = round(int(t[-1]) / 1000.)  # take the last one
 
