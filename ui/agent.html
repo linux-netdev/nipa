@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CI Agent Reports</title>
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="stylesheet" href="nipa.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+
+        h1 {
+            border-bottom: 2px solid #0366d6;
+            padding-bottom: 10px;
+        }
+
+        .entry {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+
+        .entry-header {
+            background-color: #34495e;
+            color: #fff;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .entry-header:hover {
+            opacity: 0.9;
+        }
+
+        .entry-header .branch {
+            font-weight: bold;
+            font-size: 1.05em;
+        }
+
+        .entry-header .timestamp {
+            font-size: 0.85em;
+            opacity: 0.85;
+        }
+
+        .entry-body {
+            padding: 20px;
+        }
+
+        .entry.collapsed .entry-body {
+            display: none;
+        }
+
+        .section-label {
+            font-weight: bold;
+            margin: 16px 0 8px 0;
+            font-size: 0.95em;
+            color: #555;
+        }
+
+        .section-label:first-child {
+            margin-top: 0;
+        }
+
+        .failures-table {
+            width: 100%;
+            font-size: 0.9em;
+        }
+
+        .failures-table td, .failures-table th {
+            padding: 5px 10px;
+        }
+
+        .result-fail {
+            color: #c0392b;
+            font-weight: bold;
+        }
+
+        .result-skip {
+            color: #2980b9;
+            font-weight: bold;
+        }
+
+        .commit-card {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px 14px;
+            margin-bottom: 8px;
+        }
+
+        .commit-hash {
+            font-family: "roboto mono", monospace;
+            font-size: 0.85em;
+            color: #888;
+        }
+
+        .commit-desc {
+            margin: 4px 0;
+        }
+
+        .pw-links {
+            font-size: 0.85em;
+            margin-top: 4px;
+        }
+
+        .pw-links a {
+            margin-right: 12px;
+        }
+
+        .analysis-toggle {
+            display: inline-block;
+            cursor: pointer;
+            padding: 4px 12px;
+            border-radius: 3px;
+            font-size: 0.9em;
+            margin-top: 12px;
+        }
+
+        .analysis-content {
+            margin-top: 12px;
+            padding: 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #f8f9fa;
+            line-height: 1.6;
+            overflow-x: auto;
+        }
+
+        .analysis-content h1,
+        .analysis-content h2,
+        .analysis-content h3 {
+            margin-top: 1em;
+            margin-bottom: 0.4em;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 0.3em;
+        }
+
+        .analysis-content h1:first-child {
+            margin-top: 0;
+        }
+
+        .analysis-content pre {
+            background: #eee;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+
+        .analysis-content code {
+            font-family: "roboto mono", monospace;
+            font-size: 0.9em;
+        }
+
+        .analysis-content p code {
+            background: #eee;
+            padding: 1px 5px;
+            border-radius: 3px;
+        }
+
+        .analysis-content table {
+            margin: 0.5em 0;
+        }
+
+        .analysis-content blockquote {
+            border-left: 3px solid #0366d6;
+            margin: 0.5em 0;
+            padding: 0.4em 1em;
+            color: #555;
+            background: #eee;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.1em;
+            color: #888;
+        }
+
+        .error-msg {
+            color: #c0392b;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+
+        .badge-fail { background: #e74c3c; color: #fff; }
+        .badge-skip { background: #3498db; color: #fff; }
+        .badge-confidence-high { background: #27ae60; color: #fff; }
+        .badge-confidence-medium { background: #f39c12; color: #fff; }
+        .badge-confidence-low { background: #e74c3c; color: #fff; }
+        .badge-confidence-unknown { background: #95a5a6; color: #fff; }
+
+        .failure-summary {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .entry {
+                border-color: #444;
+            }
+            .entry-header {
+                background-color: #2c3e50;
+            }
+            .section-label {
+                color: #999;
+            }
+            .commit-card {
+                border-color: #444;
+                background: #282828;
+            }
+            .commit-hash {
+                color: #777;
+            }
+            .analysis-content {
+                background: #282828;
+                border-color: #444;
+            }
+            .analysis-content h1,
+            .analysis-content h2,
+            .analysis-content h3 {
+                border-color: #444;
+            }
+            .analysis-content pre {
+                background: #333;
+            }
+            .analysis-content p code {
+                background: #333;
+            }
+            .analysis-content blockquote {
+                background: #333;
+                color: #999;
+            }
+            .result-fail {
+                color: #e74c3c;
+            }
+            .result-skip {
+                color: #5dade2;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>CI Agent Reports</h1>
+    <div id="content"><div class="loading">Loading...</div></div>
+
+    <script>
+        fetch('/agent.json')
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                return r.json();
+            })
+            .then(data => {
+                const entries = data.slice().reverse();
+                const container = document.getElementById('content');
+                container.innerHTML = '';
+
+                entries.forEach((entry, idx) => {
+                    const div = document.createElement('div');
+                    div.className = 'entry' + (idx > 0 ? ' collapsed' : '');
+
+                    const ts = new Date(entry.timestamp);
+                    const tsStr = ts.toLocaleString();
+
+                    const failCount = entry.failures.filter(f => f.result === 'fail').length;
+                    const skipCount = entry.failures.filter(f => f.result === 'skip').length;
+
+                    let badges = '';
+                    if (failCount) badges += `<span class="badge badge-fail">${failCount} fail</span>`;
+                    if (skipCount) badges += `<span class="badge badge-skip">${skipCount} skip</span>`;
+
+                    const conf = entry.confidence;
+                    if (conf && conf.level) {
+                        const cls = 'badge-confidence-' + conf.level;
+                        badges += `<span class="badge ${cls}" title="${esc(conf.explanation || '')}">${esc(conf.level)} confidence</span>`;
+                    }
+
+                    // Header
+                    const header = document.createElement('div');
+                    header.className = 'entry-header';
+                    header.innerHTML =
+                        `<span class="branch">${esc(entry.branch)}</span>` +
+                        `<span class="failure-summary">${badges}<span class="timestamp">${esc(tsStr)}</span></span>`;
+                    header.onclick = () => div.classList.toggle('collapsed');
+                    div.appendChild(header);
+
+                    // Body
+                    const body = document.createElement('div');
+                    body.className = 'entry-body';
+
+                    // Failures table
+                    body.innerHTML += '<div class="section-label">Failures</div>';
+                    let tbl = '<table class="failures-table"><tr><th>Executor</th><th>Group</th><th>Test</th><th>Result</th></tr>';
+                    entry.failures.forEach(f => {
+                        const cls = f.result === 'fail' ? 'result-fail' : 'result-skip';
+                        tbl += `<tr><td>${esc(f.executor)}</td><td>${esc(f.group)}</td><td>${esc(f.test)}</td><td class="${cls}">${esc(f.result)}</td></tr>`;
+                    });
+                    tbl += '</table>';
+                    body.innerHTML += tbl;
+
+                    // Blamed commits
+                    if (entry.blamed_commits && entry.blamed_commits.length) {
+                        body.innerHTML += '<div class="section-label">Blamed Commits</div>';
+                        entry.blamed_commits.forEach(bc => {
+                            let pwHtml = '';
+                            const pws = Array.isArray(bc.patchwork) ? bc.patchwork : (bc.patchwork ? [bc.patchwork] : []);
+                            if (pws.length) {
+                                pwHtml = '<div class="pw-links">' + pws.map(pw =>
+                                    `<a href="${esc(pw.url)}" target="_blank" rel="noopener">${esc(pw.name)}</a>` +
+                                    (pw.submitter ? ` (${esc(pw.submitter)})` : '')
+                                ).join('<br>') + '</div>';
+                            }
+                            body.innerHTML +=
+                                `<div class="commit-card">` +
+                                `<span class="commit-hash">${esc(bc.commit.substring(0, 12))}</span>` +
+                                `<div class="commit-desc">${esc(bc.description)}</div>` +
+                                pwHtml +
+                                `</div>`;
+                        });
+                    }
+
+                    // Analysis (collapsible)
+                    if (entry.analysis) {
+                        const aid = 'analysis-' + idx;
+                        body.innerHTML +=
+                            `<a class="nipa-button analysis-toggle" onclick="toggleAnalysis('${aid}')">Show Analysis</a>` +
+                            `<div id="${aid}" class="analysis-content" style="display:none"></div>`;
+                    }
+
+                    div.appendChild(body);
+                    container.appendChild(div);
+
+                    // Render markdown after DOM insertion
+                    if (entry.analysis) {
+                        const aid = 'analysis-' + idx;
+                        document.getElementById(aid).innerHTML = marked.parse(entry.analysis);
+                    }
+                });
+            })
+            .catch(err => {
+                document.getElementById('content').innerHTML =
+                    `<div class="error-msg">Failed to load agent.json: ${esc(err.message)}</div>`;
+            });
+
+        function toggleAnalysis(id) {
+            const el = document.getElementById(id);
+            const btn = el.previousElementSibling;
+            if (el.style.display === 'none') {
+                el.style.display = 'block';
+                btn.textContent = 'Hide Analysis';
+            } else {
+                el.style.display = 'none';
+                btn.textContent = 'Show Analysis';
+            }
+        }
+
+        function esc(s) {
+            const d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+    </script>
+</body>
+</html>
