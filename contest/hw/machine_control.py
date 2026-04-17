@@ -414,7 +414,7 @@ def reservation_close():
 
 def main():
     """Initialize services and run Flask app."""
-    global db_pool, health_checker, res_mgr, sol_listener  # pylint: disable=global-statement
+    global db_pool, health_checker, res_mgr  # pylint: disable=global-statement
 
     config = configparser.ConfigParser()
     cfg_paths = ['hw.config', 'machine_control.config']
