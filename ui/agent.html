@@ -290,9 +290,45 @@
 </head>
 <body>
     <h1>CI Agent Reports</h1>
+    <div id="controls" style="display:none; margin-bottom: 12px;">
+        <button class="nipa-button" onclick="foldAll()">Fold All</button>
+        <button class="nipa-button" onclick="unfoldAll()">Unfold All</button>
+    </div>
     <div id="content"><div class="loading">Loading...</div></div>
 
     <script>
+        const STORAGE_KEY = 'agent-folded';
+
+        function loadFolded() {
+            try {
+                return new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'));
+            } catch (e) {
+                return new Set();
+            }
+        }
+
+        function saveFolded(set) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify([...set]));
+        }
+
+        function foldAll() {
+            const folded = loadFolded();
+            document.querySelectorAll('.entry').forEach(div => {
+                div.classList.add('collapsed');
+                folded.add(div.dataset.entryKey);
+            });
+            saveFolded(folded);
+        }
+
+        function unfoldAll() {
+            const folded = loadFolded();
+            document.querySelectorAll('.entry').forEach(div => {
+                div.classList.remove('collapsed');
+                folded.delete(div.dataset.entryKey);
+            });
+            saveFolded(folded);
+        }
+
         fetch('/agent.json')
             .then(r => {
                 if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -303,9 +339,16 @@
                 const container = document.getElementById('content');
                 container.innerHTML = '';
 
+                const folded = loadFolded();
+                const knownKeys = new Set();
+
                 entries.forEach((entry, idx) => {
+                    const entryKey = entry.timestamp;
+                    knownKeys.add(entryKey);
+
                     const div = document.createElement('div');
-                    div.className = 'entry' + (idx > 0 ? ' collapsed' : '');
+                    div.dataset.entryKey = entryKey;
+                    div.className = 'entry' + (folded.has(entryKey) ? ' collapsed' : '');
 
                     const ts = new Date(entry.timestamp);
                     const tsStr = ts.toLocaleString();
@@ -333,7 +376,15 @@
                     header.innerHTML =
                         `<span class="branch">${esc(entry.branch)}</span>` +
                         `<span class="failure-summary">${badges}<span class="timestamp">${esc(tsStr)}</span></span>`;
-                    header.onclick = () => div.classList.toggle('collapsed');
+                    header.onclick = () => {
+                        div.classList.toggle('collapsed');
+                        const f = loadFolded();
+                        if (div.classList.contains('collapsed'))
+                            f.add(entryKey);
+                        else
+                            f.delete(entryKey);
+                        saveFolded(f);
+                    };
                     div.appendChild(header);
 
                     // Body
@@ -404,6 +455,12 @@
                         document.getElementById(aid).innerHTML = marked.parse(entry.analysis);
                     }
                 });
+
+                // Prune folded keys that no longer exist in the data
+                const pruned = new Set([...folded].filter(k => knownKeys.has(k)));
+                saveFolded(pruned);
+
+                document.getElementById('controls').style.display = '';
             })
             .catch(err => {
                 document.getElementById('content').innerHTML =
