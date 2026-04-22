@@ -205,11 +205,38 @@
         .badge-confidence-medium { background: #f39c12; color: #fff; }
         .badge-confidence-low { background: #e74c3c; color: #fff; }
         .badge-confidence-unknown { background: #95a5a6; color: #fff; }
+        .badge-cost { background: #8e44ad; color: #fff; }
 
         .failure-summary {
             display: flex;
             gap: 8px;
             align-items: center;
+        }
+
+        .usage-section {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+            font-size: 0.9em;
+            padding: 8px 14px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #f8f9fa;
+        }
+
+        .usage-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .usage-label {
+            font-size: 0.8em;
+            color: #888;
+        }
+
+        .usage-value {
+            font-weight: bold;
+            font-family: "roboto mono", monospace;
         }
 
         @media (prefers-color-scheme: dark) {
@@ -254,6 +281,10 @@
             .result-skip {
                 color: #5dade2;
             }
+            .usage-section {
+                background: #282828;
+                border-color: #444;
+            }
         }
     </style>
 </head>
@@ -292,6 +323,10 @@
                         badges += `<span class="badge ${cls}" title="${esc(conf.explanation || '')}">${esc(conf.level)} confidence</span>`;
                     }
 
+                    if (entry.usage && entry.usage.cost_estimate != null) {
+                        badges += `<span class="badge badge-cost">$${entry.usage.cost_estimate.toFixed(4)}</span>`;
+                    }
+
                     // Header
                     const header = document.createElement('div');
                     header.className = 'entry-header';
@@ -314,6 +349,22 @@
                     });
                     tbl += '</table>';
                     body.innerHTML += tbl;
+
+                    // Usage / cost
+                    if (entry.usage) {
+                        const u = entry.usage;
+                        body.innerHTML += '<div class="section-label">Token Usage</div>';
+                        const fmt = n => n != null ? n.toLocaleString() : '—';
+                        body.innerHTML +=
+                            `<div class="usage-section">` +
+                            `<div class="usage-item"><span class="usage-label">Input</span><span class="usage-value">${fmt(u.input_tokens)}</span></div>` +
+                            `<div class="usage-item"><span class="usage-label">Output</span><span class="usage-value">${fmt(u.output_tokens)}</span></div>` +
+                            `<div class="usage-item"><span class="usage-label">Cache Read</span><span class="usage-value">${fmt(u.cache_read_input_tokens)}</span></div>` +
+                            `<div class="usage-item"><span class="usage-label">Cache Write</span><span class="usage-value">${fmt(u.cache_creation_input_tokens)}</span></div>` +
+                            `<div class="usage-item"><span class="usage-label">API Calls</span><span class="usage-value">${fmt(u.api_calls)}</span></div>` +
+                            `<div class="usage-item"><span class="usage-label">Est. Cost</span><span class="usage-value">${u.cost_estimate != null ? '$' + u.cost_estimate.toFixed(4) : '—'}</span></div>` +
+                            `</div>`;
+                    }
 
                     // Blamed commits
                     if (entry.blamed_commits && entry.blamed_commits.length) {
