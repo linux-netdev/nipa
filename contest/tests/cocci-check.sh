@@ -57,6 +57,8 @@ IGNORED=(
     scripts/coccinelle/misc/minmax.cocci
     # secs_to_jiffies is broken in report mode
     scripts/coccinelle/misc/secs_to_jiffies.cocci
+    # too many false positives in this very naive locking checker
+    scripts/coccinelle/locks/mini_lock.cocci
 )
 
 git reset --hard
