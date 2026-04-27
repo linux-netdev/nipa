@@ -1,0 +1,31 @@
+Welcome to the netdev mailing list!
+
+We noticed this may be one of your first submissions to netdev
+(at least with this email address).
+
+See https://www.kernel.org/doc/html/next/process/ for kernel
+process guidelines, and most importantly:
+https://www.kernel.org/doc/html/next/process/maintainer-netdev.html
+for netdev-specific guidelines.
+
+Here are a few ground rules which are frequently broken by newcomers:
+
+ - You must wait at least 24 hours before posting a new version to give
+   reviewers time to respond. This is a hard rule, no matter what your
+   reason to repost is.
+
+ - Each new version of your series should be a fresh / separate thread
+   Add a https://lore.kernel.org/.. link to the previous version to
+   the cover letter or changelog, instead of threading the submissions.
+
+ - Until you gain experience submit one of two patches at a time,
+   do not send multiple changes at once until some of your changes
+   were accepted. This avoids reviewers having to provide the same
+   feedback on multiple patches.
+
+ - If you're submitting changes for issues discovered using automated
+   tools - commit message should explain the discovery and testing
+   process (for drivers explicitly mention that you don't have access
+   to the device, it's not a blocker).
+
+Happy hacking!

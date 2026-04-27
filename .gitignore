@@ -1,6 +1,7 @@
 system-status.cfg
 poller.state*
 *.config
+*.db
 *.org
 *.xz
 ui/contest/
