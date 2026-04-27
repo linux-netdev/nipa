@@ -54,7 +54,7 @@ def load_templates():
     }
 
 
-def send_email(config, to, subject, body, dry_run=False):
+def send_email(config, to, subject, body, in_reply_to=None, dry_run=False):
     if dry_run:
         return False
 
@@ -67,10 +67,17 @@ def send_email(config, to, subject, body, dry_run=False):
     except (configparser.NoSectionError, configparser.NoOptionError):
         return False
 
+    cc = config.get('ml-agent-smtp', 'cc', fallback='')
+
     msg = MIMEText(body)
     msg["Subject"] = subject
     msg["From"] = from_addr
     msg["To"] = to
+    if cc:
+        msg["Cc"] = cc
+    if in_reply_to:
+        msg["In-Reply-To"] = in_reply_to
+        msg["References"] = in_reply_to
 
     try:
         with smtplib.SMTP_SSL(server, port, timeout=30) as srv:
@@ -160,7 +167,8 @@ def process_email(msg, message_id, timestamp, config, db, templates,
         if dup:
             db.set_submission_warned(message_id, 1)
             send_email(config, from_hdr, f'Re: {subject}',
-                       templates['resubmit-warn'], dry_run)
+                       templates['resubmit-warn'],
+                       in_reply_to=message_id, dry_run=dry_run)
             if decisions is not None:
                 decisions.append(('resubmit-warn', email_addr, title))
 
@@ -170,7 +178,8 @@ def process_email(msg, message_id, timestamp, config, db, templates,
             if not welcomed:
                 db.set_welcomed(identity_id)
                 send_email(config, from_hdr, f'Re: {subject}',
-                           templates['welcome'], dry_run)
+                           templates['welcome'],
+                           in_reply_to=message_id, dry_run=dry_run)
                 if decisions is not None:
                     decisions.append(('welcome', email_addr, title))
             else:
@@ -189,7 +198,8 @@ def process_email(msg, message_id, timestamp, config, db, templates,
         if prev:
             db.set_submission_warned(prev[0], 2)
             send_email(config, from_hdr, f'Re: {subject}',
-                       templates['threaded-warn'], dry_run)
+                       templates['threaded-warn'],
+                       in_reply_to=message_id, dry_run=dry_run)
             if decisions is not None:
                 decisions.append(('threaded-warn', email_addr, title))
         elif decisions is not None:
