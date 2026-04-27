@@ -82,7 +82,10 @@ def _tree_name_should_be_local_files(raw_email):
         'kernel/trace/bpf_trace.c',
         'drivers/leds/trigger/ledtrig-netdev.c',
     }
-    excluded_files = set()
+    excluded_files = {
+        'net/ceph',
+        'net/sunrpc',
+    }
     all_files = acceptable_files.union(required_files)
     required_found = False
     foreign_found = False
@@ -107,18 +110,21 @@ def _tree_name_should_be_local_files(raw_email):
             compare = _file_name_match_start
 
         for fn in excluded_files:
-            excluded = excluded or compare(fn, file_name)
-            if excluded:
+            if compare(fn, file_name):
                 log(f'Excluded by {fn}', "")
+                excluded = True
                 break
+        if excluded:
+            foreign_found = True
+            log_end_sec()
+            continue
         for fn in all_files:
             matches = compare(fn, file_name)
             if not matches:
                 continue
             log(f'Matched by {fn}', "")
             found = True
-            if not excluded:
-                required_found = required_found or fn in required_files
+            required_found = required_found or fn in required_files
         log_end_sec()
         if not found:
             log(f'File name {file_name} was not matched by any list', "")
