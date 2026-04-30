@@ -151,6 +151,18 @@ class TestIsResubmissionCandidate(unittest.TestCase):
                         references="<prev@test.com>")
         self.assertTrue(is_resubmission_candidate(msg))
 
+    def test_individual_patch_in_series_skipped(self):
+        # Patch 3/3 of a v6 series, sent as reply to cover — must not
+        # be treated as a resubmission of an earlier version.
+        msg = _make_msg(subject="[PATCH net-next v6 3/3] net: foo",
+                        in_reply_to="<cover@test.com>")
+        self.assertFalse(is_resubmission_candidate(msg))
+
+    def test_cover_letter_counts(self):
+        msg = _make_msg(subject="[PATCH v2 0/3] net: foo",
+                        in_reply_to="<prev@test.com>")
+        self.assertTrue(is_resubmission_candidate(msg))
+
 
 class TestIsReply(unittest.TestCase):
     def test_not_reply(self):

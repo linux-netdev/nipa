@@ -94,6 +94,11 @@ def is_resubmission_candidate(msg):
     version = extract_version(bracket)
     if version is None or version < 1:
         return False
+    # Skip individual patches in a series (e.g. "1/3"); only the cover
+    # letter ("0/N") or unnumbered submissions count as a resubmission.
+    m = re.search(r'\b(\d+)/\d+\b', bracket)
+    if m and int(m.group(1)) != 0:
+        return False
     return is_reply(msg)
 
 
