@@ -73,7 +73,17 @@ def build_kernel(config, tree_path):
     if extra_configs:
         _run(['scripts/kconfig/merge_config.sh', '-m', '.config'] + extra_configs,
              cwd=tree_path)
-        _run(['make', '-C', tree_path, 'olddefconfig'])
+
+    # Convert all modules to built-in so kexec works without /lib/modules
+    # on the test kernel.
+    config_path = os.path.join(tree_path, '.config')
+    with open(config_path, 'r', encoding='utf-8') as fp:
+        content = fp.read()
+    content = re.sub(r'^(CONFIG_\w+)=m$', r'\1=y', content, flags=re.MULTILINE)
+    with open(config_path, 'w', encoding='utf-8') as fp:
+        fp.write(content)
+
+    _run(['make', '-C', tree_path, 'olddefconfig'])
 
     # Add a random suffix to make the kernel version unique per build
     tag = ''.join(random.choices(string.ascii_lowercase, k=4))
