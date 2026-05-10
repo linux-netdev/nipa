@@ -243,8 +243,11 @@ def test(binfo, rinfo, cbarg):
             kconfs.append(conf)
     build_ok &= vm.build(kconfs)
 
-    shutil.copy(os.path.join(config.get('local', 'tree_path'), '.config'),
-                results_path + '/config')
+    kconfig_path = os.path.join(config.get('local', 'tree_path'), '.config')
+    if os.path.exists(kconfig_path):
+        shutil.copy(kconfig_path, results_path + '/config')
+    else:
+        build_ok = False
     vm.tree_cmd("make headers")
     ret = vm.tree_cmd(["make", "-C", test_path,
                        "TARGETS=" + " ".join(targets)])
