@@ -39,6 +39,7 @@ function load_result_table(data_raw)
     var pw_n = document.getElementById("pw-n").checked;
     var pw_y = document.getElementById("pw-y").checked;
     let needle = document.getElementById("tn-needle").value;
+    let hw_stable = document.getElementById("hw-stable").checked;
     let br_pfx_with_data = new Set();
 
     $.each(data_raw, function(i, v) {
@@ -52,6 +53,8 @@ function load_result_table(data_raw)
 
 	    const tn = v.remote + '/' + r.group + '/' + r.test;
 	    if (needle && !tn.includes(needle))
+		return 1;
+	    if (hw_stable && stability_set && !stability_set.has(tn))
 		return 1;
 
 	    r.visible = true;
@@ -167,6 +170,7 @@ function results_update()
 
 let xfr_todo = 3;
 let loaded_data = null;
+let stability_set = null;
 
 function loaded_one()
 {
@@ -209,6 +213,36 @@ function remotes_loaded(data_raw)
     loaded_one();
 }
 
+function build_stability_set(data_raw)
+{
+    stability_set = new Set();
+    for (const ste of data_raw) {
+	if (ste.passing) {
+	    let tn = ste.remote + '/' + ste.grp + '/' + ste.test;
+	    stability_set.add(tn);
+	    if (ste.subtest)
+		stability_set.add(tn + '.' + ste.subtest);
+	}
+    }
+}
+
+function stability_loaded(data_raw)
+{
+    build_stability_set(data_raw);
+    loaded_one();
+}
+
+function maybe_load_stability()
+{
+    if (!document.getElementById("hw-stable").checked || stability_set)
+	return;
+
+    xfr_todo++;
+    $(document).ready(function() {
+	$.get("query/stability?auto=1", stability_loaded)
+    });
+}
+
 function update_url_from_filters()
 {
     const tn_needle = document.getElementById("tn-needle").value;
@@ -220,6 +254,7 @@ function update_url_from_filters()
     const br_pfx = document.getElementById("br-pfx").value;
     const ld_remote = document.getElementById("ld-remote").value;
     const ld_cases = document.getElementById("ld-cases").checked;
+    const hw_stable = document.getElementById("hw-stable").checked;
 
     // Create new URL with current filters
     const currentUrl = new URL(window.location.href);
@@ -227,7 +262,7 @@ function update_url_from_filters()
     // Clear existing filter parameters
     const filterParams = ['tn-needle', 'min-flip', 'pw-n', 'pw-y', 'sort-flips',
 			  'sort-streak', 'br-cnt', 'br-pfx',
-			  'ld-remote', 'ld-cases'];
+			  'ld-remote', 'ld-cases', 'hw-stable'];
     filterParams.forEach(param => currentUrl.searchParams.delete(param));
 
     // Add current filter states to URL
@@ -253,6 +288,9 @@ function update_url_from_filters()
 
     if (ld_cases)
 	currentUrl.searchParams.set('ld-cases', '1');
+
+    if (hw_stable)
+	currentUrl.searchParams.set('hw-stable', '1');
 
     // Update the browser URL without reloading the page
     window.history.pushState({}, '', currentUrl.toString());
@@ -286,6 +324,12 @@ function do_it()
     nipa_filters_enable(reload_data, "ld-pw");
     nipa_filters_enable(results_update, "fl-pw");
     nipa_input_set_from_url("ld-pw");
+
+    document.getElementById("hw-stable").addEventListener("change", function() {
+	maybe_load_stability();
+	results_update();
+    });
+    maybe_load_stability();
 
     $('#update-url-button').on('click', function (e) {
         e.preventDefault();
