@@ -48,7 +48,7 @@ _NET_CONFIG_KEYS = ['NETIF', 'LOCAL_V4', 'LOCAL_V6', 'REMOTE_V4', 'REMOTE_V6',
                     'LOCAL_PREFIX_V6', 'REMOTE_TYPE', 'REMOTE_ARGS']
 
 # Variables exported to the environment (not written to net.config)
-_ENV_ONLY_KEYS = ['DISRUPTIVE']
+_ENV_ONLY_KEYS = ['DISRUPTIVE', 'KSFT_MACHINE_SLOW']
 
 
 def _parse_env_file(path):

@@ -149,6 +149,9 @@ def test(binfo, rinfo, cbarg):  # pylint: disable=unused-argument
     disruptive = config.get('hw', 'disruptive', fallback=None)
     if disruptive is not None:
         nic_deploy_info['disruptive'] = disruptive
+    slow = config.get('hw', 'slowdown', fallback=None)
+    if slow is not None:
+        nic_deploy_info['slowdown'] = slow
 
     # 4. Reserve machines (retry loop with backoff)
     max_retries = config.getint('hw', 'max_reservation_retries', fallback=30)

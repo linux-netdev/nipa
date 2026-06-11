@@ -197,6 +197,8 @@ def deploy_artifacts(_config, machine_ips, reservation_id, nic_info, tree_path,
 
         if nic_info.get('disruptive'):
             config_lines.append(f'DISRUPTIVE={nic_info["disruptive"]}')
+        if nic_info.get('slowdown'):
+            config_lines.append('KSFT_MACHINE_SLOW=yes')
 
         config_content = '\n'.join(config_lines) + '\n'
         _ssh(dut_ip,
