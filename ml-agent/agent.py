@@ -54,7 +54,8 @@ def load_templates():
     }
 
 
-def send_email(config, to, subject, body, in_reply_to=None, dry_run=False):
+def send_email(config, to, subject, body, in_reply_to=None, cc=None,
+               dry_run=False):
     if dry_run:
         return False
 
@@ -67,14 +68,15 @@ def send_email(config, to, subject, body, in_reply_to=None, dry_run=False):
     except (configparser.NoSectionError, configparser.NoOptionError):
         return False
 
-    cc = config.get('ml-agent-smtp', 'cc', fallback='')
+    config_cc = config.get('ml-agent-smtp', 'cc', fallback='')
+    all_cc = [a for a in [config_cc, cc] if a]
 
     msg = MIMEText(body)
     msg["Subject"] = subject
     msg["From"] = from_addr
     msg["To"] = to
-    if cc:
-        msg["Cc"] = cc
+    if all_cc:
+        msg["Cc"] = ", ".join(all_cc)
     if in_reply_to:
         msg["In-Reply-To"] = in_reply_to
         msg["References"] = in_reply_to
@@ -140,10 +142,18 @@ def check_known_developer(config, db, identity_id):
 def process_email(msg, message_id, timestamp, config, db, templates,
                   dry_run=False, decisions=None):
     from_hdr = msg.get('From', '')
+    reply_to_hdr = msg.get('Reply-To', '')
     subject = msg.get('Subject', '')
     name, email_addr = split_from(from_hdr)
     if not email_addr:
         return
+
+    if reply_to_hdr:
+        send_to = reply_to_hdr
+        send_cc = from_hdr
+    else:
+        send_to = from_hdr
+        send_cc = None
 
     identity_id = db.resolve_identity(name, email_addr)
 
@@ -166,9 +176,10 @@ def process_email(msg, message_id, timestamp, config, db, templates,
         dup = db.find_recent_duplicate(identity_id, title, timestamp)
         if dup:
             db.set_submission_warned(message_id, 1)
-            send_email(config, from_hdr, f'Re: {subject}',
+            send_email(config, send_to, f'Re: {subject}',
                        templates['resubmit-warn'],
-                       in_reply_to=message_id, dry_run=dry_run)
+                       in_reply_to=message_id, cc=send_cc,
+                       dry_run=dry_run)
             if decisions is not None:
                 decisions.append(('resubmit-warn', email_addr, title))
 
@@ -177,9 +188,10 @@ def process_email(msg, message_id, timestamp, config, db, templates,
             _, welcomed = db.get_identity(identity_id)
             if not welcomed:
                 db.set_welcomed(identity_id)
-                send_email(config, from_hdr, f'Re: {subject}',
+                send_email(config, send_to, f'Re: {subject}',
                            templates['welcome'],
-                           in_reply_to=message_id, dry_run=dry_run)
+                           in_reply_to=message_id, cc=send_cc,
+                           dry_run=dry_run)
                 if decisions is not None:
                     decisions.append(('welcome', email_addr, title))
             else:
@@ -197,9 +209,10 @@ def process_email(msg, message_id, timestamp, config, db, templates,
         prev = db.find_previous_version(identity_id, title, version)
         if prev:
             db.set_submission_warned(prev[0], 2)
-            send_email(config, from_hdr, f'Re: {subject}',
+            send_email(config, send_to, f'Re: {subject}',
                        templates['threaded-warn'],
-                       in_reply_to=message_id, dry_run=dry_run)
+                       in_reply_to=message_id, cc=send_cc,
+                       dry_run=dry_run)
             if decisions is not None:
                 decisions.append(('threaded-warn', email_addr, title))
         elif decisions is not None:
