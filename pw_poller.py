@@ -96,7 +96,7 @@ class PwPoller:
             pass
 
     def _series_determine_tree(self, s: PwSeries) -> str:
-        s.tree_name = self.list_module.series_tree_name_direct(self._trees.keys(), s)
+        s.tree_name = self.list_module.series_tree_name_direct(self._trees.values(), s)
         s.tree_mark_expected = True
         s.tree_marked = bool(s.tree_name)
 

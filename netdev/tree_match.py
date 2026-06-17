@@ -11,8 +11,8 @@ from core import log, log_open_sec, log_end_sec
 
 def series_tree_name_direct(conf_trees, series):
     for t in conf_trees:
-        if re.match(r'\[.*{pfx}.*\]'.format(pfx=t), series.subject):
-            return t
+        if re.match(rf'\[.*{t.pfx}.*\]', series.subject):
+            return t.name
 
 
 def _file_name_match_start(pfx, fn):
