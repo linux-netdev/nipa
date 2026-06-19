@@ -252,6 +252,10 @@ def flaky_tests():
         month = True # Default to querying last month
         limit = flake_cnt  # Default limit
 
+    # Optionally group the flakes per branch prefix (the branch name without
+    # the trailing date stamp, matching nipa_br_pfx_get() in the UI).
+    group_pfx = request.args.get('group-pfx') in {'1', 'y', 'yes', 'true', 't'}
+
     t = datetime.datetime.now()
     with psql.cursor() as cur:
         # Query for tests where first try failed, retry passed, and no crash
@@ -279,7 +283,11 @@ def flaky_tests():
     res = {}
     for row in rows:
         rem, exe, test, branch, br_date = row
-        key = (rem, exe, test)
+        if group_pfx:
+            # Strip the trailing date stamp ("-YYYY-MM-DD--HH-MM", 18 chars)
+            key = (rem, exe, test, branch[:-18])
+        else:
+            key = (rem, exe, test)
         if not month:
             res[key] = res.get(key, 0) + 1
         else:
@@ -296,7 +304,10 @@ def flaky_tests():
     # JSON needs a simple array, not a dict
     data = []
     for k, v in res.items():
-        data.append({"remote": k[0], "executor": k[1], "test": k[2], "count": v})
+        entry = {"remote": k[0], "executor": k[1], "test": k[2], "count": v}
+        if group_pfx:
+            entry["branch-pfx"] = k[3]
+        data.append(entry)
 
     if month:
         # Overcount by 30 to account for fluctuation in flakiness

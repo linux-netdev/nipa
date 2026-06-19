@@ -1114,24 +1114,12 @@ function flakes_add_summary(table, name, data)
     row.insertCell(5).innerText = "";
 }
 
-function flakes_doit(data_raw)
+function flakes_render(flakes, data)
 {
-    let flakes = document.getElementById("flakes");
-
-    data_raw.sort(function(a, b){
-	if (a["count"][0] != b["count"][0])
-	    return b["count"][0] - a["count"][0];
-	if (a["count"][1] != b["count"][1])
-	    return b["count"][1] - a["count"][1];
-	if (a["count"][2] != b["count"][2])
-	    return b["count"][2] - a["count"][2];
-	return 0;
-    })
-
     let reminder = [0, 0, 0, 0];
     let total = [0, 0, 0, 0];
 
-    $.each(data_raw, function(i, v) {
+    $.each(data, function(i, v) {
 	let row = flakes.insertRow();
 	let reported = nipa_pw_reported(v, v);
 	let ignored = "";
@@ -1159,6 +1147,28 @@ function flakes_doit(data_raw)
 
     flakes_add_summary(flakes, "reminder", reminder);
     flakes_add_summary(flakes, "total", total);
+}
+
+function flakes_doit(data_raw)
+{
+    let flakes = document.getElementById("flakes");
+    let flakes_hw = document.getElementById("flakes-hw");
+
+    data_raw.sort(function(a, b){
+	if (a["count"][0] != b["count"][0])
+	    return b["count"][0] - a["count"][0];
+	if (a["count"][1] != b["count"][1])
+	    return b["count"][1] - a["count"][1];
+	if (a["count"][2] != b["count"][2])
+	    return b["count"][2] - a["count"][2];
+	return 0;
+    })
+
+    // Split into HW and non-HW based on the branch prefix (see group-pfx)
+    let is_hw = (v) => (v["branch-pfx"] || "").includes("hw");
+
+    flakes_render(flakes, data_raw.filter((v) => !is_hw(v)));
+    flakes_render(flakes_hw, data_raw.filter(is_hw));
 }
 
 function hw_machines_loaded(data)
@@ -1210,7 +1220,7 @@ function do_it()
         $.get("contest/branches-info.json", branches_loaded)
     });
     $(document).ready(function() {
-        $.get("query/flaky-tests", flakes_doit)
+        $.get("query/flaky-tests?group-pfx=1", flakes_doit)
     });
     $(document).ready(function() {
         $.get("mc/get_machine_info?caller=status-ui", hw_machines_loaded)
