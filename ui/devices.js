@@ -4,12 +4,20 @@ let stability = null;
 
 function load_tables()
 {
+    // Re-render from scratch (this may be called again when the
+    // "show stale runners" checkbox is toggled).
+    document.getElementById("device_info").innerHTML = "";
+    document.getElementById("stability").innerHTML = "";
+    document.getElementById("stability-old").innerHTML = "";
+
     // Turn stability into matrix by executor
     let rn_seen = new Set();
     let tn_db = [];
     let sta_db = {};
     // Test age
     let tn_time = {};
+    // Runner age (last report seen from each runner)
+    let rn_time = {};
     let year_ago = new Date();
     year_ago.setFullYear(year_ago.getFullYear() - 1);
 
@@ -30,6 +38,8 @@ function load_tables()
 	let d = new Date(ste.last_update);
 	if (d > tn_time[tn])
 	    tn_time[tn] = d;
+	if (!(rn in rn_time) || d > rn_time[rn])
+	    rn_time[rn] = d;
     }
 
     // Simple sort by name
@@ -61,16 +71,29 @@ function load_tables()
 	    dev.remote + '<br />' + dev.executor + '<br />' + driver;
     }
 
+    let two_weeks_ago = new Date().setDate(new Date().getDate() - 14);
+
+    // Columns for the current table; unless the checkbox is ticked, hide
+    // runners which have not reported anything in the last 2 weeks.
+    let show_stale = document.getElementById("show_stale_runners").checked;
+    let cols_cur = [];
+    for (rn of Object.keys(display_names)) {
+	if (show_stale || rn_time[rn] > two_weeks_ago)
+	    cols_cur.push(rn);
+    }
+    // The "old" table keeps every runner (it is the archive).
+    let cols_old = Object.keys(display_names);
+
     // Create headers
     let sta_tb = document.getElementById("stability");
     let sta_to = document.getElementById("stability-old");
 
-    for (tbl of [sta_tb, sta_to]) {
+    for (const [tbl, cols] of [[sta_tb, cols_cur], [sta_to, cols_old]]) {
 	const hdr = tbl.createTHead().insertRow();
 	hdr.insertCell().innerText = 'Group';
 	hdr.insertCell().innerText = 'Test';
 	hdr.insertCell().innerText = 'Subtest';
-	for (rn of Object.keys(display_names)) {
+	for (rn of cols) {
 	    let cell = hdr.insertCell();
 
 	    cell.innerHTML = display_names[rn];
@@ -79,15 +102,17 @@ function load_tables()
     }
 
     // Display
-    let two_weeks_ago = new Date().setDate(new Date().getDate() - 14);
-
     for (tn of tn_db) {
 	let row = null;
+	let cols = null;
 
-	if (tn_time[tn] > two_weeks_ago)
+	if (tn_time[tn] > two_weeks_ago) {
 	    row = sta_tb.insertRow();
-	else
+	    cols = cols_cur;
+	} else {
 	    row = sta_to.insertRow();
+	    cols = cols_old;
+	}
 
 	row.insertCell(0).innerText = tn.split(':')[0];
 	row.insertCell(1).innerText = tn.split(':')[1];
@@ -96,7 +121,7 @@ function load_tables()
 	    cell.innerText = tn.split(':')[2];
 
 	let i = 3;
-	for (rn of Object.keys(display_names)) {
+	for (rn of cols) {
 	    cell = row.insertCell(i++);
 	    if (rn in sta_db[tn]) {
 		let ste = sta_db[tn][rn];
@@ -119,6 +144,9 @@ function load_tables()
 
 function do_it()
 {
+    document.getElementById("show_stale_runners")
+	.addEventListener("change", load_tables);
+
     $(document).ready(function() {
         $.get("query/device-info", function(data_raw) {
 	    dev_info = data_raw;
