@@ -28,6 +28,13 @@ tr:nth-child(even) {
     background-color: #d0d0d0;
 }
 
+.sticky-head thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background-color: white;
+}
+
 .box-pass  { background-color: green; }
 .box-skip  { background-color: royalblue; }
 .box-flake { background-color: red; }
@@ -111,6 +118,9 @@ tr:nth-child(even) {
     }
     .column-sorted {
 	background-color: #484848;
+    }
+    .sticky-head thead th {
+	background-color: #1c1c1c;
     }
     .nipa-button {
         background-color: #2c5282;
