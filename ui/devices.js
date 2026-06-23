@@ -19,6 +19,7 @@ function load_tables()
     // Re-render from scratch (this may be called again when the
     // "show stale runners" checkbox is toggled).
     document.getElementById("device_info").innerHTML = "";
+    document.getElementById("device_info-old").innerHTML = "";
     document.getElementById("stability").innerHTML = "";
     document.getElementById("stability-old").innerHTML = "";
 
@@ -81,16 +82,23 @@ function load_tables()
 	tn_db.sort();
     }
 
-    // Render device info
+    let two_weeks_ago = new Date().setDate(new Date().getDate() - 14);
+
+    // Render device info; runners idle for 2 weeks+ go to the "old" table.
     let display_names = {};
     let dev_table = document.getElementById("device_info");
+    let dev_table_old = document.getElementById("device_info-old");
 
     for (dev of dev_info) {
 	let rn = dev.remote + dev.executor;
 	if (!rn_seen.has(rn))
 	    continue;
 
-	let row = dev_table.insertRow();
+	let row;
+	if (rn_time[rn] > two_weeks_ago)
+	    row = dev_table.insertRow();
+	else
+	    row = dev_table_old.insertRow();
 
 	row.insertCell(0).innerText = dev.remote;
 	row.insertCell(1).innerText = dev.executor;
@@ -108,8 +116,6 @@ function load_tables()
 	display_names[dev.remote + dev.executor] =
 	    dev.remote + '<br />' + dev.executor + '<br />' + driver;
     }
-
-    let two_weeks_ago = new Date().setDate(new Date().getDate() - 14);
 
     // Columns for the current table; unless the checkbox is ticked, hide
     // runners which have not reported anything in the last 2 weeks.
