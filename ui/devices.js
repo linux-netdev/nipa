@@ -42,8 +42,36 @@ function load_tables()
 	    rn_time[rn] = d;
     }
 
-    // Simple sort by name
-    tn_db.sort();
+    // Sort by stability score, or plain alphabetically, depending on
+    // the checkbox.
+    if (document.getElementById("sort_by_stability").checked) {
+	// Score each test case by summing a per-runner pass rate score:
+	//   100% pass -> 100, 0% pass -> 0, anything else -> rate% - 100
+	//   (e.g. 80% -> -20). Flaky cases thus score lowest.
+	let tn_score = {};
+	for (tn of tn_db) {
+	    let score = 0;
+	    for (rn in sta_db[tn]) {
+		let ste = sta_db[tn][rn];
+		let pct = Math.round(100 * ste.pass_cnt /
+				     (ste.fail_cnt + ste.pass_cnt));
+		if (pct == 100)
+		    score += 100;
+		else if (pct != 0)
+		    score += pct - 100;
+	    }
+	    tn_score[tn] = score;
+	}
+
+	// Sort by score (most problematic first), tie-break by name.
+	tn_db.sort(function(a, b) {
+	    if (tn_score[a] != tn_score[b])
+		return tn_score[a] - tn_score[b];
+	    return a < b ? -1 : (a > b ? 1 : 0);
+	});
+    } else {
+	tn_db.sort();
+    }
 
     // Render device info
     let display_names = {};
@@ -145,6 +173,8 @@ function load_tables()
 function do_it()
 {
     document.getElementById("show_stale_runners")
+	.addEventListener("change", load_tables);
+    document.getElementById("sort_by_stability")
 	.addEventListener("change", load_tables);
 
     $(document).ready(function() {
