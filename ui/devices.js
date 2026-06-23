@@ -14,6 +14,76 @@ function cell_score(ste)
     return pct - 100;
 }
 
+// Render one stability table: a header row of runner columns followed by
+// a row per test case. When "sort by stability" is set the cases are
+// ordered by their score summed over *this table's* columns only, so the
+// ranking reflects exactly what is displayed.
+function render_stability_table(table, cols, tns, sta_db, display_names)
+{
+    const hdr = table.createTHead().insertRow();
+    hdr.insertCell().innerText = 'Group';
+    hdr.insertCell().innerText = 'Test';
+    hdr.insertCell().innerText = 'Subtest';
+    for (rn of cols) {
+	let cell = hdr.insertCell();
+
+	cell.innerHTML = display_names[rn];
+	cell.setAttribute("style", "writing-mode: tb-rl;");
+    }
+
+    if (document.getElementById("sort_by_stability").checked) {
+	// Score each case over this table's columns, then sort most
+	// problematic first, tie-break by name.
+	let tn_score = {};
+	for (tn of tns) {
+	    let score = 0;
+	    for (rn of cols)
+		if (rn in sta_db[tn])
+		    score += cell_score(sta_db[tn][rn]);
+	    tn_score[tn] = score;
+	}
+	tns.sort(function(a, b) {
+	    if (tn_score[a] != tn_score[b])
+		return tn_score[a] - tn_score[b];
+	    return a < b ? -1 : (a > b ? 1 : 0);
+	});
+    } else {
+	tns.sort();
+    }
+
+    // Data rows go into a dedicated <tbody> so the <thead> can be sticky.
+    let body = table.createTBody();
+    for (tn of tns) {
+	let row = body.insertRow();
+
+	row.insertCell(0).innerText = tn.split(':')[0];
+	row.insertCell(1).innerText = tn.split(':')[1];
+	let cell = row.insertCell(2);
+	if (tn.split(':').length == 3)
+	    cell.innerText = tn.split(':')[2];
+
+	let i = 3;
+	for (rn of cols) {
+	    cell = row.insertCell(i++);
+	    if (rn in sta_db[tn]) {
+		let ste = sta_db[tn][rn];
+
+		pct = 100 * ste.pass_cnt / (ste.fail_cnt + ste.pass_cnt);
+		pct = Math.round(pct);
+		if (ste.passing) {
+		    cell.setAttribute("class", "box-pass");
+		    if (pct != 100)
+			cell.innerText = pct + "%";
+		} else {
+		    cell.setAttribute("class", "box-skip");
+		    if (pct != 0)
+			cell.innerText = pct + "%";
+		}
+	    }
+	}
+    }
+}
+
 function load_tables()
 {
     // Re-render from scratch (this may be called again when the
@@ -58,28 +128,6 @@ function load_tables()
 	if (!(rn in rn_score))
 	    rn_score[rn] = 0;
 	rn_score[rn] += cell_score(ste);
-    }
-
-    // Sort by stability score, or plain alphabetically, depending on
-    // the checkbox.
-    if (document.getElementById("sort_by_stability").checked) {
-	// Score each test case by summing its per-runner cell scores.
-	let tn_score = {};
-	for (tn of tn_db) {
-	    let score = 0;
-	    for (rn in sta_db[tn])
-		score += cell_score(sta_db[tn][rn]);
-	    tn_score[tn] = score;
-	}
-
-	// Sort by score (most problematic first), tie-break by name.
-	tn_db.sort(function(a, b) {
-	    if (tn_score[a] != tn_score[b])
-		return tn_score[a] - tn_score[b];
-	    return a < b ? -1 : (a > b ? 1 : 0);
-	});
-    } else {
-	tn_db.sort();
     }
 
     let two_weeks_ago = new Date().setDate(new Date().getDate() - 14);
@@ -140,65 +188,22 @@ function load_tables()
     // The "old" table keeps every runner (it is the archive).
     let cols_old = Object.keys(display_names);
 
-    // Create headers
+    // Split test cases by recency, then render each table independently so
+    // its case ordering reflects only the runners shown in that table.
     let sta_tb = document.getElementById("stability");
     let sta_to = document.getElementById("stability-old");
 
-    for (const [tbl, cols] of [[sta_tb, cols_cur], [sta_to, cols_old]]) {
-	const hdr = tbl.createTHead().insertRow();
-	hdr.insertCell().innerText = 'Group';
-	hdr.insertCell().innerText = 'Test';
-	hdr.insertCell().innerText = 'Subtest';
-	for (rn of cols) {
-	    let cell = hdr.insertCell();
-
-	    cell.innerHTML = display_names[rn];
-	    cell.setAttribute("style", "writing-mode: tb-rl;");
-	}
-    }
-    // Data rows go into a dedicated <tbody> so the <thead> can be sticky.
-    let sta_tb_body = sta_tb.createTBody();
-    let sta_to_body = sta_to.createTBody();
-
-    // Display
+    let tns_cur = [];
+    let tns_old = [];
     for (tn of tn_db) {
-	let row = null;
-	let cols = null;
-
-	if (tn_time[tn] > two_weeks_ago) {
-	    row = sta_tb_body.insertRow();
-	    cols = cols_cur;
-	} else {
-	    row = sta_to_body.insertRow();
-	    cols = cols_old;
-	}
-
-	row.insertCell(0).innerText = tn.split(':')[0];
-	row.insertCell(1).innerText = tn.split(':')[1];
-	let cell = row.insertCell(2);
-	if (tn.split(':').length == 3)
-	    cell.innerText = tn.split(':')[2];
-
-	let i = 3;
-	for (rn of cols) {
-	    cell = row.insertCell(i++);
-	    if (rn in sta_db[tn]) {
-		let ste = sta_db[tn][rn];
-
-		pct = 100 * ste.pass_cnt / (ste.fail_cnt + ste.pass_cnt);
-		pct = Math.round(pct);
-		if (ste.passing) {
-		    cell.setAttribute("class", "box-pass");
-		    if (pct != 100)
-			cell.innerText = pct + "%";
-		} else {
-		    cell.setAttribute("class", "box-skip");
-		    if (pct != 0)
-			cell.innerText = pct + "%";
-		}
-	    }
-	}
+	if (tn_time[tn] > two_weeks_ago)
+	    tns_cur.push(tn);
+	else
+	    tns_old.push(tn);
     }
+
+    render_stability_table(sta_tb, cols_cur, tns_cur, sta_db, display_names);
+    render_stability_table(sta_to, cols_old, tns_old, sta_db, display_names);
 }
 
 function do_it()
