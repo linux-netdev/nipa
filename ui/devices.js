@@ -97,6 +97,9 @@ function load_tables()
 	hdr.insertCell().innerText = 'Versions';
 	hdr.insertCell().innerText = 'Score';
     }
+    // Data rows go into a dedicated <tbody> (separate from the <thead>).
+    let dev_body = dev_table.createTBody();
+    let dev_body_old = dev_table_old.createTBody();
 
     for (dev of dev_info) {
 	let rn = dev.remote + dev.executor;
@@ -105,9 +108,9 @@ function load_tables()
 
 	let row;
 	if (rn_time[rn] > two_weeks_ago)
-	    row = dev_table.insertRow();
+	    row = dev_body.insertRow();
 	else
-	    row = dev_table_old.insertRow();
+	    row = dev_body_old.insertRow();
 
 	row.insertCell(0).innerText = dev.remote;
 	row.insertCell(1).innerText = dev.executor;
@@ -153,6 +156,9 @@ function load_tables()
 	    cell.setAttribute("style", "writing-mode: tb-rl;");
 	}
     }
+    // Data rows go into a dedicated <tbody> so the <thead> can be sticky.
+    let sta_tb_body = sta_tb.createTBody();
+    let sta_to_body = sta_to.createTBody();
 
     // Display
     for (tn of tn_db) {
@@ -160,10 +166,10 @@ function load_tables()
 	let cols = null;
 
 	if (tn_time[tn] > two_weeks_ago) {
-	    row = sta_tb.insertRow();
+	    row = sta_tb_body.insertRow();
 	    cols = cols_cur;
 	} else {
-	    row = sta_to.insertRow();
+	    row = sta_to_body.insertRow();
 	    cols = cols_old;
 	}
 
