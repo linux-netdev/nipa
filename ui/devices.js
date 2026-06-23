@@ -89,6 +89,15 @@ function load_tables()
     let dev_table = document.getElementById("device_info");
     let dev_table_old = document.getElementById("device_info-old");
 
+    for (tbl of [dev_table, dev_table_old]) {
+	const hdr = tbl.createTHead().insertRow();
+	hdr.insertCell().innerText = 'Remote';
+	hdr.insertCell().innerText = 'Executor';
+	hdr.insertCell().innerText = 'Driver';
+	hdr.insertCell().innerText = 'Versions';
+	hdr.insertCell().innerText = 'Score';
+    }
+
     for (dev of dev_info) {
 	let rn = dev.remote + dev.executor;
 	if (!rn_seen.has(rn))
