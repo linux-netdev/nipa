@@ -2,6 +2,18 @@ let xfr_todo = 2;
 let dev_info = null;
 let stability = null;
 
+// Score a single result cell: 100% pass -> 100, 0% pass -> 0, anything
+// else -> rate% - 100 (e.g. 80% -> -20). Flaky cases thus score lowest.
+function cell_score(ste)
+{
+    let pct = Math.round(100 * ste.pass_cnt / (ste.fail_cnt + ste.pass_cnt));
+    if (pct == 100)
+	return 100;
+    if (pct == 0)
+	return 0;
+    return pct - 100;
+}
+
 function load_tables()
 {
     // Re-render from scratch (this may be called again when the
@@ -18,6 +30,8 @@ function load_tables()
     let tn_time = {};
     // Runner age (last report seen from each runner)
     let rn_time = {};
+    // Overall stability score per runner (summed across all test cases)
+    let rn_score = {};
     let year_ago = new Date();
     year_ago.setFullYear(year_ago.getFullYear() - 1);
 
@@ -40,26 +54,20 @@ function load_tables()
 	    tn_time[tn] = d;
 	if (!(rn in rn_time) || d > rn_time[rn])
 	    rn_time[rn] = d;
+	if (!(rn in rn_score))
+	    rn_score[rn] = 0;
+	rn_score[rn] += cell_score(ste);
     }
 
     // Sort by stability score, or plain alphabetically, depending on
     // the checkbox.
     if (document.getElementById("sort_by_stability").checked) {
-	// Score each test case by summing a per-runner pass rate score:
-	//   100% pass -> 100, 0% pass -> 0, anything else -> rate% - 100
-	//   (e.g. 80% -> -20). Flaky cases thus score lowest.
+	// Score each test case by summing its per-runner cell scores.
 	let tn_score = {};
 	for (tn of tn_db) {
 	    let score = 0;
-	    for (rn in sta_db[tn]) {
-		let ste = sta_db[tn][rn];
-		let pct = Math.round(100 * ste.pass_cnt /
-				     (ste.fail_cnt + ste.pass_cnt));
-		if (pct == 100)
-		    score += 100;
-		else if (pct != 0)
-		    score += pct - 100;
-	    }
+	    for (rn in sta_db[tn])
+		score += cell_score(sta_db[tn][rn]);
 	    tn_score[tn] = score;
 	}
 
@@ -94,6 +102,8 @@ function load_tables()
 	delete info.driver;
 	const versions = JSON.stringify(info);
 	row.insertCell(3).innerText = versions;
+
+	row.insertCell(4).innerText = rn_score[rn];
 
 	display_names[dev.remote + dev.executor] =
 	    dev.remote + '<br />' + dev.executor + '<br />' + driver;
