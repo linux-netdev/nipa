@@ -15,7 +15,7 @@ echo >&2 Creating CoW tree...
 if ! cp -a --reflink=always $NIPA_TREE ./nipa-run/tree 2>/dev/null; then
     echo >&2 Falling back to git clone and hardlinks...
     rm -rf ./nipa-run/tree
-    git clone -b nipa-local $NIPA_TREE ./nipa-run/tree
+    git clone $NIPA_TREE ./nipa-run/tree
 fi
 # nipa doesn't work if HEAD is pointing to nipa-local, so generate a
 # guaranteed random branch name as HEAD.  This always happens on
@@ -48,4 +48,4 @@ docker run $DOCKER_FLAGS --rm --user=nipa \
        -v $PWD/ccache:/home/nipa/.ccache \
        -v $PWD/ccache:/root/.ccache \
        --name nipa-local nipa-local \
-       /nipa/ingest_mdir.py --mdir /nipa-patches --tree /nipa-run/tree --tree-name $NIPA_TREE_NAME --tree-branch nipa-local
+       /nipa/ingest_mdir.py --mdir /nipa-patches --tree /nipa-run/tree --tree-name $NIPA_TREE_NAME
