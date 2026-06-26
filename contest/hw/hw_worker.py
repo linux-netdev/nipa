@@ -130,9 +130,11 @@ def _ensure_addr(ifname, addr, **kwargs):
 
 
 def _install_prefix_route(ifname, prefix, local_v6, **kwargs):
-    """
-    Install a route on remote with a nexthop so that remote doesn't try
-    to resolve the L2 for all the containers, just sends the traffic to us.
+    """Route the netkit guest subnet on the peer towards the DUT.
+
+    Container-env tests (NetDrvContEnv, e.g. nk_devmem) host a guest in
+    a separate IPv6 subnet (LOCAL_PREFIX_V6) behind the DUT. The peer
+    reaches it by routing the whole prefix via the DUT's LOCAL_V6.
     """
     _ip(f'-6 route add {prefix} via {local_v6} dev {ifname}', **kwargs)
 

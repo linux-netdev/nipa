@@ -2,6 +2,7 @@
 
 """Artifact deployment, kexec, kernel build, and crash recovery."""
 
+import ipaddress
 import json
 import os
 import random
@@ -124,6 +125,21 @@ def build_ksft(config, tree_path):
     return tarball
 
 
+def _derive_local_prefix_v6(local_v6):
+    """Derive LOCAL_PREFIX_V6 -- a distinct /64 for the netkit guest subnet.
+
+    The netkit container env (NetDrvContEnv, used by e.g. nk_devmem) hosts
+    a guest in a separate IPv6 subnet behind the DUT and computes the guest
+    address by string-concatenating onto str(network_address). The prefix
+    must therefore be a /64 whose network address ends in '::', and it must
+    not contain LOCAL_V6. Take LOCAL_V6's /64 and return the next one, e.g.
+    fd00::1 -> fd00:0:0:1::/64, 2001:db8:1::1 -> 2001:db8:1:1::/64.
+    """
+    addr = int(ipaddress.IPv6Address(local_v6.split('/')[0]))
+    next_net64 = (addr & ~((1 << 64) - 1)) + (1 << 64)
+    return str(ipaddress.IPv6Network((next_net64, 64)))
+
+
 def deploy_artifacts(_config, machine_ips, reservation_id, nic_info, tree_path,
                      kernel_version, filters=None):
     """SCP kernel + ksft bundle to the DUT.
@@ -177,7 +193,7 @@ def deploy_artifacts(_config, machine_ips, reservation_id, nic_info, tree_path,
         ipv6=nic_info.get("ip6addr", "")
         config_lines.append(f'LOCAL_V6={ipv6}')
         if ipv6:
-            local_pfx=ipv6.split("::")[0] + "::2:0:0/96"
+            local_pfx = _derive_local_prefix_v6(ipv6)
             config_lines.append(f'LOCAL_PREFIX_V6={local_pfx}')
 
         peer = nic_info.get('peer')
