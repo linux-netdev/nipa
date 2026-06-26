@@ -3,6 +3,8 @@
 
 """NIPA HW worker — one-shot on-boot test runner."""
 
+import argparse
+import glob
 import json
 import os
 import subprocess
@@ -388,25 +390,75 @@ def setup_test_interfaces(test_dir):
             os.environ[key] = env[key]
 
 
+def _find_initrd():
+    """Find the newest initramfs under /boot, or None.
+
+    The test kernel has no matching initramfs, so we reuse an existing
+    image (newest by mtime) to let LVM/DM assemble the root FS.
+    """
+    candidates = (glob.glob('/boot/initramfs-*.img') +
+                  glob.glob('/boot/initrd.img-*'))
+    if not candidates:
+        return None
+    return max(candidates, key=os.path.getmtime)
+
+
+def _kexec_local(bzimage):
+    """Load a kernel image via kexec and boot into it on this machine.
+
+    Mirrors deployer.kexec_machine() but runs locally: reuses the
+    current kernel command line and the running kernel's initramfs.
+    """
+    initrd = _find_initrd()
+    cmd = ['kexec', '-l', bzimage, '--reuse-cmdline']
+    if initrd:
+        cmd.append(f'--initrd={initrd}')
+        print(f"kexec: using initrd {initrd}")
+    else:
+        print("kexec: no initrd found, booting without")
+    ret = subprocess.run(cmd, check=False)
+    if ret.returncode != 0:
+        print(f"kexec: failed to load {bzimage} (rc={ret.returncode})")
+        sys.exit(1)
+    print(f"kexec: loaded {bzimage}, rebooting into it")
+    # kexec -e replaces the running kernel and does not return.
+    subprocess.run(['kexec', '-e'], check=False)
+
+
 def main():
     """Find pending tests, run them, and write results."""
     sys.stdout = _TeeWriter(sys.stdout)
 
-    # --prep-only <dir>: run interface setup (step 3) from <dir>/nic-test.env
-    # and exit. Skips the newest-test scan, kernel-version check, device
-    # info collection, and test execution -- useful for testing the prep
-    # steps against a hand-crafted nic-test.env.
-    if len(sys.argv) >= 2 and sys.argv[1] == '--prep-only':
-        if len(sys.argv) != 3:
-            print("Usage: hw_worker.py --prep-only <dir>")
-            sys.exit(1)
-        prep_dir = sys.argv[2]
-        env_path = os.path.join(prep_dir, 'nic-test.env')
+    parser = argparse.ArgumentParser(
+        description="NIPA HW worker -- on-boot test runner.")
+    group = parser.add_mutually_exclusive_group()
+    # --prep-only: configure the DUT and peer interfaces and write
+    # net.config from DIR/nic-test.env -- the environment a test needs,
+    # without running any test. Then exit.
+    group.add_argument('--prep-only', metavar='DIR',
+                       help="configure interfaces from DIR/nic-test.env, "
+                            "then exit")
+    # --kexec-only: load DIR/bzImage and boot into it, then exit. The
+    # on-DUT equivalent of deployer.kexec_machine().
+    group.add_argument('--kexec-only', metavar='DIR',
+                       help="load DIR/bzImage and boot into it, then exit")
+    args = parser.parse_args()
+
+    if args.prep_only:
+        env_path = os.path.join(args.prep_only, 'nic-test.env')
         if not os.path.exists(env_path):
-            print(f"No nic-test.env found in {prep_dir}")
+            print(f"No nic-test.env found in {args.prep_only}")
             sys.exit(1)
         print(f"Prep-only: configuring interfaces from {env_path}")
-        setup_test_interfaces(prep_dir)
+        setup_test_interfaces(args.prep_only)
+        return
+
+    if args.kexec_only:
+        bzimage = os.path.join(args.kexec_only, 'bzImage')
+        if not os.path.exists(bzimage):
+            print(f"No bzImage found in {args.kexec_only}")
+            sys.exit(1)
+        _kexec_local(bzimage)
         return
 
     tests_dir = TESTS_DIR
