@@ -272,11 +272,19 @@ def _setup_irq_affinity(netif):
     if irqs is None:
         print(f"ERR: could not get NAPI IRQs for {netif} via ynl")
     else:
+        mapped = []
         for cpu, irq in enumerate(irqs):
             if _set_irq_affinity(irq, cpu):
-                print(f"IRQ {irq} -> CPU {cpu}")
+                mapped.append((irq, cpu))
             else:
                 print(f"WARN: could not set affinity for IRQ {irq}")
+        # Summarize the mapping in one line -- machines with many cores
+        # would otherwise print one line per IRQ.
+        if len(mapped) == 1:
+            print(f"IRQ mapping: IRQ {mapped[0][0]} -> CPU {mapped[0][1]}")
+        elif mapped:
+            print(f"IRQ mapping: IRQ {mapped[0][0]} -> CPU {mapped[0][1]} ... "
+                  f"IRQ {mapped[-1][0]} -> CPU {mapped[-1][1]}")
 
     # 3. Restore the original combined channel count
     if orig_combined is not None:
