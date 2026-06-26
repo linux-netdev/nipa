@@ -166,6 +166,126 @@ def _collect_device_info(ifname):
         return None
 
 
+def _get_ifindex(netif):
+    """Return the ifindex of an interface, or None."""
+    try:
+        with open(f'/sys/class/net/{netif}/ifindex', encoding='utf-8') as fp:
+            return int(fp.read().strip())
+    except (OSError, ValueError):
+        return None
+
+
+def _read_combined_channels(netif):
+    """Read channel config via ethtool.
+
+    Returns (max_combined, current_combined), or (None, None) on any
+    failure (tool missing, no JSON support, no combined channels, etc).
+    """
+    try:
+        ret = subprocess.run(['ethtool', '--json', '-l', netif],
+                             capture_output=True, timeout=10, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return None, None
+    if ret.returncode != 0:
+        return None, None
+    try:
+        data = json.loads(ret.stdout)[0]
+        return data['combined-max'], data['combined']
+    except (json.JSONDecodeError, IndexError, KeyError, TypeError):
+        return None, None
+
+
+def _set_combined_channels(netif, count):
+    """Set the combined channel count. Returns True on success."""
+    try:
+        ret = subprocess.run(['ethtool', '-L', netif, 'combined', str(count)],
+                             capture_output=True, timeout=10, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return ret.returncode == 0
+
+
+def _get_napi_irqs(ifindex):
+    """Return the NIC's NAPI IRQs (sorted ascending) via ynl, or None.
+
+    ynl reports NAPIs newest-first, so the raw IRQ order is reversed;
+    we sort so IRQ-to-CPU mapping is deterministic.
+    """
+    try:
+        ret = subprocess.run(
+            ['ynl', '--family', 'netdev', '--dump', 'napi-get',
+             '--json', json.dumps({'ifindex': ifindex}), '--output-json'],
+            capture_output=True, timeout=30, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if ret.returncode != 0:
+        return None
+    try:
+        napis = json.loads(ret.stdout)
+    except json.JSONDecodeError:
+        return None
+    irqs = [n['irq'] for n in napis if isinstance(n, dict) and 'irq' in n]
+    if not irqs:
+        return None
+    return sorted(irqs)
+
+
+def _set_irq_affinity(irq, cpu):
+    """Pin a single IRQ to a single CPU. Returns True on success."""
+    try:
+        with open(f'/proc/irq/{irq}/smp_affinity_list', 'w',
+                  encoding='utf-8') as fp:
+            fp.write(str(cpu))
+        return True
+    except OSError:
+        return False
+
+
+def _setup_irq_affinity(netif):
+    """Spread the NIC's IRQs across CPUs, one IRQ per CPU.
+
+    Bumps the combined channel count to min(max, ncpus) so the driver
+    creates enough queues/IRQs, maps each NAPI IRQ to a distinct CPU
+    (IRQ 0 -> CPU 0, IRQ 1 -> CPU 1, ...), then restores the original
+    channel count.  Best-effort — every step is permissive:
+
+      - can't read/set channels -> log WARN, still try the IRQ mapping
+      - can't get IRQs via ynl   -> log ERR, skip the mapping
+    """
+    ncpus = os.cpu_count() or 1
+
+    # 1. Read channel config and bump combined to min(max, ncpus)
+    max_combined, orig_combined = _read_combined_channels(netif)
+    if max_combined is None:
+        print(f"WARN: could not read channel config for {netif}")
+    else:
+        target = min(max_combined, ncpus)
+        if _set_combined_channels(netif, target):
+            print(f"Set {netif} combined channels to {target} "
+                  f"(max={max_combined}, cpus={ncpus})")
+        else:
+            print(f"WARN: could not set combined channels on {netif}")
+
+    # 2. Get NAPI IRQs via ynl and map them to CPUs
+    ifindex = _get_ifindex(netif)
+    irqs = _get_napi_irqs(ifindex) if ifindex is not None else None
+    if irqs is None:
+        print(f"ERR: could not get NAPI IRQs for {netif} via ynl")
+    else:
+        for cpu, irq in enumerate(irqs):
+            if _set_irq_affinity(irq, cpu):
+                print(f"IRQ {irq} -> CPU {cpu}")
+            else:
+                print(f"WARN: could not set affinity for IRQ {irq}")
+
+    # 3. Restore the original combined channel count
+    if orig_combined is not None:
+        if _set_combined_channels(netif, orig_combined):
+            print(f"Restored {netif} combined channels to {orig_combined}")
+        else:
+            print(f"WARN: could not restore combined channels on {netif}")
+
+
 def setup_test_interfaces(test_dir):
     """Configure test NICs and write net.config from nic-test.env.
 
@@ -190,6 +310,12 @@ def setup_test_interfaces(test_dir):
             _ensure_addr(netif, env['LOCAL_V4'])
         if env.get('LOCAL_V6'):
             _ensure_addr(netif, env['LOCAL_V6'])
+
+        # Spread the NIC's IRQs across CPUs for the test run
+        try:
+            _setup_irq_affinity(netif)
+        except Exception as e:  # pylint: disable=broad-except
+            print(f"WARN: IRQ affinity setup failed for {netif}: {e}")
 
     # Configure peer interface
     remote_ifname = env.get('REMOTE_IFNAME')
