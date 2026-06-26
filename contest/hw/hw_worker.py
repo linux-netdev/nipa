@@ -137,6 +137,23 @@ def _install_prefix_route(ifname, prefix, local_v6, **kwargs):
     _ip(f'-6 route add {prefix} via {local_v6} dev {ifname}', **kwargs)
 
 
+def _wait_peer_reachable(netif, addr):
+    """Ping the peer from netif, retrying up to 15s. Best-effort.
+
+    ping auto-selects the address family, so this works for both the
+    IPv4 and IPv6 peer addresses.
+    """
+    addr = addr.split('/')[0]
+    for attempt in range(15):
+        ret = subprocess.run(['ping', '-c', '1', '-W', '1', '-I', netif, addr],
+                             capture_output=True, check=False)
+        if ret.returncode == 0:
+            print(f"Peer {addr} reachable after {attempt + 1}s")
+            return
+        time.sleep(1)
+    print(f"Warning: peer {addr} not reachable after 15s")
+
+
 def _collect_device_info(ifname):
     """Collect devlink device info for the test interface.
 
@@ -355,18 +372,12 @@ def setup_test_interfaces(test_dir):
             _install_prefix_route(remote_ifname, env['LOCAL_PREFIX_V6'],
                                   env['LOCAL_V6'], **peer_kwargs)
 
-    # Wait for peer to be reachable
-    peer_ip = env.get('REMOTE_V4', '').split('/')[0]
-    if peer_ip and netif:
-        for attempt in range(15):
-            ret = subprocess.run(['ping', '-c', '1', '-W', '1', '-I', netif, peer_ip],
-                                 capture_output=True, check=False)
-            if ret.returncode == 0:
-                print(f"Peer {peer_ip} reachable after {attempt + 1}s")
-                break
-            time.sleep(1)
-        else:
-            print(f"Warning: peer {peer_ip} not reachable after 15s")
+    # Wait for the peer to be reachable, over both IPv4 and IPv6
+    if netif:
+        if env.get('REMOTE_V4'):
+            _wait_peer_reachable(netif, env['REMOTE_V4'])
+        if env.get('REMOTE_V6'):
+            _wait_peer_reachable(netif, env['REMOTE_V6'])
 
     # Write net.config for the kselftest framework
     config_lines = []
