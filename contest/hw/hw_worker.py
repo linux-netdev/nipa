@@ -384,6 +384,23 @@ def main():
     """Find pending tests, run them, and write results."""
     sys.stdout = _TeeWriter(sys.stdout)
 
+    # --prep-only <dir>: run interface setup (step 3) from <dir>/nic-test.env
+    # and exit. Skips the newest-test scan, kernel-version check, device
+    # info collection, and test execution -- useful for testing the prep
+    # steps against a hand-crafted nic-test.env.
+    if len(sys.argv) >= 2 and sys.argv[1] == '--prep-only':
+        if len(sys.argv) != 3:
+            print("Usage: hw_worker.py --prep-only <dir>")
+            sys.exit(1)
+        prep_dir = sys.argv[2]
+        env_path = os.path.join(prep_dir, 'nic-test.env')
+        if not os.path.exists(env_path):
+            print(f"No nic-test.env found in {prep_dir}")
+            sys.exit(1)
+        print(f"Prep-only: configuring interfaces from {env_path}")
+        setup_test_interfaces(prep_dir)
+        return
+
     tests_dir = TESTS_DIR
     results_base = RESULTS_DIR
 
