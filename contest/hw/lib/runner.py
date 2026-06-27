@@ -4,10 +4,18 @@
 
 import json
 import os
+import signal
 import subprocess
 import time
 
 from lib.nipa import has_crash, extract_crash, namify
+
+
+# Per-test wall-clock limit before we start tearing the test down (seconds).
+TEST_TIMEOUT = 600
+# How long to wait for a timed-out test to shut down gracefully after the
+# first (SIGINT) signal before we force-kill its whole process tree.
+GRACEFUL_KILL_WAIT = 60
 
 
 def find_newest_test(tests_dir):
@@ -149,27 +157,99 @@ def _has_real_crash(dmesg_text, filters):
     return True
 
 
-def _run_one_test(test_dir, output_dir, target, prog):
-    """Run a single test and save stdout/stderr. Returns (retcode, elapsed)."""
-    t1 = time.monotonic()
+def _signal_group(pgid, sig):
+    """Send a signal to a process group, ignoring it if already gone."""
     try:
-        ret = subprocess.run(
-            ['./run_kselftest.sh', '-t', f'{target}:{prog}'],
-            cwd=test_dir,
-            capture_output=True,
-            timeout=600,
-            check=False
-        )
-        retcode = ret.returncode
-        stdout = ret.stdout.decode('utf-8', 'ignore')
-        stderr = ret.stderr.decode('utf-8', 'ignore')
-        if not stdout and not stderr:
-            print(f"  {target}:{prog}: no output (rc={retcode})")
+        os.killpg(pgid, sig)
+    except ProcessLookupError:
+        pass
+
+
+def _kill_session(sid, sig):
+    """Send a signal to every process in session ``sid`` (best effort).
+
+    run_kselftest.sh wraps each test in nested ``timeout`` calls; the inner
+    one (no --foreground) moves the test into its *own process group*, so a
+    killpg() on the launcher's group misses it. SIGKILL also can't be
+    forwarded down the ``timeout`` chain like SIGINT is. Nothing in the
+    chain calls setsid() though, so the whole tree stays in one session --
+    and the launcher (started with start_new_session=True) is its leader,
+    so ``sid`` equals the launcher's pid. Killing the session reaches every
+    descendant regardless of process-group games.
+    """
+    for entry in os.listdir('/proc'):
+        if not entry.isdigit():
+            continue
+        pid = int(entry)
+        try:
+            if os.getsid(pid) == sid:
+                os.kill(pid, sig)
+        except (ProcessLookupError, PermissionError):
+            pass
+
+
+def _run_one_test(test_dir, output_dir, target, prog):
+    """Run a single test and save stdout/stderr. Returns (retcode, elapsed).
+
+    On timeout the test is asked to shut down gracefully (SIGINT, which
+    Python turns into KeyboardInterrupt so the test's cleanup / __exit__
+    runs and tears down netns, interfaces, etc). Only if the process tree
+    is still alive after GRACEFUL_KILL_WAIT do we force-kill it (SIGKILL).
+
+    start_new_session=True puts run_kselftest.sh and everything it spawns
+    into one session. SIGINT goes to the launcher's process group --
+    run_kselftest.sh wraps the test in nested ``timeout`` calls that move
+    it into a separate process group, but ``timeout`` forwards SIGINT down
+    to it. SIGKILL can't be forwarded, so the hard fallback kills the whole
+    session instead (see _kill_session). Either way the actual test process
+    is reached -- otherwise it is orphaned and lingers, poisoning the retry
+    and later crashing on its own.
+    """
+    t1 = time.monotonic()
+    # pylint: disable=consider-using-with
+    proc = subprocess.Popen(
+        ['./run_kselftest.sh', '-t', f'{target}:{prog}'],
+        cwd=test_dir,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        start_new_session=True,
+    )
+    # With start_new_session the child is its own group leader (pgid == pid).
+    pgid = proc.pid
+    stop_kind = None
+    try:
+        out, err = proc.communicate(timeout=TEST_TIMEOUT)
+        retcode = proc.returncode
     except subprocess.TimeoutExpired:
         retcode = 1
-        stdout = ''
-        stderr = 'test timed out'
-        print(f"  {target}:{prog}: timed out")
+        print(f"  {target}:{prog}: timed out after {TEST_TIMEOUT}s, "
+              "sending SIGINT to process group")
+        _signal_group(pgid, signal.SIGINT)
+        try:
+            # communicate() returns once the pipes close, i.e. once the
+            # whole tree has exited -- a good proxy for "cleaned up".
+            out, err = proc.communicate(timeout=GRACEFUL_KILL_WAIT)
+            stop_kind = 'graceful stop'
+            print(f"  {target}:{prog}: shut down cleanly after SIGINT")
+        except subprocess.TimeoutExpired:
+            stop_kind = 'hard stop'
+            print(f"  {target}:{prog}: still alive after {GRACEFUL_KILL_WAIT}s, "
+                  "force-killing session")
+            # proc.pid is the session leader (start_new_session); it is
+            # still un-reaped here, so the sid is valid.
+            _kill_session(proc.pid, signal.SIGKILL)
+            out, err = proc.communicate()
+
+    stdout = (out or b'').decode('utf-8', 'ignore')
+    stderr = (err or b'').decode('utf-8', 'ignore')
+    if stop_kind is not None:
+        # Preserve whatever the test printed, but mark the timeout in
+        # both streams so it's visible whichever one is inspected.
+        marker = f'\nNIPA RUNNER TIMEOUT {TEST_TIMEOUT} sec ({stop_kind})\n'
+        stdout += marker
+        stderr += marker
+    elif not stdout and not stderr:
+        print(f"  {target}:{prog}: no output (rc={retcode})")
     t2 = time.monotonic()
     elapsed = round(t2 - t1, 1)
 

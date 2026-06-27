@@ -2,6 +2,8 @@
 
 import json
 import os
+import signal
+import subprocess
 import tempfile
 import unittest
 from unittest import mock
@@ -11,8 +13,22 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from lib.runner import (find_newest_test, load_attempted,
-                        mark_attempted, run_tests, DmesgReader)
+                        mark_attempted, run_tests, DmesgReader,
+                        _run_one_test)
 from lib.nipa import namify
+
+
+def _fake_popen(returncode=0, stdout=b'', stderr=b''):
+    """Build a fake Popen whose communicate() yields the given output.
+
+    _run_one_test now uses subprocess.Popen + communicate() instead of
+    subprocess.run, so tests patch Popen and hand back one of these.
+    """
+    proc = mock.Mock()
+    proc.pid = 4242
+    proc.returncode = returncode
+    proc.communicate.return_value = (stdout, stderr)
+    return proc
 
 
 class TestFindNewestTest(unittest.TestCase):
@@ -69,12 +85,12 @@ class TestKernelVersionCheck(unittest.TestCase):
 
     @mock.patch('os.uname', return_value=mock.Mock(release='6.12.0'))
     @mock.patch('lib.runner.DmesgReader')
-    @mock.patch('subprocess.run')
-    def test_correct_kernel_runs(self, mock_run, mock_dmesg_cls, _mock_uname):
+    @mock.patch('subprocess.Popen')
+    def test_correct_kernel_runs(self, mock_popen, mock_dmesg_cls, _mock_uname):
         mock_dmesg = mock.Mock()
         mock_dmesg.drain.return_value = ''
         mock_dmesg_cls.return_value = mock_dmesg
-        mock_run.return_value = mock.Mock(
+        mock_popen.return_value = _fake_popen(
             returncode=0, stdout=b'ok 1 test\n', stderr=b'')
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -101,13 +117,13 @@ class TestKernelVersionCheck(unittest.TestCase):
 
     @mock.patch('os.uname', return_value=mock.Mock(release='6.12.0-dirty'))
     @mock.patch('lib.runner.DmesgReader')
-    @mock.patch('subprocess.run')
-    def test_version_suffix_match(self, mock_run, mock_dmesg_cls, _mock_uname):
+    @mock.patch('subprocess.Popen')
+    def test_version_suffix_match(self, mock_popen, mock_dmesg_cls, _mock_uname):
         """uname has LOCALVERSION suffix (-dirty) — should match '6.12.0'."""
         mock_dmesg = mock.Mock()
         mock_dmesg.drain.return_value = ''
         mock_dmesg_cls.return_value = mock_dmesg
-        mock_run.return_value = mock.Mock(
+        mock_popen.return_value = _fake_popen(
             returncode=0, stdout=b'ok 1 test\n', stderr=b'')
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -247,13 +263,13 @@ class TestRunTests(unittest.TestCase):
             return json.load(fp)
 
     @mock.patch('lib.runner.DmesgReader')
-    @mock.patch('subprocess.run')
-    def test_single_test_pass(self, mock_run, mock_dmesg_cls):
+    @mock.patch('subprocess.Popen')
+    def test_single_test_pass(self, mock_popen, mock_dmesg_cls):
         mock_dmesg = mock.Mock()
         mock_dmesg.drain.return_value = ''
         mock_dmesg_cls.return_value = mock_dmesg
 
-        mock_run.return_value = mock.Mock(
+        mock_popen.return_value = _fake_popen(
             returncode=0,
             stdout=b'ok 1 test_name\n',
             stderr=b''
@@ -275,13 +291,13 @@ class TestRunTests(unittest.TestCase):
             self.assertEqual(info['retcode'], 0)
 
     @mock.patch('lib.runner.DmesgReader')
-    @mock.patch('subprocess.run')
-    def test_single_test_fail(self, mock_run, mock_dmesg_cls):
+    @mock.patch('subprocess.Popen')
+    def test_single_test_fail(self, mock_popen, mock_dmesg_cls):
         mock_dmesg = mock.Mock()
         mock_dmesg.drain.return_value = ''
         mock_dmesg_cls.return_value = mock_dmesg
 
-        mock_run.return_value = mock.Mock(
+        mock_popen.return_value = _fake_popen(
             returncode=1,
             stdout=b'not ok 1 test_name\n',
             stderr=b''
@@ -302,13 +318,13 @@ class TestRunTests(unittest.TestCase):
             self.assertEqual(info['retcode'], 1)
 
     @mock.patch('lib.runner.DmesgReader')
-    @mock.patch('subprocess.run')
-    def test_test_skip(self, mock_run, mock_dmesg_cls):
+    @mock.patch('subprocess.Popen')
+    def test_test_skip(self, mock_popen, mock_dmesg_cls):
         mock_dmesg = mock.Mock()
         mock_dmesg.drain.return_value = ''
         mock_dmesg_cls.return_value = mock_dmesg
 
-        mock_run.return_value = mock.Mock(
+        mock_popen.return_value = _fake_popen(
             returncode=4,
             stdout=b'',
             stderr=b''
@@ -329,13 +345,13 @@ class TestRunTests(unittest.TestCase):
             self.assertEqual(info['retcode'], 4)
 
     @mock.patch('lib.runner.DmesgReader')
-    @mock.patch('subprocess.run')
-    def test_output_saved(self, mock_run, mock_dmesg_cls):
+    @mock.patch('subprocess.Popen')
+    def test_output_saved(self, mock_popen, mock_dmesg_cls):
         mock_dmesg = mock.Mock()
         mock_dmesg.drain.return_value = ''
         mock_dmesg_cls.return_value = mock_dmesg
 
-        mock_run.return_value = mock.Mock(
+        mock_popen.return_value = _fake_popen(
             returncode=0,
             stdout=b'ok 1 test output\n',
             stderr=b'some stderr\n'
@@ -374,24 +390,99 @@ class TestRunTests(unittest.TestCase):
 
             with mock.patch('lib.runner.DmesgReader') as mock_dmesg_cls:
                 mock_dmesg_cls.return_value.drain.return_value = ''
-                with mock.patch('subprocess.run') as mock_run:
+                with mock.patch('subprocess.Popen') as mock_popen:
                     run_tests(test_dir, results_dir)
 
             # No output directory should have been created (test was skipped)
             self.assertEqual(os.listdir(results_dir), [])
 
-            # subprocess.run should NOT have been called (test was skipped)
-            mock_run.assert_not_called()
+            # the test should NOT have been launched (it was skipped)
+            mock_popen.assert_not_called()
 
-    @mock.patch('subprocess.run')
-    def test_no_tests(self, mock_run):
-        mock_run.return_value = mock.Mock(
-            returncode=1, stdout=b'', stderr=b''
-        )
+    def test_no_tests(self):
+        # An empty list means there is nothing to run; no test is launched.
         with tempfile.TemporaryDirectory() as tmpdir:
-            run_tests(tmpdir, tmpdir)
+            test_dir = os.path.join(tmpdir, 'tests')
+            results_dir = os.path.join(tmpdir, 'results')
+            os.makedirs(test_dir)
+            os.makedirs(results_dir)
+            open(os.path.join(test_dir, 'kselftest-list.txt'), 'w').close()
+
+            run_tests(test_dir, results_dir)
             # No output dirs should be created
-            self.assertEqual(os.listdir(tmpdir), [])
+            self.assertEqual(os.listdir(results_dir), [])
+
+
+class TestTimeoutHandling(unittest.TestCase):
+    @mock.patch('lib.runner.os.killpg')
+    @mock.patch('subprocess.Popen')
+    def test_graceful_stop_after_sigint(self, mock_popen, mock_killpg):
+        """On timeout we SIGINT the group; clean exit -> graceful stop."""
+        proc = mock.Mock()
+        proc.pid = 4242
+        proc.returncode = 1
+        # First communicate() times out; after SIGINT it returns the
+        # partial output and the tree exits.
+        proc.communicate.side_effect = [
+            subprocess.TimeoutExpired(cmd='run_kselftest.sh', timeout=600),
+            (b'partial out\n', b'partial err\n'),
+        ]
+        mock_popen.return_value = proc
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_dir = os.path.join(tmpdir, 'out')
+            os.makedirs(out_dir)
+            rc, _elapsed = _run_one_test(tmpdir, out_dir, 'net', 'test1.sh')
+            with open(os.path.join(out_dir, 'stdout')) as fp:
+                stdout = fp.read()
+            with open(os.path.join(out_dir, 'stderr')) as fp:
+                stderr = fp.read()
+
+        self.assertEqual(rc, 1)
+        # SIGINT to the process group, never escalated to SIGKILL
+        mock_killpg.assert_called_once_with(4242, signal.SIGINT)
+
+        # Partial output preserved, marker appended to both streams
+        self.assertIn('partial out', stdout)
+        self.assertIn('partial err', stderr)
+        self.assertIn('NIPA RUNNER TIMEOUT', stdout)
+        self.assertIn('graceful stop', stdout)
+        self.assertIn('NIPA RUNNER TIMEOUT', stderr)
+        self.assertIn('graceful stop', stderr)
+
+    @mock.patch('lib.runner._kill_session')
+    @mock.patch('lib.runner.os.killpg')
+    @mock.patch('subprocess.Popen')
+    def test_hard_stop_when_unresponsive(self, mock_popen, mock_killpg,
+                                         mock_kill_session):
+        """If SIGINT doesn't clean up in time we SIGKILL the session."""
+        proc = mock.Mock()
+        proc.pid = 99
+        proc.returncode = 1
+        # Times out on the run and again after SIGINT, then dies on SIGKILL.
+        proc.communicate.side_effect = [
+            subprocess.TimeoutExpired(cmd='run_kselftest.sh', timeout=600),
+            subprocess.TimeoutExpired(cmd='run_kselftest.sh', timeout=60),
+            (b'', b''),
+        ]
+        mock_popen.return_value = proc
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_dir = os.path.join(tmpdir, 'out')
+            os.makedirs(out_dir)
+            rc, _elapsed = _run_one_test(tmpdir, out_dir, 'net', 'test1.sh')
+            with open(os.path.join(out_dir, 'stderr')) as fp:
+                stderr = fp.read()
+
+        self.assertEqual(rc, 1)
+        # SIGINT to the group first (graceful attempt) ...
+        mock_killpg.assert_called_once_with(99, signal.SIGINT)
+        # ... then escalate to SIGKILL of the whole session (killpg would
+        # miss the test, which the kselftest harness puts in its own group).
+        mock_kill_session.assert_called_once_with(99, signal.SIGKILL)
+
+        self.assertIn('NIPA RUNNER TIMEOUT', stderr)
+        self.assertIn('hard stop', stderr)
 
 
 class TestDmesgReader(unittest.TestCase):
@@ -419,15 +510,15 @@ class TestMainFlow(unittest.TestCase):
 
     @mock.patch('os.uname')
     @mock.patch('lib.runner.DmesgReader')
-    @mock.patch('subprocess.run')
-    def test_full_run(self, mock_run, mock_dmesg_cls, mock_uname):
+    @mock.patch('subprocess.Popen')
+    def test_full_run(self, mock_popen, mock_dmesg_cls, mock_uname):
         mock_uname.return_value = mock.Mock(release='6.12.0')
 
         mock_dmesg = mock.Mock()
         mock_dmesg.drain.return_value = ''
         mock_dmesg_cls.return_value = mock_dmesg
 
-        mock_run.return_value = mock.Mock(
+        mock_popen.return_value = _fake_popen(
             returncode=0,
             stdout=b'ok 1 test\n',
             stderr=b''
@@ -462,15 +553,15 @@ class TestMainFlow(unittest.TestCase):
 
     @mock.patch('os.uname')
     @mock.patch('lib.runner.DmesgReader')
-    @mock.patch('subprocess.run')
-    def test_crash_recovery_resume(self, mock_run, mock_dmesg_cls, mock_uname):
+    @mock.patch('subprocess.Popen')
+    def test_crash_recovery_resume(self, mock_popen, mock_dmesg_cls, mock_uname):
         mock_uname.return_value = mock.Mock(release='6.12.0')
 
         mock_dmesg = mock.Mock()
         mock_dmesg.drain.return_value = ''
         mock_dmesg_cls.return_value = mock_dmesg
 
-        mock_run.return_value = mock.Mock(
+        mock_popen.return_value = _fake_popen(
             returncode=0,
             stdout=b'ok 1 test\n',
             stderr=b''
