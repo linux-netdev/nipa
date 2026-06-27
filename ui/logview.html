@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NIPA log viewer</title>
+<link rel="icon" href="/favicon-contest.png">
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1c1c1c;
+    --dim: #888888;
+    --pass: #1a7f37;
+    --fail: #cf222e;
+    --skip: #9a6700;
+    --plan: #0550ae;
+    --bar-bg: #f2f2f2;
+    --hl: #fff8c5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1c;
+      --fg: #c8c8c8;
+      --dim: #777777;
+      --pass: #3fb950;
+      --fail: #f85149;
+      --skip: #d29922;
+      --plan: #809fff;
+      --bar-bg: #282828;
+      --hl: #4a3f1a;
+    }
+  }
+  html, body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: "roboto mono", ui-monospace, monospace;
+  }
+  #bar {
+    position: sticky;
+    top: 0;
+    background: var(--bar-bg);
+    padding: 0.5em 1em;
+    border-bottom: 1px solid var(--dim);
+    font-size: 0.85em;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1em;
+    align-items: baseline;
+  }
+  #bar a { color: var(--plan); }
+  #bar .sep { color: var(--dim); }
+  #foldall {
+    font: inherit;
+    cursor: pointer;
+    color: var(--plan);
+    background: transparent;
+    border: 1px solid var(--dim);
+    border-radius: 3px;
+    padding: 1px 6px;
+  }
+  #foldall:hover { border-color: var(--plan); }
+  #path { word-break: break-all; }
+  pre {
+    margin: 0;
+    padding: 0.5em 1em;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 0.9em;
+    line-height: 1.35;
+    tab-size: 4;
+  }
+  .ln-pass { color: var(--pass); }
+  .ln-fail { color: var(--fail); font-weight: bold; }
+  .ln-skip { color: var(--skip); }
+  .ln-diag   { color: var(--dim); }
+  .ln-totals { color: var(--plan); }
+  .ln-err    { color: var(--fail); }
+  .fold-toggle {
+    cursor: pointer;
+    color: var(--plan);
+    user-select: none;
+  }
+  .fold-toggle:hover { text-decoration: underline; }
+  .fold-toggle::before { content: "[\2026 "; }
+  .fold-toggle::after  { content: "]"; }
+  .fold.open > .fold-toggle::before { content: "[\2212 "; }
+  .fold:not(.open) > .fold-body { display: none; }
+  .cnt-pass { color: var(--pass); }
+  .cnt-fail { color: var(--fail); font-weight: bold; }
+  .cnt-skip { color: var(--skip); }
+</style>
+</head>
+<body>
+<div id="bar">
+  <span id="path">loading…</span>
+  <span id="summary"></span>
+  <span class="sep">|</span>
+  <a id="raw" href="#">raw</a>
+  <button id="foldall" style="display:none">fold all</button>
+</div>
+<pre id="out"></pre>
+<script>
+(function () {
+  const params = new URLSearchParams(window.location.search);
+  // Accept either ?f=/path or the legacy ?path=
+  const target = params.get("f") || params.get("path");
+  const out = document.getElementById("out");
+  const pathEl = document.getElementById("path");
+
+  if (!target) {
+    pathEl.textContent = "no log specified — pass ?f=<url>";
+    return;
+  }
+  document.getElementById("raw").href = target;
+  pathEl.innerHTML = "";
+  const a = document.createElement("a");
+  a.href = target;
+  a.textContent = target;
+  pathEl.appendChild(a);
+  document.title = target.split("/").slice(-2).join("/") + " — NIPA log";
+
+  function esc(s) {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  // Strip nested TAP comment prefixes ("# ", "# # ", ...) to find the real
+  // content of the line, e.g. subtest "# ok 5 foo".
+  function classify(line) {
+    const core = line.replace(/^(#\s)+/, "");
+
+    if (/(^|\s)#\s*(SKIP|SKIPPED|TODO|XFAIL)\b/i.test(core))
+      return "ln-skip";
+    if (/^not ok\b/.test(core))
+      return "ln-fail";
+    if (/^ok\b/.test(core))
+      return "ln-pass";
+    // Exceptions/tracebacks plus the fail indicators that
+    // contest/remote/lib/results.py:guess_indicators() looks for.
+    if (/\b(Exception|Traceback)\b|\[FAIL\]|\[fail\]| FAIL:/.test(core))
+      return "ln-err";
+    if (/Totals: pass/.test(core))
+      return "ln-totals";
+    // boilerplate / framing lines
+    if (/^TAP version |^\d+\.\.\d+\s*$|timeout set to/.test(core))
+      return "ln-diag";
+    return "";
+  }
+
+  // Accept: text/plain so an nginx "serve viewer to browsers" rule (which keys
+  // off Accept: text/html) never redirects this fetch back to the viewer.
+  fetch(target, { headers: { "Accept": "text/plain" } })
+    .then(r => {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.text();
+    })
+    .then(text => {
+      const lines = text.split("\n");
+      let pass = 0, fail = 0, skip = 0;
+
+      function renderLine(line) {
+        const cls = classify(line);
+        if (cls === "ln-pass") pass++;
+        else if (cls === "ln-fail") fail++;
+        else if (cls === "ln-skip") skip++;
+        const e = esc(line);
+        return cls ? `<span class="${cls}">${e}</span>` : e;
+      }
+
+      // Group runs of deeply-nested "# #" diagnostic lines into a foldable
+      // block (rendered expanded; collapse via the marker or "fold all").
+      // Totals lines are kept out so the summary stays visible.
+      const foldable = l => l.startsWith("# #") && !/Totals: pass/.test(l);
+      const pieces = [];
+      let i = 0;
+      while (i < lines.length) {
+        if (foldable(lines[i])) {
+          let j = i;
+          while (j < lines.length && foldable(lines[j])) j++;
+          const body = lines.slice(i, j).map(renderLine).join("\n");
+          pieces.push(
+            `<span class="fold open"><span class="fold-toggle">${j - i} lines` +
+            `</span><span class="fold-body">\n${body}</span></span>`);
+          i = j;
+        } else {
+          pieces.push(renderLine(lines[i]));
+          i++;
+        }
+      }
+      out.innerHTML = pieces.join("\n");
+
+      const s = document.getElementById("summary");
+      s.innerHTML =
+        `<span class="cnt-pass">${pass} ok</span>` +
+        (fail ? ` <span class="cnt-fail">${fail} not ok</span>` : "") +
+        (skip ? ` <span class="cnt-skip">${skip} skip</span>` : "");
+
+      // Toggle a single fold on click.
+      out.addEventListener("click", e => {
+        const t = e.target.closest(".fold-toggle");
+        if (t) t.parentElement.classList.toggle("open");
+      });
+
+      // Fold/unfold all button.
+      const btn = document.getElementById("foldall");
+      btn.style.display = "";
+      let allOpen = true;
+      btn.addEventListener("click", () => {
+        allOpen = !allOpen;
+        out.querySelectorAll(".fold").forEach(
+          f => f.classList.toggle("open", allOpen));
+        btn.textContent = allOpen ? "fold all" : "unfold all";
+      });
+    })
+    .catch(err => {
+      out.textContent = "Failed to load log: " + err.message;
+    });
+})();
+</script>
+</body>
+</html>
