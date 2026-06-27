@@ -17,6 +17,7 @@ LOCAL=./ui
 ASSETS=(
   "checks.json"
   "status.json"
+  "issues.json"
   "contest/branch-results.json"
   "contest/branches-info.json"
   "contest/filters.json"

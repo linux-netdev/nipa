@@ -1171,6 +1171,39 @@ function flakes_doit(data_raw)
     flakes_render(flakes_hw, data_raw.filter(is_hw));
 }
 
+function issues_doit(data_raw)
+{
+    let table = document.getElementById("issues-hw");
+
+    $.each(data_raw, function(i, v) {
+	if (!v["remote"])
+	    return 1;
+
+	let row = table.insertRow();
+	row.insertCell(0).innerText = v["remote"];
+
+	let title = row.insertCell(1);
+	if (v["link"])
+	    title.innerHTML = "<a href=\"" + v["link"] + "\">" + v["title"] + "</a>";
+	else
+	    title.innerText = v["title"];
+
+	let status = row.insertCell(2);
+	if (v["fix"])
+	    status.innerHTML = "<a href=\"" + v["fix"] + "\">FIX PENDING</a>";
+	else
+	    status.innerText = "OPEN";
+
+	if (v["description"]) {
+	    let drow = table.insertRow();
+	    drow.insertCell(0); // remote - empty
+	    let desc = drow.insertCell(1);
+	    desc.innerText = v["description"];
+	    desc.setAttribute("colspan", "2");
+	}
+    });
+}
+
 function hw_machines_loaded(data)
 {
     var table = document.getElementById("hw-machines");
@@ -1224,5 +1257,8 @@ function do_it()
     });
     $(document).ready(function() {
         $.get("mc/get_machine_info?caller=status-ui", hw_machines_loaded)
+    });
+    $(document).ready(function() {
+        $.get("issues.json", issues_doit)
     });
 }
