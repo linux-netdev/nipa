@@ -158,32 +158,35 @@
       const lines = text.split("\n");
       let pass = 0, fail = 0, skip = 0;
 
-      function renderLine(line) {
+      function renderLine(line, i) {
+        i += this.add;
         const cls = classify(line);
         if (cls === "ln-pass") pass++;
         else if (cls === "ln-fail") fail++;
         else if (cls === "ln-skip") skip++;
         const e = esc(line);
-        return cls ? `<span class="${cls}">${e}</span>` : e;
+        const c = cls ? `class=${cls}` : ``;
+        return `<span id="L${i}" ${c}>${e}</span>`;
       }
 
       // Group runs of deeply-nested "# #" diagnostic lines into a foldable
       // block (rendered expanded; collapse via the marker or "fold all").
       // Totals lines are kept out so the summary stays visible.
       const foldable = l => l.startsWith("# #") && !/Totals: pass/.test(l);
+      this.add = 0;
       const pieces = [];
       let i = 0;
       while (i < lines.length) {
         if (foldable(lines[i])) {
           let j = i;
           while (j < lines.length && foldable(lines[j])) j++;
-          const body = lines.slice(i, j).map(renderLine).join("\n");
+          const body = lines.slice(i, j).map(renderLine, {add: i}).join("\n");
           pieces.push(
             `<span class="fold open"><span class="fold-toggle">${j - i} lines` +
             `</span><span class="fold-body">\n${body}</span></span>`);
           i = j;
         } else {
-          pieces.push(renderLine(lines[i]));
+          pieces.push(renderLine(lines[i], i));
           i++;
         }
       }
@@ -199,6 +202,11 @@
       out.addEventListener("click", e => {
         const t = e.target.closest(".fold-toggle");
         if (t) t.parentElement.classList.toggle("open");
+
+        // Set #Line in url
+        var id = e.target.id;
+        if (id && id.startsWith("L"))
+          history.pushState(null, null, "#" + id);
       });
 
       // Fold/unfold all button.
