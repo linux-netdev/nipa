@@ -226,10 +226,13 @@ class Patchwork(object):
         }
 
         r = self._post(f'patches/{patch}/checks/', headers=headers, data=data)
-        if r.status_code == 502 or r.status_code == 504:
-            # Timeout, let's wait 30 sec and retry, POST isn't retried by the lib.
-            time.sleep(30)
-            r = self._post(f'patches/{patch}/checks/', headers=headers, data=data)
+        for retry in range(3):
+            if r.status_code == 502 or r.status_code == 504:
+                # Timeout, let's wait 30 sec and retry, POST isn't retried by the lib.
+                time.sleep(30 << retry)
+                r = self._post(f'patches/{patch}/checks/', headers=headers, data=data)
+            else:
+                break
         if r.status_code != 201:
             raise PatchworkPostException(r)
 
