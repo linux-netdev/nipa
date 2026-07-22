@@ -16,6 +16,7 @@
     --plan: #0550ae;
     --bar-bg: #f2f2f2;
     --hl: #fff8c5;
+    --bg-line: #f2dd2650;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -28,6 +29,7 @@
       --plan: #809fff;
       --bar-bg: #282828;
       --hl: #4a3f1a;
+      --bg-line: #f2dd2650;
     }
   }
   html, body {
@@ -76,6 +78,7 @@
   .ln-diag   { color: var(--dim); }
   .ln-totals { color: var(--plan); }
   .ln-err    { color: var(--fail); }
+  .ln-bg     { background-color: var(--bg-line); }
   .fold-toggle {
     cursor: pointer;
     color: var(--plan);
@@ -160,12 +163,15 @@
 
       function renderLine(line, i) {
         i += this.add;
+        var classes = []
         const cls = classify(line);
         if (cls === "ln-pass") pass++;
         else if (cls === "ln-fail") fail++;
         else if (cls === "ln-skip") skip++;
+        if (cls) classes.push(cls);
+        if (this.bg == i) classes.push("ln-bg")
         const e = esc(line);
-        const c = cls ? `class=${cls}` : ``;
+        const c = classes.length > 0 ? `class="${classes.join(" ")}"` : ``;
         return `<span id="L${i}" ${c}>${e}</span>`;
       }
 
@@ -173,6 +179,8 @@
       // block (rendered expanded; collapse via the marker or "fold all").
       // Totals lines are kept out so the summary stays visible.
       const foldable = l => l.startsWith("# #") && !/Totals: pass/.test(l);
+      const anchor = window.location.hash.match(/^#L(\d+)/);
+      this.bg = anchor && anchor.length > 1 ? anchor[1] : -1;
       this.add = 0;
       const pieces = [];
       let i = 0;
@@ -180,7 +188,8 @@
         if (foldable(lines[i])) {
           let j = i;
           while (j < lines.length && foldable(lines[j])) j++;
-          const body = lines.slice(i, j).map(renderLine, {add: i}).join("\n");
+          const body = lines.slice(i, j).map(renderLine,
+                                             {add: i, bg: bg}).join("\n");
           pieces.push(
             `<span class="fold open"><span class="fold-toggle">${j - i} lines` +
             `</span><span class="fold-body">\n${body}</span></span>`);
