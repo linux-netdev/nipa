@@ -191,7 +191,14 @@ class OrgLogger(Logger):
 
     def _sec_start(self, header):
         self._nl_write()
-        self._log_file.write("*" * self._level + " " + header + "\n")
+        self._log_file.write("*" * self._level + " " + header + " - " +
+                             datetime.datetime.now().isoformat() + "\n")
+        self._nl = True
+
+    def _sec_end(self):
+        self._nl_write()
+        self._log_file.write("*" * self._level + " end - " +
+                             datetime.datetime.now().isoformat() + "\n")
         self._nl = True
 
     def _log_data(self, data):
