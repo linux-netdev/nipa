@@ -78,6 +78,17 @@ class Logger:
         self.end_sec()
         self._log_flush()
 
+    def _rotate_log(self):
+        # copy the data in to a compressed file now
+        name = self._path + '-' + datetime.datetime.now().isoformat() + '.xz'
+
+        with open(self._path, "rb") as f:
+            with lzma.open(name, "w") as zf:
+                data = f.read()
+                while data:
+                    zf.write(data)
+                    data = f.read()
+
     def _maybe_close(self):
         if self._level:
             return
@@ -90,21 +101,16 @@ class Logger:
         self._log_file.close()
         self._log_file = None
 
-        # copy the data in to a compressed file now
-        name = self._path + '-' + datetime.datetime.now().isoformat() + '.xz'
-
-        with open(self._path, "rb") as f:
-            with lzma.open(name, "w") as zf:
-                data = f.read()
-                while data:
-                    zf.write(data)
-                    data = f.read()
+        self._rotate_log(self)
 
         # truncate the main log by re-opening
         self._log_file = open(self._path, "w+")
         self._log_open()
 
     def _log_open_init(self):
+        if os.path.isfile(self._path) and os.path.getsize(self._path) > 0:
+            self._rotate_log(self)
+
         self._log_file = open(self._path, "w+")
 
     def _log_open(self):
