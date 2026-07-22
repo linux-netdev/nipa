@@ -71,7 +71,7 @@ def cmd_run(cmd: List[str], shell=False, include_stderr=False, add_env=None, cwd
     if add_env:
         env.update(add_env)
 
-    core.log("START", datetime.datetime.now().strftime("%H:%M:%S.%f"))
+    core.log("START", datetime.datetime.now().isoformat())
 
     process = subprocess.Popen(cmd, shell=shell, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                env=env, cwd=cwd, pass_fds=pass_fds)
@@ -91,7 +91,7 @@ def cmd_run(cmd: List[str], shell=False, include_stderr=False, add_env=None, cwd
     core.log("RETCODE", process.returncode)
     core.log("STDOUT", stdout)
     core.log("STDERR", stderr)
-    core.log("END", datetime.datetime.now().strftime("%H:%M:%S.%f"))
+    core.log("END", datetime.datetime.now().isoformat())
     core.log_end_sec()
 
     if process.returncode != 0:
