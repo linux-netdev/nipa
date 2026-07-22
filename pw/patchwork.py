@@ -2,6 +2,7 @@
 #
 # Copyright (C) 2019 Netronome Systems, Inc.
 
+import datetime
 try:
     import simplejson as json
 except ImportError:
@@ -58,8 +59,10 @@ class Patchwork(object):
                 raise Exception("Patchwork project not found", config_project)
 
     def _request(self, url):
+        core.log_open_sec(f"Patchwork {self.server} request: {url}")
+        start = datetime.datetime.now()
+
         try:
-            core.log_open_sec(f"Patchwork {self.server} request: {url}")
             ret = self._session.get(url)
             core.log("Response", ret)
             try:
@@ -67,6 +70,8 @@ class Patchwork(object):
             except json.decoder.JSONDecodeError:
                 core.log("Response data", ret.content.decode())
         finally:
+            end = datetime.datetime.now()
+            core.log("Response time (sec)", (end - start).total_seconds())
             core.log_end_sec()
 
         return ret
