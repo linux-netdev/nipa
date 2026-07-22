@@ -174,6 +174,7 @@ class OrgLogger(Logger):
     def _log_open(self):
         self._log_file.write('# -*-Org-*-\n')
         self._nl = True
+        self._ts = {}
 
     def _log_close(self):
         self._nl_write()
@@ -190,15 +191,24 @@ class OrgLogger(Logger):
         return data.replace("\n*", "\n *")
 
     def _sec_start(self, header):
+        self._ts[self._level] = datetime.datetime.now()
         self._nl_write()
         self._log_file.write("*" * self._level + " " + header + " - " +
-                             datetime.datetime.now().isoformat() + "\n")
+                             self._ts[self._level].isoformat() + "\n")
         self._nl = True
 
     def _sec_end(self):
+        ts = datetime.datetime.now()
+        if self._level in self._ts:
+            delta = ts - self._ts[self._level]
+            sec = " (" + str(delta.total_seconds()) + " sec)"
+            del self._ts[self._level]
+        else:
+            sec = ""
+
         self._nl_write()
-        self._log_file.write("*" * self._level + " end - " +
-                             datetime.datetime.now().isoformat() + "\n")
+        self._log_file.write("*" * self._level + " end - " + ts.isoformat() +
+                             + sec + "\n")
         self._nl = True
 
     def _log_data(self, data):
