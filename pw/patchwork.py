@@ -31,7 +31,8 @@ class PatchworkPostException(Exception):
 class Patchwork(object):
     def __init__(self, config):
         self._session = requests.Session()
-        retry = Retry(connect=10, backoff_factor=1)
+        retry = Retry(connect=10, status=10, status_forcelist={502, 504},
+                      backoff_factor=1)
         adapter = HTTPAdapter(max_retries=retry)
         self._session.mount('http://', adapter)
         self._session.mount('https://', adapter)
