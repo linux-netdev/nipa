@@ -101,7 +101,7 @@ class Logger:
         self._log_file.close()
         self._log_file = None
 
-        self._rotate_log(self)
+        self._rotate_log()
 
         # truncate the main log by re-opening
         self._log_file = open(self._path, "w+")
@@ -109,7 +109,7 @@ class Logger:
 
     def _log_open_init(self):
         if os.path.isfile(self._path) and os.path.getsize(self._path) > 0:
-            self._rotate_log(self)
+            self._rotate_log()
 
         self._log_file = open(self._path, "w+")
 
