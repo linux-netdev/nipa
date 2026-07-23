@@ -15,13 +15,14 @@ import core.cmd as CMD
 from core import Patch
 
 
-# TODO: add patch and CmdError as init here
 class PatchApplyError(Exception):
-    pass
+    def __init__(self, err):
+        super().__init__(err)
 
 
 class PullError(Exception):
-    pass
+    def __init__(self, err):
+        super().__init__(err)
 
 
 class TreeNotClean(Exception):
@@ -237,7 +238,7 @@ class Tree:
                 self.git(["am", "--abort"])
             except CMD.CmdError:
                 pass
-            raise PatchApplyError(e) from e
+            raise PatchApplyError(e.stderr) from e
 
     def apply(self, thing):
         if isinstance(thing, Patch):
@@ -278,7 +279,7 @@ class Tree:
                 self.git(["merge", "--abort"])
             except CMD.CmdError:
                 pass
-            raise PullError(e) from e
+            raise PullError(e.stderr) from e
 
     def pull(self, pull_url, reset=True, trust_rerere=None, ff=None):
         core.log_open_sec("Pulling " + pull_url)

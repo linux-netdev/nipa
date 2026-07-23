@@ -119,9 +119,9 @@ def pwe_get_pending(pw, config) -> List:
     return things
 
 
-def pwe_set_apply_error(pw, patch_id, branch_name):
+def pwe_set_apply_error(pw, patch_id, branch_name, e):
     pw.post_check(patch_id, name="contest", state="fail", url="",
-                  desc=f"Conflicts with pending/net patches ({branch_name})")
+                  desc=f"Conflicts with pending/net patches ({branch_name}): {e}")
 
 
 def apply_pending_patches(pw, config, tree, branch_name) -> Tuple[List, List]:
@@ -144,8 +144,8 @@ def apply_pending_patches(pw, config, tree, branch_name) -> Tuple[List, List]:
             try:
                 tree.pull(entry["pull_url"], reset=False)
                 applied_prs.add(entry["id"])
-            except PullError:
-                pwe_set_apply_error(pw, entry["id"], branch_name)
+            except PullError as e:
+                pwe_set_apply_error(pw, entry["id"], branch_name, e)
         else:
             log_open_sec("Applying: " + entry["series"][0]["name"])
             seen_series.add(series_id)
@@ -155,10 +155,10 @@ def apply_pending_patches(pw, config, tree, branch_name) -> Tuple[List, List]:
             try:
                 tree.apply(p)
                 applied_series.add(series_id)
-            except PatchApplyError:
+            except PatchApplyError as e:
                 series_pw = pw.get("series", series_id)
                 for patch in series_pw["patches"]:
-                    pwe_set_apply_error(pw, patch["id"], branch_name)
+                    pwe_set_apply_error(pw, patch["id"], branch_name, e)
         log_end_sec()
     log_end_sec()
 
