@@ -119,7 +119,12 @@ def pwe_get_pending(pw, config) -> List:
     return things
 
 
-def apply_pending_patches(pw, config, tree) -> Tuple[List, List]:
+def pwe_set_apply_error(pw, patch_id, branch_name):
+    pw.post_check(patch_id, name="contest", state="fail", url="",
+                  desc=f"Conflicts with pending/net patches ({branch_name})")
+
+
+def apply_pending_patches(pw, config, tree, branch_name) -> Tuple[List, List]:
     log_open_sec("Get pending submissions from patchwork")
     things = pwe_get_pending(pw, config)
     log(f"Have {len(things)} pending things from patchwork")
@@ -140,7 +145,7 @@ def apply_pending_patches(pw, config, tree) -> Tuple[List, List]:
                 tree.pull(entry["pull_url"], reset=False)
                 applied_prs.add(entry["id"])
             except PullError:
-                pass
+                pwe_set_apply_error(pw, entry["id"], branch_name)
         else:
             log_open_sec("Applying: " + entry["series"][0]["name"])
             seen_series.add(series_id)
@@ -151,7 +156,9 @@ def apply_pending_patches(pw, config, tree) -> Tuple[List, List]:
                 tree.apply(p)
                 applied_series.add(series_id)
             except PatchApplyError:
-                pass
+                series_pw = pw.get("series", series_id)
+                for patch in series_pw["patches"]:
+                    pwe_set_apply_error(pw, patch["id"], branch_name)
         log_end_sec()
     log_end_sec()
 
@@ -280,7 +287,7 @@ def create_new(pw, config, state, tree, tgt_remote) -> None:
 
     state["hashes"][branch_name] = tree.head_hash()
 
-    series, prs = apply_pending_patches(pw, config, tree)
+    series, prs = apply_pending_patches(pw, config, tree, branch_name)
     state["info"][branch_name] |= {"series": series, "prs": prs}
 
     extras = apply_local_patches(config, tree)
