@@ -42,6 +42,7 @@ db=db-name
 psql_conn = None
 ignore_delegate = {}
 gate_checks = {}
+conflict_msg = "Conflicts with pending/net patches"
 
 
 def write_json_atomic(path, data):
@@ -119,7 +120,40 @@ def pwe_get_pending(pw, config) -> List:
     return things
 
 
-def apply_pending_patches(pw, config, tree) -> Tuple[List, List]:
+def pwe_has_contest_check(pw, entry) -> bool:
+    if "checks" not in entry:
+        return False
+
+    checks = pw.request(entry["checks"])
+    desc = ""
+    for c in checks:
+        # Take the last one
+        if c["context"] == "contest":
+            desc = c["description"] if "description" in c else ""
+
+    return desc.startswith(conflict_msg)
+
+
+def pwe_post_check(pw, entry, branch_name, e):
+    log("Setting 'fail' contest state for: " + entry["name"])
+    pw.post_check(entry["id"], name="contest", state="fail", url="",
+                  desc=f"{conflict_msg} ({branch_name}):\n{e}")
+
+
+def pwe_set_apply_error(pw, entry, branch_name, e, series_id=None):
+    log_open_sec("Set PW 'contest' check state")
+    if pwe_has_contest_check(pw, entry):
+        log("Skip: already has 'contest' check")
+    elif series_id is not None:
+        series_pw = pw.get("series", series_id)
+        for patch in series_pw["patches"]:
+            pwe_post_check(pw, patch, branch_name, e)
+    else:
+        pwe_post_check(pw, entry, branch_name, e)
+    log_end_sec()
+
+
+def apply_pending_patches(pw, config, tree, branch_name) -> Tuple[List, List]:
     log_open_sec("Get pending submissions from patchwork")
     things = pwe_get_pending(pw, config)
     log(f"Have {len(things)} pending things from patchwork")
@@ -139,8 +173,8 @@ def apply_pending_patches(pw, config, tree) -> Tuple[List, List]:
             try:
                 tree.pull(entry["pull_url"], reset=False)
                 applied_prs.add(entry["id"])
-            except PullError:
-                pass
+            except PullError as e:
+                pwe_set_apply_error(pw, entry, branch_name, e)
         else:
             log_open_sec("Applying: " + entry["series"][0]["name"])
             seen_series.add(series_id)
@@ -150,8 +184,8 @@ def apply_pending_patches(pw, config, tree) -> Tuple[List, List]:
             try:
                 tree.apply(p)
                 applied_series.add(series_id)
-            except PatchApplyError:
-                pass
+            except PatchApplyError as e:
+                pwe_set_apply_error(pw, entry, branch_name, e, series_id)
         log_end_sec()
     log_end_sec()
 
@@ -280,7 +314,7 @@ def create_new(pw, config, state, tree, tgt_remote) -> None:
 
     state["hashes"][branch_name] = tree.head_hash()
 
-    series, prs = apply_pending_patches(pw, config, tree)
+    series, prs = apply_pending_patches(pw, config, tree, branch_name)
     state["info"][branch_name] |= {"series": series, "prs": prs}
 
     extras = apply_local_patches(config, tree)
