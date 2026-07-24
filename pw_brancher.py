@@ -134,9 +134,23 @@ def pwe_has_contest_check(pw, entry) -> bool:
     return desc.startswith(conflict_msg)
 
 
-def pwe_set_apply_error(pw, patch_id, branch_name, e):
-    pw.post_check(patch_id, name="contest", state="fail", url="",
+def pwe_post_check(pw, entry, branch_name, e):
+    log("Setting 'fail' contest state for: " + entry["name"])
+    pw.post_check(entry["id"], name="contest", state="fail", url="",
                   desc=f"{conflict_msg} ({branch_name}):\n{e}")
+
+
+def pwe_set_apply_error(pw, entry, branch_name, e, series_id=None):
+    log_open_sec("Set PW 'contest' check state")
+    if pwe_has_contest_check(pw, entry):
+        log("Skip: already has 'contest' check")
+    elif series_id is not None:
+        series_pw = pw.get("series", series_id)
+        for patch in series_pw["patches"]:
+            pwe_post_check(pw, patch, branch_name, e)
+    else:
+        pwe_post_check(pw, entry, branch_name, e)
+    log_end_sec()
 
 
 def apply_pending_patches(pw, config, tree, branch_name) -> Tuple[List, List]:
@@ -160,8 +174,7 @@ def apply_pending_patches(pw, config, tree, branch_name) -> Tuple[List, List]:
                 tree.pull(entry["pull_url"], reset=False)
                 applied_prs.add(entry["id"])
             except PullError as e:
-                if not pwe_has_contest_check(pw, entry):
-                    pwe_set_apply_error(pw, entry["id"], branch_name, e)
+                pwe_set_apply_error(pw, entry, branch_name, e)
         else:
             log_open_sec("Applying: " + entry["series"][0]["name"])
             seen_series.add(series_id)
@@ -172,10 +185,7 @@ def apply_pending_patches(pw, config, tree, branch_name) -> Tuple[List, List]:
                 tree.apply(p)
                 applied_series.add(series_id)
             except PatchApplyError as e:
-                if not pwe_has_contest_check(pw, entry):
-                    series_pw = pw.get("series", series_id)
-                    for patch in series_pw["patches"]:
-                        pwe_set_apply_error(pw, patch["id"], branch_name, e)
+                pwe_set_apply_error(pw, entry, branch_name, e, series_id)
         log_end_sec()
     log_end_sec()
 
