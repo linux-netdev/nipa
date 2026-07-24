@@ -42,6 +42,7 @@ db=db-name
 psql_conn = None
 ignore_delegate = {}
 gate_checks = {}
+conflict_msg = "Conflicts with pending/net patches"
 
 
 def write_json_atomic(path, data):
@@ -119,9 +120,23 @@ def pwe_get_pending(pw, config) -> List:
     return things
 
 
+def pwe_has_contest_check(pw, entry) -> bool:
+    if "checks" not in entry:
+        return False
+
+    checks = pw.request(entry["checks"])
+    desc = ""
+    for c in checks:
+        # Take the last one
+        if c["context"] == "contest":
+            desc = c["description"] if "description" in c else ""
+
+    return desc.startswith(conflict_msg)
+
+
 def pwe_set_apply_error(pw, patch_id, branch_name, e):
     pw.post_check(patch_id, name="contest", state="fail", url="",
-                  desc=f"Conflicts with pending/net patches ({branch_name}): {e}")
+                  desc=f"{conflict_msg} ({branch_name}):\n{e}")
 
 
 def apply_pending_patches(pw, config, tree, branch_name) -> Tuple[List, List]:
@@ -145,7 +160,8 @@ def apply_pending_patches(pw, config, tree, branch_name) -> Tuple[List, List]:
                 tree.pull(entry["pull_url"], reset=False)
                 applied_prs.add(entry["id"])
             except PullError as e:
-                pwe_set_apply_error(pw, entry["id"], branch_name, e)
+                if not pwe_has_contest_check(pw, entry):
+                    pwe_set_apply_error(pw, entry["id"], branch_name, e)
         else:
             log_open_sec("Applying: " + entry["series"][0]["name"])
             seen_series.add(series_id)
@@ -156,9 +172,10 @@ def apply_pending_patches(pw, config, tree, branch_name) -> Tuple[List, List]:
                 tree.apply(p)
                 applied_series.add(series_id)
             except PatchApplyError as e:
-                series_pw = pw.get("series", series_id)
-                for patch in series_pw["patches"]:
-                    pwe_set_apply_error(pw, patch["id"], branch_name, e)
+                if not pwe_has_contest_check(pw, entry):
+                    series_pw = pw.get("series", series_id)
+                    for patch in series_pw["patches"]:
+                        pwe_set_apply_error(pw, patch["id"], branch_name, e)
         log_end_sec()
     log_end_sec()
 
