@@ -62,6 +62,7 @@ class Patchwork(object):
     def _request(self, url):
         core.log_open_sec(f"Patchwork {self.server} request: {url}")
         start = datetime.datetime.now()
+        core.log("Start", start)
 
         try:
             ret = self._session.get(url)
@@ -151,6 +152,7 @@ class Patchwork(object):
         url = f'{self._proto}{self.server}/api/{api}/{req}'
         core.log_open_sec(f"Patchwork {self.server} post: {url}")
         start = datetime.datetime.now()
+        core.log("Start", start)
 
         try:
             ret = self._session.post(url, headers=headers, data=data)
@@ -173,6 +175,7 @@ class Patchwork(object):
         url = f'{self._proto}{self.server}/api/{api}/{req}'
         core.log_open_sec(f"Patchwork {self.server} patch: {url}")
         start = datetime.datetime.now()
+        core.log("Start", start)
 
         try:
             ret = self._session.patch(url, headers=headers, data=data)
