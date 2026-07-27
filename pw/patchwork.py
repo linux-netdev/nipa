@@ -32,8 +32,9 @@ class PatchworkPostException(Exception):
 class Patchwork(object):
     def __init__(self, config):
         self._session = requests.Session()
+        allowed_methods = Retry.DEFAULT_ALLOWED_METHODS | {'POST', 'PATCH'}
         retry = Retry(connect=10, status=10, status_forcelist={502, 504},
-                      backoff_factor=1)
+                      allowed_methods=allowed_methods, backoff_factor=1)
         adapter = HTTPAdapter(max_retries=retry)
         self._session.mount('http://', adapter)
         self._session.mount('https://', adapter)
@@ -232,13 +233,6 @@ class Patchwork(object):
         }
 
         r = self._post(f'patches/{patch}/checks/', headers=headers, data=data)
-        for retry in range(3):
-            if r.status_code == 502 or r.status_code == 504:
-                # Timeout, let's wait 30 sec and retry, POST isn't retried by the lib.
-                time.sleep(30 << retry)
-                r = self._post(f'patches/{patch}/checks/', headers=headers, data=data)
-            else:
-                break
         if r.status_code != 201:
             raise PatchworkPostException(r)
 
