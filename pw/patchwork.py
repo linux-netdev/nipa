@@ -173,7 +173,10 @@ class Patchwork(object):
             core.log("Headers", headers)
             core.log("Data", data)
             core.log("Response", ret)
-            core.log("Response data", ret.json())
+            try:
+                core.log("Response data", ret.json())
+            except json.decoder.JSONDecodeError:
+                core.log("Response data", ret.content.decode())
         finally:
             core.log_end_sec()
 
