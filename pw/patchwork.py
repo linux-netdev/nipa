@@ -168,7 +168,7 @@ class Patchwork(object):
     def _patch(self, req, headers, data, api='1.1'):
         url = f'{self._proto}{self.server}/api/{api}/{req}'
         try:
-            core.log_open_sec(f"Patchwork {self.server} post: {url}")
+            core.log_open_sec(f"Patchwork {self.server} patch: {url}")
             ret = self._session.patch(url, headers=headers, data=data)
             core.log("Headers", headers)
             core.log("Data", data)
