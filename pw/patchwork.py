@@ -72,7 +72,7 @@ class Patchwork(object):
                 core.log("Response data", ret.content.decode())
         finally:
             end = datetime.datetime.now()
-            core.log("Response time (sec)", (end - start).total_seconds())
+            core.log("Response time GET (sec)", (end - start).total_seconds())
             core.log_end_sec()
 
         return ret
@@ -149,8 +149,10 @@ class Patchwork(object):
 
     def _post(self, req, headers, data, api='1.1'):
         url = f'{self._proto}{self.server}/api/{api}/{req}'
+        core.log_open_sec(f"Patchwork {self.server} post: {url}")
+        start = datetime.datetime.now()
+
         try:
-            core.log_open_sec(f"Patchwork {self.server} post: {url}")
             ret = self._session.post(url, headers=headers, data=data)
             core.log("Headers", headers)
             core.log("Data", data)
@@ -160,6 +162,8 @@ class Patchwork(object):
             except json.decoder.JSONDecodeError:
                 core.log("Response data", ret.content.decode())
         finally:
+            end = datetime.datetime.now()
+            core.log("Response time POST (sec)", (end - start).total_seconds())
             core.log_end_sec()
 
         return ret
@@ -167,8 +171,10 @@ class Patchwork(object):
     # PATCH as in the HTTP method, not getting a patch
     def _patch(self, req, headers, data, api='1.1'):
         url = f'{self._proto}{self.server}/api/{api}/{req}'
+        core.log_open_sec(f"Patchwork {self.server} patch: {url}")
+        start = datetime.datetime.now()
+
         try:
-            core.log_open_sec(f"Patchwork {self.server} patch: {url}")
             ret = self._session.patch(url, headers=headers, data=data)
             core.log("Headers", headers)
             core.log("Data", data)
@@ -178,6 +184,8 @@ class Patchwork(object):
             except json.decoder.JSONDecodeError:
                 core.log("Response data", ret.content.decode())
         finally:
+            end = datetime.datetime.now()
+            core.log("Response time PATCH (sec)", (end - start).total_seconds())
             core.log_end_sec()
 
         return ret
