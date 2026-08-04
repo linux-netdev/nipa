@@ -207,15 +207,31 @@ def remotes():
 def stability():
     # auto = query only tests which NIPA ignores based on stability
     auto = request.args.get('auto')
+    remote = request.args.get('remote')
+
+    clauses = []
+    params = []
+    if auto == "y" or auto == '1' or auto == 't':
+        clauses.append("autoignore = true")
+    elif auto == "n" or auto == '0' or auto == 'f':
+        clauses.append("autoignore = false")
+
+    if remote:
+        if re.match(r'^[\w_ -]+$', remote) is None:
+            return []
+        clauses.append("remote = %s")
+        params.append(remote)
 
     where = ""
-    if auto == "y" or auto == '1' or auto == 't':
-        where = "WHERE autoignore = true"
-    elif auto == "n" or auto == '0' or auto == 'f':
-        where = "WHERE autoignore = false"
+    if clauses:
+        where = " WHERE " + " AND ".join(clauses)
 
     with psql.cursor() as cur:
-        cur.execute(f"SELECT * FROM stability {where}")
+        query = f"SELECT * FROM stability{where}"
+        if params:
+            cur.execute(query, params)
+        else:
+            cur.execute(query)
 
         columns = [desc[0] for desc in cur.description]
         rows = cur.fetchall()
