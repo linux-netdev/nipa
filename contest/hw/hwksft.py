@@ -35,6 +35,8 @@ from lib.deployer import (build_kernel, build_ksft, deploy_artifacts,  # noqa: E
 # [remote]
 # branches=https://url-to-branches-manifest
 # filters=https://url-to-filters.json  (optional, crash ignore list)
+# stability=https://url-to-stability  (optional, known-bad subtests)
+# name=remote-name-used-in-stability
 # [local]
 # base_path=/common/path
 # json_path=base-relative/path/to/json
@@ -57,6 +59,55 @@ from lib.deployer import (build_kernel, build_ksft, deploy_artifacts,  # noqa: E
 # extra_kconfig=/path/to/nic-driver.config
 # [ksft]
 # target=net
+
+
+def fetch_known_bad(config):
+    """Fetch and compact known-bad subtests for this remote and executor."""
+    stability_url = config.get('remote', 'stability', fallback=None)
+    if not stability_url:
+        return None
+
+    remote_name = config.get('remote', 'name', fallback=None)
+    if not remote_name:
+        print("Warning: stability URL configured without remote name")
+        return None
+
+    executor_name = config.get('executor', 'name')
+    response = requests.get(stability_url,
+                            params={'auto': 'y', 'remote': remote_name},
+                            timeout=30)
+    response.raise_for_status()
+    rows = response.json()
+    if not isinstance(rows, list):
+        raise ValueError("stability response is not a list")
+
+    # The collector ignores autoignore entries until they have accumulated
+    # enough consecutive passes to set "passing".  Keep only L2 entries for
+    # this exact runner; L1 failures cannot safely justify skipping a retry.
+    known_bad = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        if row.get('remote') != remote_name:
+            continue
+        if row.get('executor') != executor_name:
+            continue
+        if not row.get('autoignore') or row.get('passing') is not None:
+            continue
+        # "passing is NULL" also covers new cases which have not yet built
+        # up enough passes to be considered stable.  Only suppress a retry
+        # when the case was already on a failure streak before this run.
+        if not isinstance(row.get('fail_cur'), int) or row['fail_cur'] <= 0:
+            continue
+        group = row.get('grp')
+        test_name = row.get('test')
+        subtest = row.get('subtest')
+        if not all(isinstance(value, str) and value
+                   for value in (group, test_name, subtest)):
+            continue
+        known_bad.setdefault(f'{group}/{test_name}', set()).add(subtest)
+
+    return {key: sorted(cases) for key, cases in sorted(known_bad.items())}
 
 
 def test(binfo, rinfo, cbarg):  # pylint: disable=unused-argument
@@ -189,12 +240,23 @@ def test(binfo, rinfo, cbarg):  # pylint: disable=unused-argument
         except Exception as e:
             print(f"Warning: failed to load crash filters: {e}")
 
+    known_bad = None
+    try:
+        known_bad = fetch_known_bad(config)
+        if known_bad is not None:
+            case_count = sum(len(cases) for cases in known_bad.values())
+            print(f"Loaded {case_count} known-bad subcases from "
+                  f"{config.get('remote', 'stability')}")
+    except Exception as e:
+        print(f"Warning: failed to load test stability: {e}")
+
     try:
         # 5. Deploy artifacts via SCP
         with open(os.path.join(results_path, 'deploy'), 'w', encoding='utf-8') as fp:
             set_log_file(fp)
             deploy_artifacts(config, machine_ips, reservation_id, nic_deploy_info,
-                             tree_path, kernel_version, filters=filters)
+                             tree_path, kernel_version, filters=filters,
+                             known_bad=known_bad)
             set_log_file(None)
 
         for attempt in range(max_crash_retries):

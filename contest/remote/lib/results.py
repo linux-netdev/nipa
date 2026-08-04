@@ -86,7 +86,13 @@ def parse_nested_tests(full_run, namify_fn, prev_results=None):
         else:
             continue
 
-        v = result_re.match(line).groups()
+        match = result_re.match(line)
+        if match is None:
+            # A description is optional in TAP, while the stability names
+            # require one.  Ignore points we cannot name; callers will then
+            # conservatively retain the parent failure (and its retry).
+            continue
+        v = match.groups()
         r = {'test': namify_fn(v[4])}
 
         if len(v) > 6 and v[5] and v[6]:

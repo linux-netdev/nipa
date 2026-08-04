@@ -141,7 +141,7 @@ def _derive_local_prefix_v6(local_v6):
 
 
 def deploy_artifacts(_config, machine_ips, reservation_id, nic_info, tree_path,
-                     kernel_version, filters=None):
+                     kernel_version, filters=None, known_bad=None):
     """SCP kernel + ksft bundle to the DUT.
 
     Deploys to /srv/hw-worker/tests/$reservation_id/ on the DUT (first
@@ -181,6 +181,19 @@ def deploy_artifacts(_config, machine_ips, reservation_id, nic_info, tree_path,
             tmp_path = fp.name
         try:
             _scp(tmp_path, dut_ip, f'{remote_dir}/filters.json')
+        finally:
+            os.unlink(tmp_path)
+
+    # Deploy the compact stability data even when it is empty.  An empty file
+    # records a successful fetch with no known-bad cases for this runner.
+    if known_bad is not None:
+        import tempfile as _tmpfile
+        with _tmpfile.NamedTemporaryFile(mode='w', suffix='.json',
+                                         delete=False) as fp:
+            json.dump(known_bad, fp)
+            tmp_path = fp.name
+        try:
+            _scp(tmp_path, dut_ip, f'{remote_dir}/known-bad.json')
         finally:
             os.unlink(tmp_path)
 

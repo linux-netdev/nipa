@@ -317,6 +317,7 @@ Config
 
  - NIC ID to test against
  - information about the branch stream to follow (like vmksft-p.py)
+ - stability endpoint URL and the remote name used by the results collector
  - path to extra kernel config (incl. the driver for the NIC in question)
  - reservation retry time (seconds)
  - max kexec boot timeout (seconds)
@@ -341,6 +342,11 @@ Upon detection of a new testing branch (each step may fail, of course):
    ``/srv/hw-worker/tests/$reservation_id``
    Test artefacts must include correct config file for NIPA HW test runner
    (NETIF, LOCAL_V4, LOCAL_V6, REMOTE_V4, REMOTE_V6, REMOTE_TYPE, etc).
+   If stability is configured, hwksft fetches entries for its remote, filters
+   them to currently ignored subtests already on a failure streak for its
+   executor, and deploys the compact result as ``known-bad.json``. The worker
+   skips a failed test's retry only when every failed nested subtest appears in
+   that file.
 5. kexec the machine into the newly deployed kernel
 6. Wait for machine to come back, and ``nipa-hw-worker`` service to exit,
    while refreshing the reservation. During this wait hwksft monitors

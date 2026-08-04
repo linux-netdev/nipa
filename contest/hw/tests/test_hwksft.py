@@ -11,6 +11,67 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from lib.mc_client import MCClient, resolve_machines
+from hwksft import fetch_known_bad
+
+
+class TestStability(unittest.TestCase):
+    @mock.patch('hwksft.requests.get')
+    def test_fetch_known_bad_compacts_for_runner(self, mock_get):
+        rows = [
+            {'remote': 'netdev-X', 'executor': 'hwksft-X',
+             'autoignore': True, 'passing': None, 'fail_cur': 3,
+             'grp': 'selftests-drivers-net', 'test': 'gro-py',
+             'subtest': 'bad-b'},
+            {'remote': 'netdev-X', 'executor': 'hwksft-X',
+             'autoignore': True, 'passing': None, 'fail_cur': 2,
+             'grp': 'selftests-drivers-net', 'test': 'gro-py',
+             'subtest': 'bad-a'},
+            # Stable, currently passing, another executor, and an L1 entry
+            # must not be deployed.
+            {'remote': 'netdev-X', 'executor': 'hwksft-X',
+             'autoignore': True, 'passing': 'Tue, 04 Aug 2026 00:00:00 GMT',
+             'fail_cur': 1,
+             'grp': 'selftests-drivers-net', 'test': 'gro-py',
+             'subtest': 'now-good'},
+            {'remote': 'netdev-X', 'executor': 'hwksft-X',
+             'autoignore': True, 'passing': None, 'fail_cur': 0,
+             'grp': 'selftests-drivers-net', 'test': 'gro-py',
+             'subtest': 'probationary-pass'},
+            {'remote': 'netdev-X', 'executor': 'hwksft-X-dbg',
+             'autoignore': True, 'passing': None, 'fail_cur': 1,
+             'grp': 'selftests-drivers-net', 'test': 'gro-py',
+             'subtest': 'debug-only'},
+            {'remote': 'netdev-X', 'executor': 'hwksft-X',
+             'autoignore': True, 'passing': None, 'fail_cur': 1,
+             'grp': 'selftests-drivers-net', 'test': 'gro-py',
+             'subtest': None},
+        ]
+        response = mock.Mock()
+        response.json.return_value = rows
+        mock_get.return_value = response
+        values = {
+            ('remote', 'stability'): 'https://example.test/stability',
+            ('remote', 'name'): 'netdev-X',
+            ('executor', 'name'): 'hwksft-X',
+        }
+        config = mock.Mock()
+        config.get.side_effect = lambda section, key, fallback=None: \
+            values.get((section, key), fallback)
+
+        result = fetch_known_bad(config)
+
+        self.assertEqual(result, {
+            'selftests-drivers-net/gro-py': ['bad-a', 'bad-b'],
+        })
+        mock_get.assert_called_once_with(
+            'https://example.test/stability',
+            params={'auto': 'y', 'remote': 'netdev-X'}, timeout=30)
+        response.raise_for_status.assert_called_once()
+
+    def test_fetch_known_bad_not_configured(self):
+        config = mock.Mock()
+        config.get.return_value = None
+        self.assertIsNone(fetch_known_bad(config))
 
 
 class TestMCClient(unittest.TestCase):
@@ -190,6 +251,28 @@ class TestDeployer(unittest.TestCase):
 
         # Should have multiple SSH/SCP calls
         self.assertTrue(mock_run.call_count > 0)
+
+    @mock.patch('lib.deployer._ssh')
+    @mock.patch('lib.deployer._scp')
+    def test_deploy_artifacts_known_bad(self, mock_scp, _mock_ssh):
+        from lib.deployer import deploy_artifacts
+
+        copied = {}
+
+        def capture(src, _remote_ip, dest, check=True):
+            del check
+            if dest.endswith('/known-bad.json'):
+                with open(src, encoding='utf-8') as fp:
+                    copied['data'] = json.load(fp)
+
+        mock_scp.side_effect = capture
+        known_bad = {'selftests-net/test-py': ['broken-case']}
+        deploy_artifacts(mock.Mock(), ['10.0.0.1'], 42, {}, '/tmp/tree',
+                         '6.12.0', known_bad=known_bad)
+
+        self.assertEqual(copied['data'], known_bad)
+        self.assertTrue(any(call.args[2].endswith('/known-bad.json')
+                            for call in mock_scp.call_args_list))
 
     @mock.patch('subprocess.run')
     def test_kexec(self, mock_run):

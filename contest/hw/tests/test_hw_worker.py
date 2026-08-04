@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from lib.runner import (find_newest_test, load_attempted,
                         mark_attempted, run_tests, DmesgReader,
-                        _run_one_test)
+                        _run_one_test, _known_bad_retry_decision)
 from lib.nipa import namify
 
 
@@ -256,6 +256,67 @@ class TestNamify(unittest.TestCase):
         self.assertEqual(namify(None), 'no-name')
 
 
+class TestKnownBadRetryDecision(unittest.TestCase):
+    OUTPUT = ('# TAP version 13\n'
+              '# 1..3\n'
+              '# not ok 1 - known failure\n'
+              '# ok 2 - passing case\n'
+              '# not ok 3 - another failure\n')
+
+    def test_all_failed_subcases_known_bad(self):
+        known_bad = {
+            'selftests-drivers-net/test1-py': [
+                'another-failure', 'known-failure',
+            ],
+        }
+        skip, reason = _known_bad_retry_decision(
+            self.OUTPUT, 'drivers/net', 'test1.py', known_bad)
+
+        self.assertTrue(skip)
+        self.assertEqual(
+            reason, 'all 2 failed cases match known bad, skipping retry')
+
+    def test_one_failed_subcase_unknown(self):
+        known_bad = {
+            'selftests-drivers-net/test1-py': ['known-failure'],
+        }
+        skip, reason = _known_bad_retry_decision(
+            self.OUTPUT, 'drivers/net', 'test1.py', known_bad)
+
+        self.assertFalse(skip)
+        self.assertEqual(
+            reason, 'case another-failure not found in known bad, retrying')
+
+    def test_no_nested_failures_retries(self):
+        skip, reason = _known_bad_retry_decision(
+            'not ok 1 selftests: net: test1.sh\n',
+            'net', 'test1.sh', {})
+
+        self.assertFalse(skip)
+        self.assertEqual(reason, 'no failed subcases found, retrying')
+
+    def test_descriptionless_failure_retries(self):
+        skip, reason = _known_bad_retry_decision(
+            '# TAP version 13\n# 1..1\n# not ok 1\n',
+            'net', 'test1.sh', {})
+
+        self.assertFalse(skip)
+        self.assertEqual(reason, 'no failed subcases found, retrying')
+
+    def test_timeout_retries_even_when_failure_known(self):
+        output = self.OUTPUT + 'NIPA RUNNER TIMEOUT 600 sec (hard stop)\n'
+        known_bad = {
+            'selftests-drivers-net/test1-py': [
+                'another-failure', 'known-failure',
+            ],
+        }
+        skip, reason = _known_bad_retry_decision(
+            output, 'drivers/net', 'test1.py', known_bad)
+
+        self.assertFalse(skip)
+        self.assertEqual(reason, 'test timed out, retrying')
+
+
 class TestRunTests(unittest.TestCase):
     def _read_info(self, results_dir, dir_name='0-test1-sh'):
         info_path = os.path.join(results_dir, dir_name, 'info')
@@ -316,6 +377,77 @@ class TestRunTests(unittest.TestCase):
 
             info = self._read_info(results_dir)
             self.assertEqual(info['retcode'], 1)
+
+    @mock.patch('builtins.print')
+    @mock.patch('lib.runner.DmesgReader')
+    @mock.patch('subprocess.Popen')
+    def test_known_bad_failures_skip_retry(self, mock_popen, mock_dmesg_cls,
+                                           mock_print):
+        mock_dmesg_cls.return_value.drain.return_value = ''
+        mock_popen.return_value = _fake_popen(
+            returncode=1,
+            stdout=(b'# TAP version 13\n# 1..2\n'
+                    b'# not ok 1 - known failure\n'
+                    b'# ok 2 - passing case\n'))
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_dir = os.path.join(tmpdir, 'tests')
+            results_dir = os.path.join(tmpdir, 'results')
+            os.makedirs(test_dir)
+            os.makedirs(results_dir)
+            with open(os.path.join(test_dir, 'kselftest-list.txt'), 'w') as fp:
+                fp.write('drivers/net:test1.py\n')
+            with open(os.path.join(test_dir, 'known-bad.json'), 'w') as fp:
+                json.dump({'selftests-drivers-net/test1-py':
+                           ['known-failure']}, fp)
+
+            run_tests(test_dir, results_dir)
+
+            self.assertEqual(mock_popen.call_count, 1)
+            self.assertFalse(os.path.exists(os.path.join(
+                results_dir, '0-test1-py-retry')))
+            info = self._read_info(results_dir, '0-test1-py')
+            self.assertNotIn('retry_retcode', info)
+
+        messages = [str(call.args[0]) for call in mock_print.call_args_list]
+        self.assertTrue(any('all 1 failed cases match known bad, '
+                            'skipping retry' in msg for msg in messages))
+
+    @mock.patch('builtins.print')
+    @mock.patch('lib.runner.DmesgReader')
+    @mock.patch('subprocess.Popen')
+    def test_unknown_failure_is_retried(self, mock_popen, mock_dmesg_cls,
+                                        mock_print):
+        mock_dmesg_cls.return_value.drain.return_value = ''
+        mock_popen.side_effect = [
+            _fake_popen(
+                returncode=1,
+                stdout=(b'# TAP version 13\n# 1..2\n'
+                        b'# not ok 1 - known failure\n'
+                        b'# not ok 2 - new failure\n')),
+            _fake_popen(returncode=0, stdout=b'ok 1 retry\n'),
+        ]
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_dir = os.path.join(tmpdir, 'tests')
+            results_dir = os.path.join(tmpdir, 'results')
+            os.makedirs(test_dir)
+            os.makedirs(results_dir)
+            with open(os.path.join(test_dir, 'kselftest-list.txt'), 'w') as fp:
+                fp.write('drivers/net:test1.py\n')
+            with open(os.path.join(test_dir, 'known-bad.json'), 'w') as fp:
+                json.dump({'selftests-drivers-net/test1-py':
+                           ['known-failure']}, fp)
+
+            run_tests(test_dir, results_dir)
+
+            self.assertEqual(mock_popen.call_count, 2)
+            info = self._read_info(results_dir, '0-test1-py')
+            self.assertEqual(info['retry_retcode'], 0)
+
+        messages = [str(call.args[0]) for call in mock_print.call_args_list]
+        self.assertTrue(any('case new-failure not found in known bad, '
+                            'retrying' in msg for msg in messages))
 
     @mock.patch('lib.runner.DmesgReader')
     @mock.patch('subprocess.Popen')

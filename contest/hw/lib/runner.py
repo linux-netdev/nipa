@@ -8,7 +8,7 @@ import signal
 import subprocess
 import time
 
-from lib.nipa import has_crash, extract_crash, namify
+from lib.nipa import has_crash, extract_crash, namify, parse_nested_tests
 
 
 # Per-test wall-clock limit before we start tearing the test down (seconds).
@@ -131,6 +131,47 @@ def load_filters(test_dir):
     except (json.JSONDecodeError, ValueError) as e:
         print(f"Warning: failed to parse {path}: {e}")
         return None
+
+
+def load_known_bad(test_dir):
+    """Load the compact known-bad subtest map deployed by hwksft."""
+    path = os.path.join(test_dir, 'known-bad.json')
+    if not os.path.exists(path):
+        print(f"Warning: no known-bad file at {path}")
+        return {}
+    try:
+        with open(path, encoding='utf-8') as fp:
+            data = json.load(fp)
+    except (json.JSONDecodeError, ValueError) as e:
+        print(f"Warning: failed to parse {path}: {e}")
+        return {}
+
+    if not isinstance(data, dict):
+        print(f"Warning: invalid known-bad data in {path}")
+        return {}
+    return data
+
+
+def _known_bad_retry_decision(stdout, target, prog, known_bad):
+    """Return whether a retry can be skipped and the basis for the decision."""
+    if 'NIPA RUNNER TIMEOUT ' in stdout:
+        return False, "test timed out, retrying"
+
+    nested = parse_nested_tests(stdout, namify)
+    failed = [case['test'] for case in nested if case['result'] == 'fail']
+    if not failed:
+        return False, "no failed subcases found, retrying"
+
+    key = f'selftests-{namify(target)}/{namify(prog)}'
+    cases = known_bad.get(key, [])
+    known = ({case for case in cases if isinstance(case, str)}
+             if isinstance(cases, list) else set())
+    for case in failed:
+        if case not in known:
+            return False, f"case {case} not found in known bad, retrying"
+
+    return True, (f"all {len(failed)} failed cases match known bad, "
+                  "skipping retry")
 
 
 def _has_real_crash(dmesg_text, filters):
@@ -288,6 +329,7 @@ def run_tests(test_dir, results_dir):
 
     # Load crash filters (deployed by hwksft)
     filters = load_filters(test_dir)
+    known_bad = load_known_bad(test_dir)
 
     # Open dmesg once, drain boot messages
     dmesg = DmesgReader()
@@ -328,6 +370,9 @@ def run_tests(test_dir, results_dir):
         # Run the test
         retcode, elapsed = _run_one_test(test_dir, test_results_dir,
                                          target, prog)
+        with open(os.path.join(test_results_dir, 'stdout'),
+                  encoding='utf-8') as fp:
+            stdout = fp.read()
 
         # Drain dmesg produced during this test
         test_dmesg = dmesg.drain()
@@ -351,24 +396,28 @@ def run_tests(test_dir, results_dir):
         # Retry if the test failed and no crash
         retry_retcode = None
         if retcode not in (0, 4) and not crashed:
-            print(f"[{test_idx+1}/{len(tests)}] Retrying {test_name}")
-            retry_dir = os.path.join(results_dir, f'{dir_name}-retry')
-            os.makedirs(retry_dir, exist_ok=True)
-            retry_retcode, _retry_elapsed = _run_one_test(
-                test_dir, retry_dir, target, prog)
-            # Drain retry dmesg
-            retry_dmesg = dmesg.drain()
-            if retry_dmesg:
-                with open(os.path.join(retry_dir, 'dmesg'), 'w',
-                          encoding='utf-8') as fp:
-                    fp.write(retry_dmesg)
-                if _has_real_crash(retry_dmesg, filters):
-                    crashed = True
-                if has_crash(retry_dmesg):
-                    _lines, rfps = extract_crash(retry_dmesg, '', lambda: filters)
-                    crash_fps.update(rfps)
-            print(f"[{test_idx+1}/{len(tests)}] {test_name}: "
-                  f"retry rc={retry_retcode}")
+            skip_retry, reason = _known_bad_retry_decision(
+                stdout, target, prog, known_bad)
+            print(f"[{test_idx+1}/{len(tests)}] {test_name}: {reason}")
+            if not skip_retry:
+                retry_dir = os.path.join(results_dir, f'{dir_name}-retry')
+                os.makedirs(retry_dir, exist_ok=True)
+                retry_retcode, _retry_elapsed = _run_one_test(
+                    test_dir, retry_dir, target, prog)
+                # Drain retry dmesg
+                retry_dmesg = dmesg.drain()
+                if retry_dmesg:
+                    with open(os.path.join(retry_dir, 'dmesg'), 'w',
+                              encoding='utf-8') as fp:
+                        fp.write(retry_dmesg)
+                    if _has_real_crash(retry_dmesg, filters):
+                        crashed = True
+                    if has_crash(retry_dmesg):
+                        _lines, rfps = extract_crash(
+                            retry_dmesg, '', lambda: filters)
+                        crash_fps.update(rfps)
+                print(f"[{test_idx+1}/{len(tests)}] {test_name}: "
+                      f"retry rc={retry_retcode}")
 
         # Save metadata
         info = {'retcode': retcode, 'time': elapsed,
