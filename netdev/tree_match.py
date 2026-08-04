@@ -77,6 +77,7 @@ def _tree_name_should_be_local_files(raw_email):
         'drivers/nfc/',
         'drivers/ptp/',
         'drivers/net/ethernet/',
+        'drivers/usb/atm/',
         'kernel/bpf/',
         'tools/net/',
         'tools/testing/selftests/drivers/net/',
