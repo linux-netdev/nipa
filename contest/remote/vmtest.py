@@ -129,6 +129,7 @@ def test(binfo, rinfo, cbarg):
     vm.stop()
     vm.dump_log(results_path + '/vm-stop-' + str(vm_id))
 
+    os.mknod(os.path.join(results_path, ".tester_done"))
     print("Done at", datetime.datetime.now())
 
     return cases

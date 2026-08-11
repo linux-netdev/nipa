@@ -369,6 +369,7 @@ def test(binfo, rinfo, cbarg):  # pylint: disable=unused-argument
         except Exception as e:
             print(f"Warning: failed to close reservation {reservation_id}: {e}")
 
+    os.mknod(os.path.join(results_path, ".tester_done"))
     print("Done at", datetime.datetime.now())
     if cases is None:
         cases = [{

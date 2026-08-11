@@ -76,6 +76,9 @@ def test(binfo, rinfo, config):
            config.get('local', 'results_path') + '/' + \
            rinfo['run-cookie']
 
+    os.mknod(os.path.join(results_path, ".tester_done"))
+    print("Done at", datetime.datetime.now())
+
     return [{'test': config.get('executor', 'test'),
              'group': config.get('executor', 'group'),
              'result': res, 'link': link}]
