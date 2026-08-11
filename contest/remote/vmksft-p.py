@@ -317,6 +317,7 @@ def test(binfo, rinfo, cbarg):
     if not in_queue.empty():
         print("ERROR: in queue is not empty")
 
+    os.mknod(os.path.join(results_path, ".tester_done"))
     print("Done at", datetime.datetime.now())
 
     return cases

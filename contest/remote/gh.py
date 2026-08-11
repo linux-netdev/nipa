@@ -219,6 +219,9 @@ def test(binfo, rinfo, cbarg):
                 one['retry'] = one2['result']
                 break
 
+    os.mknod(os.path.join(results_path, ".tester_done"))
+    print("Done at", datetime.datetime.now())
+
     return res
 
 

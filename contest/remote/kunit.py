@@ -194,6 +194,7 @@ def test(binfo, rinfo, config):
                   'group': config.get('executor', 'group'),
                   'result': 'fail', 'link': link}]
 
+    os.mknod(os.path.join(results_path, ".tester_done"))
     print("Done at", datetime.datetime.now())
 
     return cases
