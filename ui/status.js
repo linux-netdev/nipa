@@ -468,8 +468,8 @@ function load_partial_tests(data)
     let total = {};
 
     $.each(data, function(i, v) {
-	// Ignore tests from AWOL executors, that should be rare
-	if (v.executor in awol_executors)
+	// Ignore tests from AWOL runners, that should be rare
+	if (awol_runners.has(nipa_runner_key(v)))
 	    return 1;
 
 	if (v.executor == "brancher") {
@@ -799,7 +799,7 @@ function load_result_table_one(data_raw, table, reported, avgs)
     add_summaries(table, summary, reported);
 }
 
-var awol_executors;
+var awol_runners;
 
 function load_result_table(data_raw, reload)
 {
@@ -881,7 +881,7 @@ function load_result_table(data_raw, reload)
     }
 
     let known_exec_set = new Set(Object.keys(known_execs));
-    awol_executors = new Set();
+    awol_runners = new Set();
     for (br of branches) {
 	for (re of known_exec_set) {
 	    if (branch_execs[br].has(re))
@@ -899,7 +899,7 @@ function load_result_table(data_raw, reload)
 		"start" : branch_start[br],
 		"end" : 0,
 	    });
-	    awol_executors.add(known_execs[re].executor);
+	    awol_runners.add(re);
 	}
     }
 
