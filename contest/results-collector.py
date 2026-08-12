@@ -295,6 +295,44 @@ def remote_run_key(run):
     return (run['executor'], run['branch'])
 
 
+class RemoteManifestError(ValueError):
+    pass
+
+
+def validate_manifest_result_basenames(manifest):
+    """Ensure completed runs have unique local cache filenames.
+    Results are cached by URL basename, so distinct runs must not share one.
+    Raise RemoteManifestError on a collision; pending runs are ignored."""
+    result_files = {}
+
+    for run in manifest:
+        if not run.get('url'):
+            continue
+
+        basename = os.path.basename(run['url'])
+        identity = remote_run_key(run)
+        previous = result_files.get(basename)
+        if previous is None:
+            result_files[basename] = (identity, run['url'])
+            continue
+        if previous == (identity, run['url']):
+            continue
+
+        raise RemoteManifestError(
+            f'result filename {basename!r} is shared by '
+            f'{previous[0][0]}/{previous[0][1]} and '
+            f'{identity[0]}/{identity[1]}')
+
+
+def report_broken_remote(remote, error):
+    print(f'ERROR: Broken remote "{remote["name"]}": {error}')
+
+
+def result_matches_manifest_entry(result, entry):
+    return result.get('executor') == entry.get('executor') and \
+        result.get('branch') == entry.get('branch')
+
+
 def fetch_remote(fetcher, remote, seen):
     print("Fetching remote", remote['url'])
     try:
@@ -308,6 +346,13 @@ def fetch_remote(fetcher, remote, seen):
     except json.decoder.JSONDecodeError:
         print('WARN: Failed to decode manifest from remote:', remote['name'])
         return
+
+    try:
+        validate_manifest_result_basenames(manifest)
+    except RemoteManifestError as error:
+        report_broken_remote(remote, error)
+        return
+
     remote_state = seen[remote['name']]
 
     for run in manifest:
@@ -407,6 +452,10 @@ def build_combined(fetcher, remote_db):
 
         with open(manifest, "r") as fp:
             results = json.load(fp)
+        try:
+            validate_manifest_result_basenames(results)
+        except RemoteManifestError as error:
+            report_broken_remote(remote, error)
 
         for entry in results:
             if not entry['url']:    # Executor is running
@@ -425,6 +474,9 @@ def build_combined(fetcher, remote_db):
                     continue
                 with open(file, "r") as fp:
                     data = json.load(fp)
+                if not result_matches_manifest_entry(data, entry):
+                    print('ERROR: Cached result does not match manifest:', file)
+                    continue
 
             data['remote'] = name
             combined.append(data)
@@ -457,6 +509,13 @@ def build_seen(fetcher, remote_db):
 
         with open(manifest, "r") as fp:
             results = json.load(fp)
+        manifest_broken = False
+        try:
+            validate_manifest_result_basenames(results)
+        except RemoteManifestError as error:
+            report_broken_remote(remote, error)
+            manifest_broken = True
+
         for entry in results:
             run_key = remote_run_key(entry)
             if not entry.get('url'):
@@ -466,6 +525,11 @@ def build_seen(fetcher, remote_db):
             file = os.path.join(dir, os.path.basename(entry['url']))
             if not os.path.exists(file):
                 continue
+            if manifest_broken:
+                with open(file, "r") as fp:
+                    data = json.load(fp)
+                if not result_matches_manifest_entry(data, entry):
+                    continue
             seen[name]['seen'].add(run_key)
     return seen
 
