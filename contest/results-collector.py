@@ -409,8 +409,7 @@ def fetch_remote(fetcher, remote, seen):
             remote_state['wip'].discard(run_key)
             fetcher.fetched = True
 
-    with open(previous_path, "w") as fp:
-        json.dump(manifest, fp)
+    write_json_atomic(previous_path, manifest)
 
 
 def apply_stability(fetcher, data, unstable):
