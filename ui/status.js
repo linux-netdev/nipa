@@ -870,11 +870,9 @@ function load_result_table(data_raw, reload)
 	    known_execs[re] = {
 		"executor": v.executor,
 		"remote" : v.remote,
-		"br_pfx" : new Set(),
-		"branches" : new Set()
+		"br_pfx" : new Set()
 	    };
 	known_execs[re].br_pfx.add(v.br_pfx);
-	known_execs[re].branches.add(v.branch);
     }
 
     let known_exec_set = new Set(Object.keys(known_execs));
