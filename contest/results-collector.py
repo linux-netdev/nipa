@@ -290,6 +290,11 @@ def fetch_remote_run(fetcher, remote, run_info, remote_state):
     return True
 
 
+def remote_run_key(run):
+    """Return the per-remote identity of a manifest run."""
+    return (run['executor'], run['branch'])
+
+
 def fetch_remote(fetcher, remote, seen):
     print("Fetching remote", remote['url'])
     try:
@@ -306,16 +311,20 @@ def fetch_remote(fetcher, remote, seen):
     remote_state = seen[remote['name']]
 
     for run in manifest:
-        if run['branch'] in remote_state['seen']:
+        run_key = remote_run_key(run)
+        if run_key in remote_state['seen']:
             continue
         if not run['url']:    # Executor has not finished, yet
-            if run['branch'] not in remote_state['wip']:
+            if run_key not in remote_state['wip']:
                 fetcher.psql_insert_wip(remote, run)
+                remote_state['wip'].add(run_key)
                 fetcher.fetched = True
             continue
 
         print('Fetching run', run['branch'])
         if fetch_remote_run(fetcher, remote, run, remote_state):
+            remote_state['seen'].add(run_key)
+            remote_state['wip'].discard(run_key)
             fetcher.fetched = True
 
     with open(os.path.join(remote_state['dir'], 'results.json'), "w") as fp:
@@ -449,14 +458,15 @@ def build_seen(fetcher, remote_db):
         with open(manifest, "r") as fp:
             results = json.load(fp)
         for entry in results:
+            run_key = remote_run_key(entry)
             if not entry.get('url'):
-                seen[name]['wip'].add(entry.get('branch'))
+                seen[name]['wip'].add(run_key)
                 print('No URL on', entry, 'from', remote['name'])
                 continue
             file = os.path.join(dir, os.path.basename(entry['url']))
             if not os.path.exists(file):
                 continue
-            seen[name]['seen'].add(entry.get('branch'))
+            seen[name]['seen'].add(run_key)
     return seen
 
 
