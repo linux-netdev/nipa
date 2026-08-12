@@ -535,10 +535,10 @@ function add_summaries(table, summary, reported)
     let cell = row.insertCell(i++); // branch
     cell.innerHTML = "summary";
 
-    cell = row.insertCell(i++);     // remote
-    let count_line = summary["remote-cnt"] + " remotes";
+    cell = row.insertCell(i++);     // runner
+    let count_line = summary["runner-cnt"] + " runners";
     if (summary["hidden"]) {
-	if (summary["hidden"] == summary["remote-cnt"])
+	if (summary["hidden"] == summary["runner-cnt"])
 	    count_line += " (all hidden)";
 	else
 	    count_line += " (" + summary["hidden"] + " hidden)";
@@ -576,7 +576,7 @@ function add_summaries(table, summary, reported)
 function reset_summary(summary, branch)
 {
     summary["branch"] = branch;
-    summary["remote-cnt"] = 0;
+    summary["runner-cnt"] = 0;
     summary["time-pass"] = 0;
     summary["total"] = 0;
     summary["skip"] = 0;
@@ -649,7 +649,7 @@ function load_result_table_one(data_raw, table, reported, avgs)
 	if (v.executor != "brancher") {
 	    summary["total"] += total;
 	    if (total) {
-		summary["remote-cnt"] += 1;
+		summary["runner-cnt"] += 1;
 		if (summary["time-pass"] < t_end - t_start)
 		    summary["time-pass"] = t_end - t_start;
 	    }
