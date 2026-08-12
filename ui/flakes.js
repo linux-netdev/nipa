@@ -51,11 +51,10 @@ function load_result_table(data_raw)
 	    if (pw_n == false && nipa_pw_reported(v, r) == false)
 		return 1;
 
-	    const tn = v.remote + '/' + r.group + '/' + r.test;
+	    const tn = nipa_test_fullname(v, r);
 	    if (needle && !tn.includes(needle))
 		return 1;
-	    const stability_tn = nipa_test_fullname(v, r);
-	    if (hw_stable && stability_set && !stability_set.has(stability_tn))
+	    if (hw_stable && stability_set && !stability_set.has(tn))
 		return 1;
 
 	    r.visible = true;
@@ -82,7 +81,7 @@ function load_result_table(data_raw)
 	    if (!r.visible)
 		return 1;
 
-	    const tn = v.remote + '/' + r.group + '/' + r.test;
+	    const tn = nipa_test_fullname(v, r);
 	    tn_urls[tn] = {
 		"remote": v.remote,
 		"executor": v.executor,
