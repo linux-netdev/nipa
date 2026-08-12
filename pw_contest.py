@@ -102,21 +102,41 @@ def results_summary_combine(a, b):
 def results_pivot(filters: dict, results: dict) -> dict:
     """
     results come in as a list, we want to flip them into:
-    { "branch-name": {"remote-name": {"code": ...}, }, }
+    { "branch-name": {"remote-name": {"executor-name": {"code": ...}}}}
     """
     flipped = {}
     for entry in results:
         if entry['branch'] not in flipped:
             flipped[entry['branch']] = {}
         if entry['remote'] not in flipped[entry['branch']]:
-            flipped[entry['branch']][entry['remote']] = \
-                results_summarize({}, {})
+            flipped[entry['branch']][entry['remote']] = {}
+        remote = flipped[entry['branch']][entry['remote']]
+        if entry['executor'] not in remote:
+            remote[entry['executor']] = results_summarize({}, {})
 
-        old = flipped[entry['branch']][entry['remote']]
+        old = remote[entry['executor']]
         new = results_summarize(filters, entry)
-        flipped[entry['branch']][entry['remote']] = \
-            results_summary_combine(old, new)
+        remote[entry['executor']] = results_summary_combine(old, new)
     return flipped
+
+
+def remote_summary(branch: dict, remote: str):
+    if remote not in branch:
+        return None
+
+    code = 0
+    cnt = 0
+    pending = False
+    for result in branch[remote].values():
+        cnt += result['cnt']
+        if result['code'] in unreal_results:
+            pending = True
+        else:
+            code = max(code, result['code'])
+
+    if pending:
+        return {'result': 'pending', 'code': Codes.UNKNOWN, 'cnt': cnt}
+    return {'result': code_to_str[code], 'code': code, 'cnt': cnt}
 
 
 def branch_summarize(filters: dict, results_by_branch: dict) -> dict:
@@ -126,12 +146,13 @@ def branch_summarize(filters: dict, results_by_branch: dict) -> dict:
         test_cnt = 0
         pending = 0
         for remote in filters["remotes"]:
+            result = remote_summary(branch, remote)
             new_code = Codes.PENDING
-            if remote in branch:
+            if result:
                 # Stick to Pending for all unreal results
-                if branch[remote]['code'] not in unreal_results:
-                    new_code = branch[remote]['code']
-                test_cnt += branch[remote]["cnt"]
+                if result['code'] not in unreal_results:
+                    new_code = result['code']
+                test_cnt += result["cnt"]
             code = max(code, new_code)
             if new_code == Codes.PENDING:
                 pending += 1
