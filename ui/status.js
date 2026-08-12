@@ -595,7 +595,7 @@ function contest_create_table(stream_name, container)
     container.appendChild(table);
 
     var hdr = table.insertRow();
-    var headers = ["Branch", "Remote", "Time", "Tests", "Result"];
+    var headers = ["Branch", "Runner", "Time", "Tests", "Result"];
     $.each(headers, function(i, name) {
 	var th = document.createElement("th");
 	th.innerText = name;
@@ -680,7 +680,7 @@ function load_result_table_one(data_raw, table, reported, avgs)
 	var row = table.insertRow();
 
 	var branch = row.insertCell(0);
-	var remote = row.insertCell(1);
+	var runner = row.insertCell(1);
 
 	    var a = "<a href=\"" + link + "\">";
 
@@ -688,9 +688,9 @@ function load_result_table_one(data_raw, table, reported, avgs)
 	    var time = row.insertCell(2);
 
 	    if (link)
-		remote.innerHTML = a + v.remote + "</a>";
+		runner.innerHTML = a + nipa_runner_key(v) + "</a>";
 	    else
-		remote.innerHTML = v.remote;
+		runner.innerHTML = nipa_runner_key(v);
 	    if (total) {
 		var cnt = row.insertCell(3);
 		var res = row.insertCell(4);
@@ -781,10 +781,10 @@ function load_result_table_one(data_raw, table, reported, avgs)
 	    let br_pull = "";
 
 	    if (v.start)
-		remote.innerHTML = v.start.toLocaleString();
+		runner.innerHTML = v.start.toLocaleString();
 	    else
-		remote.innerHTML = "unknown";
-	    remote.setAttribute("colspan", "3");
+		runner.innerHTML = "unknown";
+	    runner.setAttribute("colspan", "3");
 	    if (v.pull_status != "okay")
 		br_pull = " (pull: " + v.pull_status + ")";
 	    a =	"<a href=\"branch_deltas/" + v.branch + ".html\">";
