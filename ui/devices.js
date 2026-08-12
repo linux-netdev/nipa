@@ -110,7 +110,7 @@ function load_tables()
 	let tn = ste.grp + ':' + ste.test + ':' + ste.subtest;
 	if (ste.subtest == null)
 	    tn = ste.grp + ':' + ste.test + ':';
-	let rn = ste.remote + ste.executor;
+	let rn = nipa_runner_key(ste);
 
 	if (!(tn in sta_db)) {
 	    sta_db[tn] = {};
@@ -150,7 +150,7 @@ function load_tables()
     let dev_body_old = dev_table_old.createTBody();
 
     for (dev of dev_info) {
-	let rn = dev.remote + dev.executor;
+	let rn = nipa_runner_key(dev);
 	if (!rn_seen.has(rn))
 	    continue;
 
@@ -173,7 +173,7 @@ function load_tables()
 
 	row.insertCell(4).innerText = rn_score[rn];
 
-	display_names[dev.remote + dev.executor] =
+	display_names[rn] =
 	    dev.remote + '<br />' + dev.executor + '<br />' + driver;
     }
 
