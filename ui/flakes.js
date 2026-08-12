@@ -54,7 +54,8 @@ function load_result_table(data_raw)
 	    const tn = v.remote + '/' + r.group + '/' + r.test;
 	    if (needle && !tn.includes(needle))
 		return 1;
-	    if (hw_stable && stability_set && !stability_set.has(tn))
+	    const stability_tn = nipa_test_fullname(v, r);
+	    if (hw_stable && stability_set && !stability_set.has(stability_tn))
 		return 1;
 
 	    r.visible = true;
@@ -226,7 +227,8 @@ function build_stability_set(data_raw)
     stability_set = new Set();
     for (const ste of data_raw) {
 	if (ste.passing) {
-	    let tn = ste.remote + '/' + ste.grp + '/' + ste.test;
+	    let tn = ste.remote + '/' + ste.executor + '/' +
+		ste.grp + '/' + ste.test;
 	    stability_set.add(tn);
 	    if (ste.subtest)
 		stability_set.add(tn + '.' + ste.subtest);
