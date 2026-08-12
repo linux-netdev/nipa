@@ -32,9 +32,19 @@ function nipa_br_pfx_get(name)
     return name.substring(0, name.length - 18);
 }
 
+function nipa_runner_key(v)
+{
+    return v.remote + "/" + v.executor;
+}
+
+function nipa_test_key(runner, group, test)
+{
+    return runner + "/" + group + "/" + test;
+}
+
 function nipa_test_fullname(v, r)
 {
-    return v.remote + "/" + v.executor + "/" + r.group + "/" + r.test;
+    return nipa_test_key(nipa_runner_key(v), r.group, r.test);
 }
 
 function nipa_link(path, params, text, style=null)

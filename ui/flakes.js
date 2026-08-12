@@ -227,8 +227,7 @@ function build_stability_set(data_raw)
     stability_set = new Set();
     for (const ste of data_raw) {
 	if (ste.passing) {
-	    let tn = ste.remote + '/' + ste.executor + '/' +
-		ste.grp + '/' + ste.test;
+	    let tn = nipa_test_key(nipa_runner_key(ste), ste.grp, ste.test);
 	    stability_set.add(tn);
 	    if (ste.subtest)
 		stability_set.add(tn + '.' + ste.subtest);

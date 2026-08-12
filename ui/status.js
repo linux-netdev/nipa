@@ -437,7 +437,7 @@ function colorify_str_psf(str_psf, name, value, color)
 
 function avg_time_e(avgs, v)
 {
-    const ent_name = v.remote + '/' + v.executor;
+    const ent_name = nipa_runner_key(v);
 
     if (!(ent_name in avgs))
 	return 0;
@@ -482,7 +482,7 @@ function load_partial_tests(data)
 
 	// Track pending executors
 	if (v.results == null) {
-	    let name = rem_exe(v);
+	    let name = nipa_runner_key(v);
 
 	    if (name in pending_executors)
 		pending_executors[name]++;
@@ -799,11 +799,6 @@ function load_result_table_one(data_raw, table, reported, avgs)
     add_summaries(table, summary, reported);
 }
 
-function rem_exe(v)
-{
-    return v.remote + "/" + v.executor;
-}
-
 var awol_executors;
 
 function load_result_table(data_raw, reload)
@@ -848,7 +843,7 @@ function load_result_table(data_raw, reload)
 	if (!v.results)
 	    return 1;
 
-	const ent_name = rem_exe(v);
+	const ent_name = nipa_runner_key(v);
 
 	if (!(ent_name in avgs))
 	    avgs[ent_name] = {"cnt": 0, "sum": 0, "min-dly": 0};
@@ -868,7 +863,7 @@ function load_result_table(data_raw, reload)
     let known_execs = {};
     let branch_execs = {};
     for (v of data_raw) {
-	let re = rem_exe(v);
+	let re = nipa_runner_key(v);
 
 	if (!(v.branch in branch_execs))
 	    branch_execs[v.branch] = new Set();
