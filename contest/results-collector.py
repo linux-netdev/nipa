@@ -324,6 +324,31 @@ def validate_manifest_result_basenames(manifest):
             f'{identity[0]}/{identity[1]}')
 
 
+def validate_manifest_wip_order(previous, current):
+    """Reject WIPs from new executors after a completed result.
+    Executors present in the previous manifest may return to WIP for retries.
+    Raise RemoteManifestError if an unknown executor appears as WIP."""
+    previous_executors = {}
+    finished = set()
+    for run in previous:
+        previous_executors.setdefault(run['branch'], set()).add(run['executor'])
+        if run.get('url'):
+            finished.add(run['branch'])
+
+    current_wip = {}
+    for run in current:
+        if not run.get('url'):
+            current_wip.setdefault(run['branch'], set()).add(run['executor'])
+
+    for branch in finished:
+        new_wip = current_wip.get(branch, set()) - \
+            previous_executors.get(branch, set())
+        if new_wip:
+            raise RemoteManifestError(
+                f'new WIP executors {sorted(new_wip)!r} appeared for '
+                f'{branch!r} after a result was completed')
+
+
 def report_broken_remote(remote, error):
     print(f'ERROR: Broken remote "{remote["name"]}": {error}')
 
@@ -354,6 +379,18 @@ def fetch_remote(fetcher, remote, seen):
         return
 
     remote_state = seen[remote['name']]
+    previous_path = os.path.join(remote_state['dir'], 'results.json')
+    try:
+        with open(previous_path, "r") as fp:
+            previous = json.load(fp)
+    except FileNotFoundError:
+        previous = []
+
+    try:
+        validate_manifest_wip_order(previous, manifest)
+    except RemoteManifestError as error:
+        report_broken_remote(remote, error)
+        return
 
     for run in manifest:
         run_key = remote_run_key(run)
@@ -372,7 +409,7 @@ def fetch_remote(fetcher, remote, seen):
             remote_state['wip'].discard(run_key)
             fetcher.fetched = True
 
-    with open(os.path.join(remote_state['dir'], 'results.json'), "w") as fp:
+    with open(previous_path, "w") as fp:
         json.dump(manifest, fp)
 
 
