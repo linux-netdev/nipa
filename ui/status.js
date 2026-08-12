@@ -462,9 +462,10 @@ function wrap_link(objA, objB, text)
 function load_partial_tests(data)
 {
     let table = document.getElementById("test-presence");
-    let pending_executors = {};
+    let pending_runners = {};
     let count_map = {};
     let br_map = {};
+    let runner_map = {};
     let total = {};
 
     $.each(data, function(i, v) {
@@ -480,14 +481,14 @@ function load_partial_tests(data)
 	    return 1;
 	}
 
-	// Track pending executors
+	// Track pending runners
 	if (v.results == null) {
 	    let name = nipa_runner_key(v);
 
-	    if (name in pending_executors)
-		pending_executors[name]++;
+	    if (name in pending_runners)
+		pending_runners[name]++;
 	    else
-		pending_executors[name] = 1;
+		pending_runners[name] = 1;
 	}
 
 	$.each(v.results, function(i, r) {
@@ -498,6 +499,7 @@ function load_partial_tests(data)
 	    } else {
 		count_map[name] = 1;
 		br_map[name] = new Set();
+		runner_map[name] = nipa_runner_key(v);
 	    }
 
 	    br_map[name].add(v.br_pfx);
@@ -514,14 +516,9 @@ function load_partial_tests(data)
 
 	if (!missing)
 	    continue;
-	for (const pending of Object.keys(pending_executors)) {
-	    if (name.startsWith(pending)) {
-		if (missing == pending_executors[pending])
-		    missing = 0;
-		break;
-	    }
-	}
-	if (!missing)
+	// A runner which has not reported yet accounts for exactly its
+	// outstanding runs, anything beyond that is a real gap.
+	if (missing == pending_runners[runner_map[name]])
 	    continue;
 
 	let row = table.insertRow();
