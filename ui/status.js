@@ -558,18 +558,16 @@ function add_summaries(table, summary, reported)
     colorify_str_psf(str_psf, "skip", summary["skip"], "#809fff");
     colorify_str_psf(str_psf, "pass", summary["pass"], "green");
 
-    var link_to_contest = "<a href=\"contest.html?pw-n=0&";
-    link_to_contest += "branch=" + summary["branch"];
+    let contest_params = {"branch": summary["branch"]};
     if (reported)
-	link_to_contest += "&pw-n=0";
+	contest_params["pw-n"] = "0";
     else
-	link_to_contest += "&pw-y=0";
+	contest_params["pw-y"] = "0";
     if (summary["fail"] + summary["skip"] > 0)
-	link_to_contest += "&pass=0";
-    link_to_contest += "\">" + str_psf.str + "</a>";
+	contest_params["pass"] = "0";
 
     cell = row.insertCell(i++);     // tests
-    cell.innerHTML = link_to_contest;
+    cell.innerHTML = nipa_link("contest.html", contest_params, str_psf.str);
 
     cell = row.insertCell(i++);     // result
     cell.setAttribute("style", "text-align: left; font-weight: bold; font-style: normal;");
@@ -700,18 +698,20 @@ function load_result_table_one(data_raw, table, reported, avgs)
 		var cnt = row.insertCell(3);
 		var res = row.insertCell(4);
 
-		var link_to_contest = "<a href=\"contest.html?";
-		link_to_contest += "branch=" + v.branch;
-		link_to_contest += "&executor=" + v.executor;
+		let contest_params = {
+		    "branch": v.branch,
+		    "remote": v.remote,
+		    "executor": v.executor,
+		};
 		if (reported)
-		    link_to_contest += "&pw-n=0";
+		    contest_params["pw-n"] = "0";
 		else
-		    link_to_contest += "&pw-y=0";
+		    contest_params["pw-y"] = "0";
 		if (fail + skip > 0)
-		    link_to_contest += "&pass=0";
-		link_to_contest += "\">";
+		    contest_params["pass"] = "0";
 
-		cnt.innerHTML = link_to_contest + str_psf.str + "</a>";
+		cnt.innerHTML = nipa_link("contest.html", contest_params,
+				  str_psf.str);
 		res.innerHTML = str_psf.overall;
 		time.innerHTML = msec_to_str(t_end - t_start);
 

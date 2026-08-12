@@ -37,6 +37,19 @@ function nipa_test_fullname(v, r)
     return v.remote + "/" + v.executor + "/" + r.group + "/" + r.test;
 }
 
+function nipa_link(path, params, text, style=null)
+{
+    const query = new URLSearchParams();
+
+    for (const [name, value] of Object.entries(params)) {
+	if (value !== null && value !== undefined && value !== "")
+	    query.set(name, value);
+    }
+    let style_attr = style ? " style=\"" + style + "\"" : "";
+    return "<a href=\"" + path + "?" + query.toString() + "\"" +
+	style_attr + ">" + text + "</a>";
+}
+
 function __nipa_filters_set(update_cb, set_name, enabled)
 {
     if (set_name.constructor === Array) {

@@ -82,7 +82,11 @@ function load_result_table(data_raw)
 		return 1;
 
 	    const tn = v.remote + '/' + r.group + '/' + r.test;
-	    tn_urls[tn] = "executor=" + v.executor + "&test=" + r.test;
+	    tn_urls[tn] = {
+		"remote": v.remote,
+		"executor": v.executor,
+		"test": r.test,
+	    };
 
 	    if (!(tn in test_row)) {
 		test_row[tn] = {};
@@ -153,7 +157,11 @@ function load_result_table(data_raw)
 
 	let row = table.insertRow();
 	let name = row.insertCell(0);
-	name.innerHTML = "<a style=\"text-decoration: none\" href=\"contest.html?" + tn_urls[tn] + form + "\">" + tn + "</a>";
+	let contest_params = Object.assign({}, tn_urls[tn]);
+	if (form)
+	    contest_params["ld-cases"] = "1";
+	name.innerHTML = nipa_link("contest.html", contest_params, tn,
+				   "text-decoration: none");
 	name.setAttribute("style", "padding: 0px");
 
 	for (let i = 0; i < branches.length; i++) {

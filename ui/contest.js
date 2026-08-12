@@ -150,8 +150,23 @@ function load_result_table(data_raw)
 		time.innerHTML = nipa_msec_to_str(r.time * 1000);
 	    res.innerHTML = colorify_str(r.result);
 	    outputs.innerHTML = "<a href=\"" + r.link + "\">outputs</a>";
-	    hist.innerHTML = "<a href=\"contest.html?test=" + r.test + form + "\">history</a>";
-	    flake.innerHTML = "<a href=\"flakes.html?min-flip=0&tn-needle=" + r.test + form + "\">matrix</a>";
+
+	    let hist_params = {
+		"remote": v.remote,
+		"executor": v.executor,
+		"test": r.test,
+	    };
+	    let matrix_params = {
+		"ld-remote": v.remote,
+		"min-flip": "0",
+		"tn-needle": r.test,
+	    };
+	    if (form) {
+		hist_params["ld-cases"] = "1";
+		matrix_params["ld-cases"] = "1";
+	    }
+	    hist.innerHTML = nipa_link("contest.html", hist_params, "history");
+	    flake.innerHTML = nipa_link("flakes.html", matrix_params, "matrix");
     }
 }
 
