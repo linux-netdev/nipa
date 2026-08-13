@@ -688,9 +688,9 @@ function load_result_table_one(data_raw, table, reported, avgs)
 	    var time = row.insertCell(2);
 
 	    if (link)
-		runner.innerHTML = a + nipa_runner_key(v) + "</a>";
+		runner.innerHTML = a + runner_name(v) + "</a>";
 	    else
-		runner.innerHTML = nipa_runner_key(v);
+		runner.innerHTML = runner_name(v);
 	    if (total) {
 		var cnt = row.insertCell(3);
 		var res = row.insertCell(4);
@@ -797,6 +797,17 @@ function load_result_table_one(data_raw, table, reported, avgs)
 }
 
 var awol_runners;
+var multi_exec_remotes;
+
+/* Most remotes run a single executor, naming it there is just noise.
+ * Spell it out only where it tells two rows apart.
+ */
+function runner_name(v)
+{
+    if (multi_exec_remotes.has(v.remote))
+	return nipa_runner_key(v);
+    return v.remote;
+}
 
 function load_result_table(data_raw, reload)
 {
@@ -897,6 +908,15 @@ function load_result_table(data_raw, reload)
 	    awol_runners.add(re);
 	}
     }
+
+    let exec_cnt = {};
+    for (const re of Object.keys(known_execs)) {
+	const remote = known_execs[re].remote;
+
+	exec_cnt[remote] = (exec_cnt[remote] || 0) + 1;
+    }
+    multi_exec_remotes = new Set(
+	Object.keys(exec_cnt).filter((remote) => exec_cnt[remote] > 1));
 
     // Sort & display
     data_raw.sort(function(a, b){
