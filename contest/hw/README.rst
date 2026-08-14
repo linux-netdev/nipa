@@ -322,6 +322,9 @@ Config
  - reservation retry time (seconds)
  - max kexec boot timeout (seconds)
  - max test time (seconds)
+ - test timeout (seconds), per-test wall-clock limit enforced by
+   ``hw-worker``; passed to the DUT in ``nic-test.env``, defaults to the
+   runner's own value when unset
  - crash wait time (seconds), how long to wait after a crash is detected
    in SOL logs and no new SOL output before power cycling
  - SOL poll interval (seconds), how often to check SOL logs for crashes

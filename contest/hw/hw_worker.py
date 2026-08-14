@@ -11,7 +11,7 @@ import subprocess
 import sys
 import time
 
-from lib.runner import find_newest_test, run_tests
+from lib.runner import DEFAULT_TEST_TIMEOUT, find_newest_test, run_tests
 
 
 TESTS_DIR = '/srv/hw-worker/tests'
@@ -67,6 +67,26 @@ def _parse_env_file(path):
             if sep:
                 env[key.strip()] = val.strip()
     return env
+
+
+def _test_timeout(env):
+    """Per-test timeout from nic-test.env, or the runner default.
+
+    The orchestrator only writes NIPA_TEST_TIMEOUT when [hw] test_timeout
+    is set, so a missing or unusable value just means "use the default".
+    """
+    raw = env.get('NIPA_TEST_TIMEOUT')
+    if not raw:
+        return DEFAULT_TEST_TIMEOUT
+    try:
+        timeout = int(raw)
+    except ValueError:
+        timeout = 0
+    if timeout <= 0:
+        print(f"Warning: bad NIPA_TEST_TIMEOUT {raw!r}, "
+              f"using {DEFAULT_TEST_TIMEOUT}s")
+        return DEFAULT_TEST_TIMEOUT
+    return timeout
 
 
 def _ip(args, host=None, netns=None, check=True):
@@ -523,7 +543,7 @@ def main():
         else:
             print(f"Warning: could not collect device info for {netif}")
 
-    crashed = run_tests(test_dir, results_dir)
+    crashed = run_tests(test_dir, results_dir, timeout=_test_timeout(env))
 
     print(f"Completed, results in {results_dir}")
     if crashed:

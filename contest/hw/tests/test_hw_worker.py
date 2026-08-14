@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from lib.runner import (find_newest_test, load_attempted,
                         mark_attempted, run_tests, DmesgReader,
+                        DEFAULT_TEST_TIMEOUT,
                         _run_one_test, _known_bad_retry_decision)
 from lib.nipa import namify
 
@@ -545,6 +546,27 @@ class TestRunTests(unittest.TestCase):
             self.assertEqual(os.listdir(results_dir), [])
 
 
+class TestTestTimeoutConfig(unittest.TestCase):
+    """NIPA_TEST_TIMEOUT from nic-test.env drives the per-test limit."""
+
+    def test_from_env(self):
+        from hw_worker import _test_timeout
+
+        self.assertEqual(_test_timeout({'NIPA_TEST_TIMEOUT': '2400'}), 2400)
+
+    def test_missing_falls_back(self):
+        from hw_worker import _test_timeout
+
+        self.assertEqual(_test_timeout({}), DEFAULT_TEST_TIMEOUT)
+
+    def test_garbage_falls_back(self):
+        from hw_worker import _test_timeout
+
+        for bad in ('abc', '0', '-5', ''):
+            self.assertEqual(_test_timeout({'NIPA_TEST_TIMEOUT': bad}),
+                             DEFAULT_TEST_TIMEOUT)
+
+
 class TestTimeoutHandling(unittest.TestCase):
     @mock.patch('lib.runner.os.killpg')
     @mock.patch('subprocess.Popen')
@@ -564,7 +586,8 @@ class TestTimeoutHandling(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             out_dir = os.path.join(tmpdir, 'out')
             os.makedirs(out_dir)
-            rc, _elapsed = _run_one_test(tmpdir, out_dir, 'net', 'test1.sh')
+            rc, _elapsed = _run_one_test(tmpdir, out_dir, 'net', 'test1.sh',
+                                         600)
             with open(os.path.join(out_dir, 'stdout')) as fp:
                 stdout = fp.read()
             with open(os.path.join(out_dir, 'stderr')) as fp:
@@ -574,10 +597,14 @@ class TestTimeoutHandling(unittest.TestCase):
         # SIGINT to the process group, never escalated to SIGKILL
         mock_killpg.assert_called_once_with(4242, signal.SIGINT)
 
+        # The caller's timeout is what we wait for, and what we report
+        self.assertEqual(proc.communicate.call_args_list[0].kwargs['timeout'],
+                         600)
+
         # Partial output preserved, marker appended to both streams
         self.assertIn('partial out', stdout)
         self.assertIn('partial err', stderr)
-        self.assertIn('NIPA RUNNER TIMEOUT', stdout)
+        self.assertIn('NIPA RUNNER TIMEOUT 600 sec', stdout)
         self.assertIn('graceful stop', stdout)
         self.assertIn('NIPA RUNNER TIMEOUT', stderr)
         self.assertIn('graceful stop', stderr)
@@ -602,7 +629,8 @@ class TestTimeoutHandling(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             out_dir = os.path.join(tmpdir, 'out')
             os.makedirs(out_dir)
-            rc, _elapsed = _run_one_test(tmpdir, out_dir, 'net', 'test1.sh')
+            rc, _elapsed = _run_one_test(tmpdir, out_dir, 'net', 'test1.sh',
+                                         600)
             with open(os.path.join(out_dir, 'stderr')) as fp:
                 stderr = fp.read()
 

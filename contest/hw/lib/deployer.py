@@ -140,7 +140,7 @@ def _derive_local_prefix_v6(local_v6):
     return str(ipaddress.IPv6Network((next_net64, 64)))
 
 
-def deploy_artifacts(_config, machine_ips, reservation_id, nic_info, tree_path,
+def deploy_artifacts(config, machine_ips, reservation_id, nic_info, tree_path,
                      kernel_version, filters=None, known_bad=None):
     """SCP kernel + ksft bundle to the DUT.
 
@@ -228,6 +228,12 @@ def deploy_artifacts(_config, machine_ips, reservation_id, nic_info, tree_path,
             config_lines.append(f'DISRUPTIVE={nic_info["disruptive"]}')
         if nic_info.get('slowdown'):
             config_lines.append('KSFT_MACHINE_SLOW=yes')
+
+        # Runner knob rather than a test env var -- hw_worker reads it and
+        # leaves it out of net.config / the test environment.
+        test_timeout = config.getint('hw', 'test_timeout', fallback=None)
+        if test_timeout:
+            config_lines.append(f'NIPA_TEST_TIMEOUT={test_timeout}')
 
         config_content = '\n'.join(config_lines) + '\n'
         _ssh(dut_ip,

@@ -11,8 +11,10 @@ import time
 from lib.nipa import has_crash, extract_crash, namify, parse_nested_tests
 
 
-# Per-test wall-clock limit before we start tearing the test down (seconds).
-TEST_TIMEOUT = 600
+# Default per-test wall-clock limit before we start tearing the test down
+# (seconds).  The service side can override it per executor with
+# [hw] test_timeout, which reaches us as NIPA_TEST_TIMEOUT in nic-test.env.
+DEFAULT_TEST_TIMEOUT = 1200
 # How long to wait for a timed-out test to shut down gracefully after the
 # first (SIGINT) signal before we force-kill its whole process tree.
 GRACEFUL_KILL_WAIT = 60
@@ -229,7 +231,7 @@ def _kill_session(sid, sig):
             pass
 
 
-def _run_one_test(test_dir, output_dir, target, prog):
+def _run_one_test(test_dir, output_dir, target, prog, timeout):
     """Run a single test and save stdout/stderr. Returns (retcode, elapsed).
 
     On timeout the test is asked to shut down gracefully (SIGINT, which
@@ -259,11 +261,11 @@ def _run_one_test(test_dir, output_dir, target, prog):
     pgid = proc.pid
     stop_kind = None
     try:
-        out, err = proc.communicate(timeout=TEST_TIMEOUT)
+        out, err = proc.communicate(timeout=timeout)
         retcode = proc.returncode
     except subprocess.TimeoutExpired:
         retcode = 1
-        print(f"  {target}:{prog}: timed out after {TEST_TIMEOUT}s, "
+        print(f"  {target}:{prog}: timed out after {timeout}s, "
               "sending SIGINT to process group")
         _signal_group(pgid, signal.SIGINT)
         try:
@@ -286,7 +288,7 @@ def _run_one_test(test_dir, output_dir, target, prog):
     if stop_kind is not None:
         # Preserve whatever the test printed, but mark the timeout in
         # both streams so it's visible whichever one is inspected.
-        marker = f'\nNIPA RUNNER TIMEOUT {TEST_TIMEOUT} sec ({stop_kind})\n'
+        marker = f'\nNIPA RUNNER TIMEOUT {timeout} sec ({stop_kind})\n'
         stdout += marker
         stderr += marker
     elif not stdout and not stderr:
@@ -302,7 +304,7 @@ def _run_one_test(test_dir, output_dir, target, prog):
     return retcode, elapsed
 
 
-def run_tests(test_dir, results_dir):
+def run_tests(test_dir, results_dir, timeout=DEFAULT_TEST_TIMEOUT):
     """Execute kselftest in 'installed' form.
 
     For each test:
@@ -321,7 +323,7 @@ def run_tests(test_dir, results_dir):
         print("No tests found")
         return False
 
-    print(f"Found {len(tests)} tests")
+    print(f"Found {len(tests)} tests, per-test timeout {timeout}s")
 
     previously_attempted = set(load_attempted(test_dir))
     for test_name in previously_attempted:
@@ -369,7 +371,7 @@ def run_tests(test_dir, results_dir):
 
         # Run the test
         retcode, elapsed = _run_one_test(test_dir, test_results_dir,
-                                         target, prog)
+                                         target, prog, timeout)
         with open(os.path.join(test_results_dir, 'stdout'),
                   encoding='utf-8') as fp:
             stdout = fp.read()
@@ -403,7 +405,7 @@ def run_tests(test_dir, results_dir):
                 retry_dir = os.path.join(results_dir, f'{dir_name}-retry')
                 os.makedirs(retry_dir, exist_ok=True)
                 retry_retcode, _retry_elapsed = _run_one_test(
-                    test_dir, retry_dir, target, prog)
+                    test_dir, retry_dir, target, prog, timeout)
                 # Drain retry dmesg
                 retry_dmesg = dmesg.drain()
                 if retry_dmesg:

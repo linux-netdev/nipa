@@ -52,6 +52,7 @@ from lib.deployer import (build_kernel, build_ksft, deploy_artifacts,  # noqa: E
 # reservation_retry_time=60
 # max_kexec_boot_timeout=300
 # max_test_time=3600
+# test_timeout=1200        (optional, per-test limit on the DUT)
 # crash_wait_time=120
 # sol_poll_interval=15
 # disruptive=true          (optional, propagated to test env if set)
