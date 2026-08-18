@@ -1,10 +1,14 @@
-We have already submitted our pull request with net-next material for v7.2,
-and therefore net-next is closed for new drivers, features, code refactoring
-and optimizations. We are currently accepting bug fixes only.
+The merge window for v7.3 has started, and therefore net-next is closed
+for new drivers, features, code refactoring and optimizations.
+We will only consider applying net-next patches which were posted
+before the announcement:
 
-Please repost when net-next reopens after June 29th.
+https://lore.kernel.org/20260816155953.072d73da@kernel.org
 
-RFC patches sent for review only are obviously welcome at any time.
+Fixes are obviously welcome at any time. net-next patches may be sent
+for review and discussion only with an RFC tag.
+
+Please repost when net-next reopens.
 
 See: https://www.kernel.org/doc/html/next/process/maintainer-netdev.html#development-cycle
 -- 
