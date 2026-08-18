@@ -62,7 +62,7 @@ def hour_timestamp(when=None) -> int:
 def pwe_has_all_checks(pw, entry) -> bool:
     if "checks" not in entry:
         return False
-    checks = pw.request(entry["checks"])
+    checks = pw.request_all(entry["checks"])
     found = dict.fromkeys(gate_checks, 0)
     for c in checks:
         if c["context"] in gate_checks:
@@ -124,7 +124,7 @@ def pwe_has_contest_check(pw, entry) -> bool:
     if "checks" not in entry:
         return False
 
-    checks = pw.request(entry["checks"])
+    checks = pw.request_all(entry["checks"])
     desc = ""
     for c in checks:
         # Take the last one
