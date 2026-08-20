@@ -273,7 +273,7 @@ def patch_state_update(pw, state: dict, link: str):
         log_end_sec()
 
 
-def main_loop(pw) -> int:
+def main_loop(pw, retries: int) -> int:
     config = parse_configs()
     refresh = int(config.get('cfg', 'refresh'))
 
@@ -292,7 +292,7 @@ def main_loop(pw) -> int:
             filters = json.load(fp)
     except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
         log("Unable to read input files, retry later:", str(e))
-        return refresh
+        return refresh, retries + 1
 
     results_by_branch = results_pivot(filters, results)
     branch_outcome = branch_summarize(filters, results_by_branch)
@@ -310,7 +310,7 @@ def main_loop(pw) -> int:
     with open(config.get('state', 'patch_state'), 'w') as fp:
         json.dump(patch_state, fp)
 
-    return refresh
+    return refresh, 0
 
 
 def parse_configs():
@@ -328,11 +328,17 @@ def main() -> None:
              force_single_thread=True)
 
     pw = Patchwork(config)
+    retries = 0
 
     # We could do a file system watch here, because the inputs are all local.
     while True:
         log("Running at " + str(datetime.datetime.now()))
-        delay = main_loop(pw)
+        delay, retries = main_loop(pw, retries)
+
+        if retries > 4:
+            log("Multiple succeeding errors, stop here")
+            sys.exit(1)
+
         try:
             time.sleep(delay)
         except KeyboardInterrupt:
