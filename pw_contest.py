@@ -275,18 +275,24 @@ def patch_state_update(pw, state: dict, link: str):
 
 def main_loop(pw) -> int:
     config = parse_configs()
+    refresh = int(config.get('cfg', 'refresh'))
 
     try:
         with open(config.get('state', 'patch_state'), "rb") as fp:
             patch_state = json.load(fp)
     except FileNotFoundError:
         patch_state = {'series':{}, 'prs':{}}
-    with open(config.get('input', 'branch_info'), "rb") as fp:
-        branches = json.load(fp)
-    with open(config.get('input', 'results'), "rb") as fp:
-        results = json.load(fp)
-    with open(config.get('input', 'filters'), "rb") as fp:
-        filters = json.load(fp)
+
+    try:
+        with open(config.get('input', 'branch_info'), "rb") as fp:
+            branches = json.load(fp)
+        with open(config.get('input', 'results'), "rb") as fp:
+            results = json.load(fp)
+        with open(config.get('input', 'filters'), "rb") as fp:
+            filters = json.load(fp)
+    except (FileNotFoundError, json.decoder.JSONDecodeError) as e:
+        log("Unable to read input files, retry later:", str(e))
+        return refresh
 
     results_by_branch = results_pivot(filters, results)
     branch_outcome = branch_summarize(filters, results_by_branch)
@@ -304,7 +310,7 @@ def main_loop(pw) -> int:
     with open(config.get('state', 'patch_state'), 'w') as fp:
         json.dump(patch_state, fp)
 
-    return int(config.get('cfg', 'refresh'))
+    return refresh
 
 
 def parse_configs():
