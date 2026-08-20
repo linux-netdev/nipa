@@ -59,6 +59,8 @@ IGNORED=(
     scripts/coccinelle/misc/secs_to_jiffies.cocci
     # too many false positives in this very naive locking checker
     scripts/coccinelle/locks/mini_lock.cocci
+    # seems broken during the 7.3 merge window
+    scripts/coccinelle/hid/ff_race.cocci
 )
 
 git reset --hard
