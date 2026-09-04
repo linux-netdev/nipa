@@ -182,7 +182,7 @@ def series_ignore_missing_tree_name(series):
 
 def series_is_a_fix_for(s, tree):
     commits = []
-    regex = re.compile(r'^Fixes: [a-f0-9]* \(')
+    regex = re.compile(r'^Fixes: ([a-f0-9]+) \(', re.MULTILINE)
     for p in s.patches:
         commits += regex.findall(p.raw_patch)
     for c in commits:
