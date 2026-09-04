@@ -24,3 +24,15 @@ recheck_lookback
 ----------------
 
 Defines the length of the long history scan, see ``recheck_period``.
+
+tree_update_period
+------------------
+
+Tests run in per-worker work trees, which are reset before every test.
+The main tree is only reset when the poller has to guess which tree a series
+targets, so it can go stale for a long time. Since misbehaving Makefiles
+sometimes reach into the main tree instead of the work tree, the poller
+refreshes the main trees periodically.
+
+``tree_update_period`` defines the period of those refreshes in minutes
+(default: 30).

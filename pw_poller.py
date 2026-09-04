@@ -79,6 +79,10 @@ class PwPoller:
         self._recheck_period = config.getint('poller', 'recheck_period', fallback=3)
         self._recheck_lookback = config.getint('poller', 'recheck_lookback', fallback=9)
 
+        self._tree_update_period = config.getint('poller', 'tree_update_period',
+                                                 fallback=30)
+        self._tree_update_ts = None
+
         listmodname = config.get('list', 'module', fallback='netdev')
         self.list_module = import_module(listmodname)
 
@@ -267,6 +271,29 @@ class PwPoller:
             conn.close()
             log_end_sec()
 
+    def _update_trees(self) -> None:
+        # Workers reset their work trees before every test, and the main tree
+        # gets reset whenever we have to guess the target tree. If all series
+        # are clearly marked, however, the main tree may stay stale for a very
+        # long time. Buggy Makefiles occasionally reach into the main tree
+        # instead of the work tree, so refresh it every now and then.
+        now = datetime.datetime.now()
+        if self._tree_update_ts is not None and \
+           now - self._tree_update_ts < datetime.timedelta(minutes=self._tree_update_period):
+            return
+        self._tree_update_ts = now
+
+        log_open_sec("Refreshing the main trees")
+        try:
+            for name, tree in self._trees.items():
+                try:
+                    tree.reset()
+                except Exception as e:
+                    # Best effort, a stale tree is better than a dead poller
+                    log(f"Failed to refresh tree {name}", repr(e))
+        finally:
+            log_end_sec()
+
     def run(self, life) -> None:
         since = self._state['last_event_ts']
 
@@ -293,6 +320,8 @@ class PwPoller:
                         pass
 
                 self._check_local_sock()
+
+                self._update_trees()
 
                 while not self._done_queue.empty():
                     s = self._done_queue.get()
