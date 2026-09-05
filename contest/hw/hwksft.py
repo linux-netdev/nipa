@@ -290,7 +290,7 @@ def test(binfo, rinfo, cbarg):  # pylint: disable=unused-argument
             'test': 'build',
             'group': grp_name,
             'result': 'fail',
-            'link': link,
+            'link': link + '/build',
         }]
 
     # 2. Resolve machines for NIC

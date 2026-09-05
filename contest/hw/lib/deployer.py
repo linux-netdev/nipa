@@ -536,6 +536,13 @@ def parse_results(results_path, link):
     """
     output_dir = os.path.join(results_path, 'test-outputs')
 
+    # Output dirs with no 'info' belong either to a retry or to a test which
+    # never got to write one because the machine died under it.  Remember the
+    # latter by test name, the .attempted pass below has no other way of
+    # finding whatever output did make it to disk.  Names are only unique
+    # within a target, so drop the ones we'd have to guess about.
+    orphan_links = {}
+
     # Parse each test output directory
     cases = []
     completed_tests = set()
@@ -547,8 +554,16 @@ def parse_results(results_path, link):
 
             info_path = os.path.join(test_dir, 'info')
             stdout_path = os.path.join(test_dir, 'stdout')
+            entry_link = f'{link}/test-outputs/{entry}/'
 
             if not os.path.exists(info_path):
+                if not entry.endswith('-retry'):
+                    # hw_worker names the dirs "$index-$namify(prog)"
+                    name = entry.split('-', 1)[-1]
+                    if name in orphan_links:
+                        orphan_links[name] = None
+                    else:
+                        orphan_links[name] = entry_link
                 continue
 
             try:
@@ -560,7 +575,7 @@ def parse_results(results_path, link):
                     'test': entry,
                     'group': 'selftests-hw',
                     'result': 'fail',
-                    'link': link,
+                    'link': entry_link,
                 })
                 continue
 
@@ -606,7 +621,7 @@ def parse_results(results_path, link):
                 'test': safe_name or entry,
                 'group': f'selftests-{namify(target)}',
                 'result': result,
-                'link': link,
+                'link': entry_link,
             }
             if 'time' in info:
                 outcome['time'] = info['time']
@@ -633,11 +648,12 @@ def parse_results(results_path, link):
 
         for test_name in attempted:
             if test_name not in completed_tests:
+                prog = test_name.split(':', 1)[-1]
                 cases.append({
                     'test': test_name,
                     'group': 'selftests-hw',
                     'result': 'fail',
-                    'link': link,
+                    'link': orphan_links.get(namify(prog)) or link,
                     'crashes': ['kernel crash during test'],
                 })
 

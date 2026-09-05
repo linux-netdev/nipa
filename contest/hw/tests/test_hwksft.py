@@ -380,6 +380,31 @@ class TestDeployer(unittest.TestCase):
         self.assertEqual(len(crashed), 1)
         self.assertIn('crash', str(crashed[0]['crashes']))
 
+        self.assertEqual(passed[0]['link'],
+                         'http://test/results/123/test-outputs/0-test1-sh/')
+        # test3 never created an output dir, fall back to the run's dir
+        self.assertEqual(crashed[0]['link'], 'http://test/results/123')
+
+    def test_parse_results_crash_link(self):
+        """A test killed mid-run links to the partial output it left."""
+        from lib.deployer import parse_results
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # No 'info' -- the machine died before hw_worker could write one
+            test_dir = os.path.join(tmpdir, 'test-outputs', '7-test3-sh')
+            os.makedirs(test_dir)
+            with open(os.path.join(test_dir, 'stdout'), 'w') as fp:
+                fp.write('TAP version 13\n1..1\n')
+
+            with open(os.path.join(tmpdir, 'attempted.json'), 'w') as fp:
+                json.dump(['net:test3.sh'], fp)
+
+            cases = parse_results(tmpdir, 'http://test/results/123')
+
+        self.assertEqual(len(cases), 1)
+        self.assertEqual(cases[0]['link'],
+                         'http://test/results/123/test-outputs/7-test3-sh/')
+
     def test_parse_results_warnings(self):
         """A per-test 'warnings' in the info file reaches the case dict."""
         from lib.deployer import parse_results
