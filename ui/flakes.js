@@ -42,6 +42,24 @@ function load_result_table(data_raw)
     let hw_stable = document.getElementById("hw-stable").checked;
     let br_pfx_with_data = new Set();
 
+    let warn_box = document.getElementById("fl-warn-box");
+    warn_box.innerHTML = "";
+
+    /*
+     * Test names only ever use [0-9a-zA-Z_.-], so an old plain-substring
+     * needle is also a valid regex matching the same rows.  A half-typed
+     * regex throws - warn and show everything rather than blanking the
+     * table on every other keystroke.
+     */
+    let needle_re = null;
+    if (needle) {
+	try {
+	    needle_re = new RegExp(needle);
+	} catch (e) {
+	    warn_box.innerHTML = "Bad name regex: " + e.message;
+	}
+    }
+
     $.each(data_raw, function(i, v) {
 	$.each(v.results, function(j, r) {
 	    r.visible = false;
@@ -52,7 +70,7 @@ function load_result_table(data_raw)
 		return 1;
 
 	    const tn = nipa_test_fullname(v, r);
-	    if (needle && !tn.includes(needle))
+	    if (needle_re && !needle_re.test(tn))
 		return 1;
 	    if (hw_stable && stability_set && !stability_set.has(tn))
 		return 1;
@@ -206,13 +224,15 @@ function results_loaded(data_raw)
 
     const had_data = loaded_data;
     loaded_data = data_raw;
+
+    // Clear "Loading..." before rendering, the render has its own warnings
+    nipa_filters_enable(null, ["ld-pw", "fl-pw"]);
+
     if (!had_data) {
 	loaded_one();
     } else if (!xfr_todo) {
 	results_update();
     }
-
-    nipa_filters_enable(null, ["ld-pw", "fl-pw"]);
 }
 
 function remotes_loaded(data_raw)
