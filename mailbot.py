@@ -382,9 +382,7 @@ class MlEmail:
 
                 self._series_id = pw_obj[0]['series'][0]['id']
 
-                r = requests.get(f'https://lore.kernel.org/all/{mid}/raw',
-                                 headers=http_headers)
-                data = r.content.decode('utf-8')
+                data = pw.get_mbox_by_msgid(mid)
                 msg = email.message_from_string(data, policy=default)
                 self._series_author = msg.get('From')
 
