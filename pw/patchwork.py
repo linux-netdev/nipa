@@ -74,7 +74,7 @@ class Patchwork(object):
         self._session = requests.Session()
         allowed_methods = Retry.DEFAULT_ALLOWED_METHODS | {'POST', 'PATCH'}
         retry = Retry(connect=10, status=10,
-                      status_forcelist={429, 502, 503, 504},
+                      status_forcelist={404, 429, 502, 503, 504},
                       allowed_methods=allowed_methods, backoff_factor=1)
         adapter = HTTPAdapter(max_retries=retry)
         self._session.mount('http://', adapter)
