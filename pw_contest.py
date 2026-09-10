@@ -27,6 +27,8 @@ outcomes=optional/dump/of/outcomes
 patch_state=state.json
 [www]
 contest=https://server-with-ui/contest.html
+[patchwork]
+check_name=contest
 """
 
 class Codes:
@@ -223,16 +225,16 @@ def skip_update(outcome) -> bool:
     return False
 
 
-def update_one(pw, patch_id, outcome, link):
+def update_one(pw, patch_id, outcome, link, check_name):
     description = outcome['branch']
     if outcome["code"] >= 0:
         description += f' (tests: {outcome["cnt"]})'
     url = link + '?pw-n=0&branch=' + outcome['branch']
-    pw.post_check(patch_id, name="contest", state=code_to_pw[outcome["code"]],
+    pw.post_check(patch_id, name=check_name, state=code_to_pw[outcome["code"]],
                   url=url, desc=description)
 
 
-def _patch_state_update(pw, state: dict, link: str):
+def _patch_state_update(pw, state: dict, link: str, check_name: str):
     update_cnt = 0
     for series_id, outcome in state["series"].items():
         if skip_update(outcome):
@@ -242,7 +244,7 @@ def _patch_state_update(pw, state: dict, link: str):
             log_open_sec('Updating series ' + series_id)
             series_pw = pw.get("series", series_id)
             for patch in series_pw["patches"]:
-                update_one(pw, patch["id"], outcome, link)
+                update_one(pw, patch["id"], outcome, link, check_name)
             update_cnt += 1
 
             del outcome["update"]
@@ -255,7 +257,7 @@ def _patch_state_update(pw, state: dict, link: str):
 
         try:
             log_open_sec('Updating PR ' + pr_id)
-            update_one(pw, pr_id, outcome, link)
+            update_one(pw, pr_id, outcome, link, check_name)
             update_cnt += 1
 
             del outcome["update"]
@@ -265,10 +267,10 @@ def _patch_state_update(pw, state: dict, link: str):
         print("Updated", update_cnt, "pw things")
 
 
-def patch_state_update(pw, state: dict, link: str):
+def patch_state_update(pw, state: dict, link: str, check_name: str):
     log_open_sec('Updating patch states')
     try:
-        _patch_state_update(pw, state, link)
+        _patch_state_update(pw, state, link, check_name)
     finally:
         log_end_sec()
 
@@ -291,7 +293,8 @@ def main_loop(pw) -> int:
     results_by_branch = results_pivot(filters, results)
     branch_outcome = branch_summarize(filters, results_by_branch)
     patch_state_compute(patch_state, branches, branch_outcome)
-    patch_state_update(pw, patch_state, config.get('www', 'contest'))
+    patch_state_update(pw, patch_state, config.get('www', 'contest'),
+                       config.get('patchwork', 'check_name', fallback='contest'))
 
     rbb = config.get('output', 'results_by_branch', fallback=None)
     if rbb:
