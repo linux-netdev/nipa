@@ -390,10 +390,7 @@ def dump_branches(config, state) -> None:
                      "url": pub_url + " " + name})
 
     write_json_atomic(config.get("output", "branches"), data)
-
-    info = config.get("output", "info")
-    with open(info, 'w') as fp:
-        json.dump(state["info"], fp)
+    write_json_atomic(config.get("output", "info"), state["info"])
     log_end_sec()
 
 
