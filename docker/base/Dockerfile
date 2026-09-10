@@ -5,7 +5,7 @@ LABEL name=nipa-base
 
 RUN echo "install_weak_deps=False" >> /etc/dnf/dnf.conf
 RUN dnf install -y \
-		bison ccache flex gcc make rsync \
+		bison ccache flex gcc make pigz rsync \
 		bc cpio curl diffutils gawk git perl openssl patch which \
 		elfutils-libelf-devel ncurses-devel openssl-devel && \
 	sudo dnf clean all
