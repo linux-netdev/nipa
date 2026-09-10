@@ -7,7 +7,6 @@ import re
 from core import Series
 from core import Patch
 from core import log, log_open_sec, log_end_sec
-from .patchwork import series_patches_ordered
 
 # TODO: document
 
@@ -22,7 +21,7 @@ class PwSeries(Series):
         self.pull_url = None
 
         if pw_series['cover_letter']:
-            pw_cover_letter = pw.get_mbox_by_msgid(pw_series['cover_letter']['msgid'])
+            pw_cover_letter = pw.get_mbox('cover', pw_series['cover_letter']['id'])
             self.set_cover_letter(pw_cover_letter)
         elif self.pw_series['patches']:
             self.subject = self.pw_series['patches'][0]['name']
@@ -36,14 +35,44 @@ class PwSeries(Series):
         # Fast path incomplete series
         if not pw_series['received_all']:
             for p in self.pw_series['patches']:
-                raw_patch = pw.get_mbox_by_msgid(p['msgid'])
+                raw_patch = pw.get_mbox('patch', p['id'])
                 self.patches.append(Patch(raw_patch, p['id']))
             return
 
         # Do more magic around series which are complete
-        for p in series_patches_ordered(self.pw_series):
-            raw_patch = pw.get_mbox_by_msgid(p['msgid'])
-            self.add_patch(Patch(raw_patch, p['id']))
+        # Patchwork 2.2.2 orders them by arrival time
+        pids = []
+        for p in self.pw_series['patches']:
+            pids.append(p['id'])
+        total = self.pw_series['total']
+        if total == len(self.pw_series['patches']):
+            for i in range(total):
+                found = False
+                name = self.pw_series['patches'][i]['name']
+                pid = self.pw_series['patches'][i]['id']
+                for j in range(total):
+                    # scanning PW-parsed name - tags are separated by commas
+                    if name.find(f" {j + 1}/{total}") >= 0 or \
+                       name.find(f",{j + 1}/{total}") >= 0 or \
+                       name.find(f"[{j + 1}/{total}") >= 0 or \
+                       name.find(f"0{j + 1}/{total}") >= 0:
+                        if pids[j] != pid:
+                            log(f"Patch order - reordering {i} => {j + 1}")
+                            pids[j] = pid
+                        found = True
+                        break
+                if not found:
+                    log("Patch order - not all patches were found!", "")
+                    pids = []
+                    for p in self.pw_series['patches']:
+                        pids.append(p['id'])
+                    break
+        else:
+            log("Patch order - count does not add up?!", "")
+
+        for pid in pids:
+            raw_patch = pw.get_mbox('patch', pid)
+            self.add_patch(Patch(raw_patch, pid))
 
         if not pw_series['cover_letter']:
             if len(self.patches) == 1:

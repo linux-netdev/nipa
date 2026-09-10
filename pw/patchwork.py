@@ -29,60 +29,17 @@ class PatchworkPostException(Exception):
     pass
 
 
-class PatchworkFetchException(Exception):
-    pass
-
-
-def series_patches_ordered(series):
-    """Return the patches of a series in the order they should be applied
-
-    Patchwork lists them in arrival order, use the n/total counter it parsed
-    out of the subject to put them back into the order the author intended.
-    """
-    patches = series['patches']
-    total = series['total']
-    if total != len(patches):
-        core.log("Patch order - count does not add up?!", "")
-        return patches
-
-    ordered = list(patches)
-    for i in range(total):
-        found = False
-        name = patches[i]['name']
-        for j in range(total):
-            # scanning PW-parsed name - tags are separated by commas
-            if name.find(f" {j + 1}/{total}") >= 0 or \
-               name.find(f",{j + 1}/{total}") >= 0 or \
-               name.find(f"[{j + 1}/{total}") >= 0 or \
-               name.find(f"0{j + 1}/{total}") >= 0:
-                if ordered[j] is not patches[i]:
-                    core.log(f"Patch order - reordering {i} => {j + 1}")
-                    ordered[j] = patches[i]
-                found = True
-                break
-        if not found:
-            core.log("Patch order - not all patches were found!", "")
-            return patches
-    return ordered
-
-
 class Patchwork(object):
-    # Patchwork mbox object types vs the names of the REST collections
-    _mbox_apis = {'cover': 'covers', 'patch': 'patches'}
-
     def __init__(self, config):
         self._session = requests.Session()
         allowed_methods = Retry.DEFAULT_ALLOWED_METHODS | {'POST', 'PATCH'}
-        retry = Retry(connect=10, status=10,
-                      status_forcelist={404, 429, 502, 503, 504},
+        retry = Retry(connect=10, status=10, status_forcelist={502, 504},
                       allowed_methods=allowed_methods, backoff_factor=1)
         adapter = HTTPAdapter(max_retries=retry)
         self._session.mount('http://', adapter)
         self._session.mount('https://', adapter)
 
         self.server = config.get('patchwork', 'server')
-        self.archive = config.get('patchwork', 'archive',
-                                  fallback='https://lore.kernel.org/all').rstrip('/')
         ssl = config.getboolean('patchwork', 'use_ssl', fallback=True)
         self._proto = "https://" if ssl else "http://"
         self._token = config.get('patchwork', 'token', fallback='')
@@ -113,7 +70,7 @@ class Patchwork(object):
             try:
                 core.log("Response data", ret.json())
             except json.decoder.JSONDecodeError:
-                core.log("Response data", ret.content.decode('utf-8', 'replace'))
+                core.log("Response data", ret.content.decode())
         finally:
             end = datetime.datetime.now()
             core.log("Response time GET (sec)", (end - start).total_seconds())
@@ -179,30 +136,12 @@ class Patchwork(object):
         msgid = urllib.parse.quote(msgid)
         return self._get(f'{object_type}/?msgid={msgid}&project={self._project}', api='').json()
 
-    # Patchwork's own /mbox/ endpoints have been serving empty responses ever
-    # since one of its upgrades, so the messages come from the list archive.
-    # Patchwork is only asked for the message ids. Note that the archive
-    # requires a well-known user-agent, see the 'user-agent' config option.
-    def get_mbox_by_msgid(self, msgid):
-        url = f'{self.archive}/{urllib.parse.quote(msgid.strip("<>"))}/raw'
-        ret = self._request(url)
-        if ret.status_code != 200:
-            raise PatchworkFetchException(url, ret)
-        # Archives serve the message as it was posted, which is not necessarily
-        # valid UTF-8. Losing a character beats blowing up the entire series.
-        return ret.content.decode('utf-8', 'replace')
-
-    # Like patchwork's series mbox this contains the patches only, the cover
-    # letter is not part of it.
-    def series_to_mbox(self, series):
-        return ''.join([self.get_mbox_by_msgid(p['msgid'])
-                        for p in series_patches_ordered(series)])
+    def get_mbox_direct(self, url):
+        return self._request(url).content.decode()
 
     def get_mbox(self, object_type, identifier):
-        if object_type == 'series':
-            return self.series_to_mbox(self.get('series', identifier))
-        obj = self.get(self._mbox_apis[object_type], identifier)
-        return self.get_mbox_by_msgid(obj['msgid'])
+        url = f'{self._proto}{self.server}/{object_type}/{identifier}/mbox/'
+        return self._request(url).content.decode()
 
     def _get(self, req, api='1.1'):
         if api:
