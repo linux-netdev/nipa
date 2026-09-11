@@ -130,6 +130,13 @@ class Test(object):
             if hasattr(thing, 'first_in_series'):
                 env["FIRST_IN_SERIES"] = str(int(thing.first_in_series))
 
+            if hasattr(thing, 'pw_series'):
+                pw_series = thing.pw_series
+                if pw_series['cover_letter']:
+                    env["MSGID"] = str(pw_series['cover_letter']['msgid'])
+                elif pw_series['patches']:
+                    env["MSGID"] = str(pw_series['patches'][0]['msgid'])
+
             out, err = CMD.cmd_run(self.info["run"], include_stderr=True, cwd=tree.path,
                                    pass_fds=[wfd], add_env=env)
         except core.cmd.CmdError as e:
