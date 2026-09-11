@@ -8,10 +8,10 @@ if [ -z "${MSGID}" ]; then
   exit 0
 fi
 
-OUT="${RESULTS_DIR}/b4-diff.txt"
+OUT="${RESULTS_DIR}/b4-diff.ansi"
 
 # ignore errors, we just want to see the diff if available
-b4 diff --output-diff "${OUT}" "${MSGID}" || true
+b4 diff --color --output-diff "${OUT}" "${MSGID}" || true
 
 if [ -s "${OUT}" ]; then
   echo "Diff with the previous version in $(basename "${OUT}")" >&"${DESC_FD}"

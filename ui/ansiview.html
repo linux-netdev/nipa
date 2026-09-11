@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NIPA log viewer</title>
+<link rel="icon" href="/favicon-contest.png">
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1c1c1c;
+    --dim: #888888;
+    --plan: #0550ae;
+    --bar-bg: #f2f2f2;
+    --bg-line: #f2dd2650;
+
+    /* ANSI 16 colors - Light theme */
+    --ansi-fg-0: #24292f;
+    --ansi-fg-1: #cf222e;
+    --ansi-fg-2: #1a7f37;
+    --ansi-fg-3: #9a6700;
+    --ansi-fg-4: #0969da;
+    --ansi-fg-5: #8250df;
+    --ansi-fg-6: #1b7c83;
+    --ansi-fg-7: #6e7781;
+    --ansi-fg-8: #57606a;
+    --ansi-fg-9: #a40e26;
+    --ansi-fg-10: #116329;
+    --ansi-fg-11: #633c01;
+    --ansi-fg-12: #0550ae;
+    --ansi-fg-13: #5a32a3;
+    --ansi-fg-14: #005a5e;
+    --ansi-fg-15: #24292f;
+
+    --ansi-bg-0: #24292f;
+    --ansi-bg-1: #cf222e;
+    --ansi-bg-2: #1a7f37;
+    --ansi-bg-3: #9a6700;
+    --ansi-bg-4: #0969da;
+    --ansi-bg-5: #8250df;
+    --ansi-bg-6: #1b7c83;
+    --ansi-bg-7: #eaeef2;
+    --ansi-bg-8: #57606a;
+    --ansi-bg-9: #ff8182;
+    --ansi-bg-10: #4ac26b;
+    --ansi-bg-11: #d4a72c;
+    --ansi-bg-12: #54aeff;
+    --ansi-bg-13: #b87fff;
+    --ansi-bg-14: #31b0bd;
+    --ansi-bg-15: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1c;
+      --fg: #c8c8c8;
+      --dim: #777777;
+      --plan: #809fff;
+      --bar-bg: #282828;
+      --bg-line: #f2dd2650;
+
+      /* ANSI 16 colors - Dark theme */
+      --ansi-fg-0: #484f58;
+      --ansi-fg-1: #ff7b72;
+      --ansi-fg-2: #3fb950;
+      --ansi-fg-3: #d29922;
+      --ansi-fg-4: #58a6ff;
+      --ansi-fg-5: #bc8cff;
+      --ansi-fg-6: #39c5cf;
+      --ansi-fg-7: #b1bac4;
+      --ansi-fg-8: #6e7681;
+      --ansi-fg-9: #ffa198;
+      --ansi-fg-10: #56d364;
+      --ansi-fg-11: #e3b341;
+      --ansi-fg-12: #79c0ff;
+      --ansi-fg-13: #d2a8ff;
+      --ansi-fg-14: #56d4dd;
+      --ansi-fg-15: #f0f6fc;
+
+      --ansi-bg-0: #484f58;
+      --ansi-bg-1: #b62324;
+      --ansi-bg-2: #196c2e;
+      --ansi-bg-3: #9e6a03;
+      --ansi-bg-4: #1f6feb;
+      --ansi-bg-5: #8957e5;
+      --ansi-bg-6: #1b7c83;
+      --ansi-bg-7: #b1bac4;
+      --ansi-bg-8: #6e7681;
+      --ansi-bg-9: #ff7b72;
+      --ansi-bg-10: #3fb950;
+      --ansi-bg-11: #d29922;
+      --ansi-bg-12: #58a6ff;
+      --ansi-bg-13: #bc8cff;
+      --ansi-bg-14: #39c5cf;
+      --ansi-bg-15: #f0f6fc;
+    }
+  }
+  html, body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: "roboto mono", ui-monospace, monospace;
+  }
+  #bar {
+    position: sticky;
+    top: 0;
+    background: var(--bar-bg);
+    padding: 0.5em 1em;
+    border-bottom: 1px solid var(--dim);
+    font-size: 0.85em;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1em;
+    align-items: baseline;
+  }
+  #bar a { color: var(--plan); }
+  #bar .sep { color: var(--dim); }
+  #path { word-break: break-all; }
+  pre {
+    margin: 0;
+    padding: 0.5em 1em;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 0.9em;
+    line-height: 1.35;
+    tab-size: 4;
+  }
+  .ln-bg { background-color: var(--bg-line); }
+
+  .ansi-fg-0 { color: var(--ansi-fg-0); }
+  .ansi-fg-1 { color: var(--ansi-fg-1); }
+  .ansi-fg-2 { color: var(--ansi-fg-2); }
+  .ansi-fg-3 { color: var(--ansi-fg-3); }
+  .ansi-fg-4 { color: var(--ansi-fg-4); }
+  .ansi-fg-5 { color: var(--ansi-fg-5); }
+  .ansi-fg-6 { color: var(--ansi-fg-6); }
+  .ansi-fg-7 { color: var(--ansi-fg-7); }
+  .ansi-fg-8 { color: var(--ansi-fg-8); }
+  .ansi-fg-9 { color: var(--ansi-fg-9); }
+  .ansi-fg-10 { color: var(--ansi-fg-10); }
+  .ansi-fg-11 { color: var(--ansi-fg-11); }
+  .ansi-fg-12 { color: var(--ansi-fg-12); }
+  .ansi-fg-13 { color: var(--ansi-fg-13); }
+  .ansi-fg-14 { color: var(--ansi-fg-14); }
+  .ansi-fg-15 { color: var(--ansi-fg-15); }
+
+  .ansi-bg-0 { background-color: var(--ansi-bg-0); }
+  .ansi-bg-1 { background-color: var(--ansi-bg-1); }
+  .ansi-bg-2 { background-color: var(--ansi-bg-2); }
+  .ansi-bg-3 { background-color: var(--ansi-bg-3); }
+  .ansi-bg-4 { background-color: var(--ansi-bg-4); }
+  .ansi-bg-5 { background-color: var(--ansi-bg-5); }
+  .ansi-bg-6 { background-color: var(--ansi-bg-6); }
+  .ansi-bg-7 { background-color: var(--ansi-bg-7); }
+  .ansi-bg-8 { background-color: var(--ansi-bg-8); }
+  .ansi-bg-9 { background-color: var(--ansi-bg-9); }
+  .ansi-bg-10 { background-color: var(--ansi-bg-10); }
+  .ansi-bg-11 { background-color: var(--ansi-bg-11); }
+  .ansi-bg-12 { background-color: var(--ansi-bg-12); }
+  .ansi-bg-13 { background-color: var(--ansi-bg-13); }
+  .ansi-bg-14 { background-color: var(--ansi-bg-14); }
+  .ansi-bg-15 { background-color: var(--ansi-bg-15); }
+
+  .ansi-bold { font-weight: bold; }
+  .ansi-dim { opacity: 0.65; }
+  .ansi-italic { font-style: italic; }
+  .ansi-underline { text-decoration: underline; }
+  .ansi-strikethrough { text-decoration: line-through; }
+  .ansi-underline.ansi-strikethrough { text-decoration: underline line-through; }
+  .ansi-hidden { visibility: hidden; }
+  .ansi-inverse { color: var(--bg); background-color: var(--fg); }
+</style>
+</head>
+<body>
+<div id="bar">
+  <span id="path">loading…</span>
+  <span class="sep">|</span>
+  <a id="raw" href="#">raw</a>
+</div>
+<pre id="out"></pre>
+<script>
+(function () {
+  const params = new URLSearchParams(window.location.search);
+  // Accept either ?f=/path or the legacy ?path=
+  const target = params.get("f") || params.get("path");
+  const out = document.getElementById("out");
+  const pathEl = document.getElementById("path");
+
+  if (!target) {
+    pathEl.textContent = "no log specified — pass ?f=<url>";
+    return;
+  }
+  document.getElementById("raw").href = target;
+  pathEl.innerHTML = "";
+  const a = document.createElement("a");
+  a.href = target;
+  a.textContent = target;
+  pathEl.appendChild(a);
+  document.title = target.split("/").slice(-2).join("/") + " — NIPA log";
+
+  const ANSI_REGEX = /\x1b(?:\[([0-9;?:=]*)([a-zA-Z])|\][^\x07\x1b]*(?:\x07|\x1b\\)|[\(\)][AB012]|[!-~])/g;
+
+  function esc(s) {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function parse256Color(n) {
+    if (n < 16) return n;
+    if (n >= 16 && n <= 231) {
+      const idx = n - 16;
+      const r = Math.floor(idx / 36);
+      const g = Math.floor((idx % 36) / 6);
+      const b = idx % 6;
+      const cv = v => v ? v * 40 + 55 : 0;
+      return `rgb(${cv(r)},${cv(g)},${cv(b)})`;
+    }
+    if (n >= 232 && n <= 255) {
+      const v = (n - 232) * 10 + 8;
+      return `rgb(${v},${v},${v})`;
+    }
+    return null;
+  }
+
+  function resetState(state) {
+    state.bold = false;
+    state.dim = false;
+    state.italic = false;
+    state.underline = false;
+    state.strikethrough = false;
+    state.inverse = false;
+    state.hidden = false;
+    state.fg = null;
+    state.bg = null;
+  }
+
+  function applySGR(paramStr, state) {
+    if (!paramStr || paramStr === "") {
+      resetState(state);
+      return;
+    }
+
+    const args = paramStr.split(/[;:]/).map(s => {
+      const n = parseInt(s, 10);
+      return isNaN(n) ? 0 : n;
+    });
+
+    for (let k = 0; k < args.length; k++) {
+      const code = args[k];
+      if (code === 0) {
+        resetState(state);
+      } else if (code === 1) {
+        state.bold = true;
+      } else if (code === 2) {
+        state.dim = true;
+      } else if (code === 3) {
+        state.italic = true;
+      } else if (code === 4) {
+        state.underline = true;
+      } else if (code === 7) {
+        state.inverse = true;
+      } else if (code === 8) {
+        state.hidden = true;
+      } else if (code === 9) {
+        state.strikethrough = true;
+      } else if (code === 21) {
+        state.bold = false;
+      } else if (code === 22) {
+        state.bold = false;
+        state.dim = false;
+      } else if (code === 23) {
+        state.italic = false;
+      } else if (code === 24) {
+        state.underline = false;
+      } else if (code === 27) {
+        state.inverse = false;
+      } else if (code === 28) {
+        state.hidden = false;
+      } else if (code === 29) {
+        state.strikethrough = false;
+      } else if (code >= 30 && code <= 37) {
+        state.fg = code - 30;
+      } else if (code === 38) {
+        if (k + 1 < args.length) {
+          if (args[k + 1] === 5 && k + 2 < args.length) {
+            state.fg = parse256Color(args[k + 2]);
+            k += 2;
+          } else if (args[k + 1] === 2 && k + 4 < args.length) {
+            state.fg = `rgb(${args[k + 2]},${args[k + 3]},${args[k + 4]})`;
+            k += 4;
+          }
+        }
+      } else if (code === 39) {
+        state.fg = null;
+      } else if (code >= 40 && code <= 47) {
+        state.bg = code - 40;
+      } else if (code === 48) {
+        if (k + 1 < args.length) {
+          if (args[k + 1] === 5 && k + 2 < args.length) {
+            state.bg = parse256Color(args[k + 2]);
+            k += 2;
+          } else if (args[k + 1] === 2 && k + 4 < args.length) {
+            state.bg = `rgb(${args[k + 2]},${args[k + 3]},${args[k + 4]})`;
+            k += 4;
+          }
+        }
+      } else if (code === 49) {
+        state.bg = null;
+      } else if (code >= 90 && code <= 97) {
+        state.fg = (code - 90) + 8;
+      } else if (code >= 100 && code <= 107) {
+        state.bg = (code - 100) + 8;
+      }
+    }
+  }
+
+  function wrapChunk(text, state) {
+    if (!text) return "";
+    const escaped = esc(text);
+    const classes = [];
+    const styles = [];
+
+    if (state.bold) classes.push("ansi-bold");
+    if (state.dim) classes.push("ansi-dim");
+    if (state.italic) classes.push("ansi-italic");
+    if (state.underline) classes.push("ansi-underline");
+    if (state.strikethrough) classes.push("ansi-strikethrough");
+    if (state.hidden) classes.push("ansi-hidden");
+    if (state.inverse) classes.push("ansi-inverse");
+
+    if (typeof state.fg === "number") {
+      classes.push("ansi-fg-" + state.fg);
+    } else if (typeof state.fg === "string") {
+      styles.push("color: " + state.fg);
+    }
+
+    if (typeof state.bg === "number") {
+      classes.push("ansi-bg-" + state.bg);
+    } else if (typeof state.bg === "string") {
+      styles.push("background-color: " + state.bg);
+    }
+
+    if (classes.length === 0 && styles.length === 0) {
+      return escaped;
+    }
+
+    let attr = "";
+    if (classes.length > 0) {
+      attr += ` class="${classes.join(" ")}"`;
+    }
+    if (styles.length > 0) {
+      attr += ` style="${styles.join("; ")}"`;
+    }
+    return `<span${attr}>${escaped}</span>`;
+  }
+
+  function parseLine(line, state) {
+    let result = "";
+    let lastIndex = 0;
+    ANSI_REGEX.lastIndex = 0;
+    let match;
+
+    while ((match = ANSI_REGEX.exec(line)) !== null) {
+      const textChunk = line.substring(lastIndex, match.index);
+      if (textChunk) {
+        result += wrapChunk(textChunk, state);
+      }
+      lastIndex = ANSI_REGEX.lastIndex;
+
+      if (match[2] === "m" || match[2] === "M") {
+        applySGR(match[1] || "", state);
+      }
+    }
+
+    const remaining = line.substring(lastIndex);
+    if (remaining) {
+      result += wrapChunk(remaining, state);
+    }
+    return result;
+  }
+
+  function highlightLine(id) {
+    const prev = out.querySelector(".ln-bg");
+    if (prev) prev.classList.remove("ln-bg");
+    if (id) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.classList.add("ln-bg");
+        el.scrollIntoView({ block: "center", behavior: "smooth" });
+      }
+    }
+  }
+
+  // Accept: text/plain so an nginx "serve viewer to browsers" rule (which keys
+  // off Accept: text/html) never redirects this fetch back to the viewer.
+  fetch(target, { headers: { "Accept": "text/plain" } })
+    .then(r => {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.text();
+    })
+    .then(text => {
+      const lines = text.split(/\r?\n/);
+      const state = {};
+      resetState(state);
+
+      const anchor = window.location.hash.match(/^#L(\d+)/);
+      const targetLine = anchor ? anchor[1] : -1;
+
+      const pieces = lines.map((line, i) => {
+        const lineContent = parseLine(line, state);
+        const bgClass = targetLine == i ? ' class="ln-bg"' : '';
+        return `<span id="L${i}"${bgClass}>${lineContent}</span>`;
+      });
+
+      out.innerHTML = pieces.join("\n");
+
+      if (targetLine >= 0) {
+        highlightLine("L" + targetLine);
+      }
+
+      window.addEventListener("hashchange", () => {
+        const m = window.location.hash.match(/^#L(\d+)/);
+        highlightLine(m ? "L" + m[1] : null);
+      });
+
+      out.addEventListener("click", e => {
+        const lineEl = e.target.closest("span[id^='L']");
+        if (lineEl && lineEl.id) {
+          history.pushState(null, null, "#" + lineEl.id);
+          highlightLine(lineEl.id);
+        }
+      });
+    })
+    .catch(err => {
+      out.textContent = "Failed to load log: " + err.message;
+    });
+})();
+</script>
+</body>
+</html>
