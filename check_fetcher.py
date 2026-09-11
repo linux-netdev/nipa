@@ -39,6 +39,7 @@ def main():
 
     rdir = config.get('dirs', 'results', fallback=os.path.join(NIPA_DIR, "results"))
     tgt_json = os.path.join(rdir, "checks.json")
+    tgt_json_status = os.path.join(rdir, "checks-status.json")
 
     # Time bounds
     retain_history_days = 60         # how much data we want in the JSON
@@ -55,6 +56,7 @@ def main():
 
     json_resp = pw.get_patches_all(delegate=delegate, since=since)
     jdb = []
+    jdb_status = []
     old_unchanged = 0
     check_updates = 0
     seen_pids = set()
@@ -89,6 +91,17 @@ def main():
                 "check-date": c["date"]
             }
             jdb.append(info)
+
+            info = {
+                "date": p["date"],
+                "check": c["context"],
+                "check-date": c["date"]
+            }
+            jdb_status.append(info)
+
+    # only the "recent" ones
+    with open(tgt_json_status, "w") as fp:
+        json.dump(jdb_status, fp)
 
     new_db = []
     skipped = 0

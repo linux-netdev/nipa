@@ -16,6 +16,7 @@ PROD=https://netdev.bots.linux.dev
 LOCAL=./ui
 ASSETS=(
   "checks.json"
+  "checks-status.json"
   "status.json"
   "issues.json"
   "contest/branch-results.json"
