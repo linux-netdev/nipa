@@ -19,10 +19,11 @@ Config:
 refresh=#secs
 [input]
 remote_db=/path/to/db
+branch_urls=url1,url2
 [output]
 dir=/path/to/output
 url_pfx=relative/within/server
-combined=name-of-manifest.json
+combined_files=name-of-manifest1.json,name-of-manifest2.json
 [db]
 db=db-name
 stability-name=table-name
@@ -469,8 +470,8 @@ def apply_stability(fetcher, data, unstable):
     data["results"] = list(filter(lambda x: x is not None, data["results"]))
 
 
-def build_combined(fetcher, remote_db):
-    r = requests.get(fetcher.config.get('input', 'branch_url'))
+def build_combined(fetcher, remote_db, branch_url):
+    r = requests.get(branch_url)
     branches = json.loads(r.content.decode('utf-8'))
     branch_info = {}
     for br in branches:
@@ -573,6 +574,13 @@ def build_seen(fetcher, remote_db):
 def main() -> None:
     fetcher = FetcherState()
 
+    branch_urls = fetcher.config.get('input', 'branch_urls').split(',')
+    combined_files = fetcher.config.get('output', 'combined_files').split(',')
+    if len(branch_urls) != len(combined_files):
+        raise ValueError(
+            "'branch_urls' and 'combined_files' must contain the same number "
+            "of comma-separated entries")
+
     with open(fetcher.config.get('input', 'remote_db'), "r") as fp:
         remote_db = json.load(fp)
 
@@ -586,10 +594,11 @@ def main() -> None:
 
         if fetcher.fetched:
             print('Generating combined')
-            results = build_combined(fetcher, remote_db)
 
-            combined = os.path.join(fetcher.config.get('output', 'combined'))
-            write_json_atomic(combined, results)
+            for branch_url, combined_file in zip(branch_urls, combined_files):
+                print('From', branch_url, 'to', combined_file)
+                results = build_combined(fetcher, remote_db, branch_url)
+                write_json_atomic(combined_file, results)
 
         time.sleep(int(fetcher.config.get('cfg', 'refresh')))
 
