@@ -495,9 +495,10 @@ def build_combined(fetcher, remote_db, branch_url):
             report_broken_remote(remote, error)
 
         for entry in results:
+            if entry['branch'] not in branch_info:
+                continue
+
             if not entry['url']:    # Executor is running
-                if entry['branch'] not in branch_info:
-                    continue
                 data = entry.copy()
                 when = datetime.datetime.fromisoformat(branch_info[entry['branch']]['date'])
                 data["start"] = str(when)
