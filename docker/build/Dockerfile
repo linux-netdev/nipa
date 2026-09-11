@@ -7,7 +7,7 @@ LABEL name=nipa-build
 
 RUN sudo dnf install -y \
 		clang llvm lld \
-		ruff pylint yamllint jsonschema shellcheck \
+		b4 ruff pylint yamllint jsonschema shellcheck \
 		dwarves libasan libasan-static glibc-devel.i686 \
 		rustc \
 		perl-Git lei \
