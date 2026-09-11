@@ -178,7 +178,8 @@ def apply_pending_patches(pw, config, tree, branch_name) -> Tuple[List, List]:
         else:
             log_open_sec("Applying: " + entry["series"][0]["name"])
             seen_series.add(series_id)
-            data = pw.get_mbox('series', series_id)
+            mbox_url = entry["series"][0]["mbox"]
+            data = pw.get_mbox_direct(mbox_url)
             p = Patch(data)
             try:
                 tree.apply(p)

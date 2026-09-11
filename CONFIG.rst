@@ -3,28 +3,6 @@ Config syntax
 
 This document describes the fields of the config file and their meaning.
 
-patchwork
-=========
-
-Section configuring the patchwork connection.
-
-archive
--------
-
-Patchwork's own ``/mbox/`` endpoints stopped working after one of its upgrades,
-so patchwork is only used for metadata and the messages themselves are fetched
-from the mailing list archive.
-
-``archive`` is the base URL of that archive, the message id gets appended to it
-(default: ``https://lore.kernel.org/all``).
-
-user-agent
-----------
-
-The ``User-Agent`` header for all HTTP requests. lore.kernel.org rejects
-requests from unknown agents with a 403, so this must be set to one of the
-strings the archive recognizes.
-
 poller
 ======
 
