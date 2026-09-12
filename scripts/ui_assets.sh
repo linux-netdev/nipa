@@ -19,6 +19,7 @@ ASSETS=(
   "status.json"
   "issues.json"
   "contest/branch-results.json"
+  "contest/branch-results-hw.json"
   "contest/branches-info.json"
   "contest/filters.json"
   "contest/all-results.json"

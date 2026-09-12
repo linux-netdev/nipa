@@ -1001,7 +1001,7 @@ function load_result_table(data_raw, reload)
     }
 }
 
-let xfr_todo = 4;
+let xfr_todo = 5;
 let all_results = null;
 let branches_info = null;
 let branches = new Set();
@@ -1271,6 +1271,9 @@ function do_it()
     });
     $(document).ready(function() {
         $.get("contest/branch-results.json", branch_res_doit)
+    });
+    $(document).ready(function() {
+        $.get("contest/branch-results-hw.json", branch_res_doit)
     });
     $(document).ready(function() {
         $.get("query/results?branches=10&pending=y", results_loaded)
