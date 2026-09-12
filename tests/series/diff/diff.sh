@@ -13,7 +13,7 @@ OUT="${RESULTS_DIR}/b4-diff.ansi"
 # ignore errors, we just want to see the diff if available
 b4 diff --color --output-diff "${OUT}" "${MSGID}" || true
 
-if [ -s "${OUT}" ]; then
+if grep -q "^    " "${OUT}" 2>/dev/null; then
   echo "Diff with the previous version in $(basename "${OUT}")" >&"${DESC_FD}"
 else
   echo "No diff available" >&"${DESC_FD}"
