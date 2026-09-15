@@ -989,5 +989,124 @@ class TestMainFlow(_MainTestCase):
                          messages)
 
 
+def _ethtool_k_json(**overrides):
+    """Build `ethtool --json -k` output, shaped like netlink/features.c.
+
+    Every feature is a flat top-level key next to "ifname"; sub-features
+    are not nested.  A legacy offload flag backed by several features gets
+    a synthetic entry with "fixed"/"requested" null (tx-checksumming here).
+    """
+    dev = {
+        'ifname': 'eth0',
+        'rx-checksumming': {'active': True, 'fixed': False,
+                            'requested': True},
+        'tx-checksumming': {'active': True, 'fixed': None,
+                            'requested': None},
+        'tx-checksum-ipv4': {'active': True, 'fixed': False,
+                             'requested': True},
+        'rx-gro-hw': {'active': False, 'fixed': False, 'requested': False},
+    }
+    dev.update(overrides)
+    return json.dumps([dev]).encode()
+
+
+class TestGetFeature(unittest.TestCase):
+    def _run(self, stdout, returncode=0, feature='rx-gro-hw'):
+        from hw_worker import _get_feature
+        ret = mock.Mock(returncode=returncode, stdout=stdout, stderr=b'')
+        with mock.patch('subprocess.run', return_value=ret) as mock_run:
+            res = _get_feature('eth0', feature)
+        if returncode == 0:
+            self.assertIn('--json', mock_run.call_args.args[0])
+        return res
+
+    def test_off_and_changeable(self):
+        self.assertEqual(self._run(_ethtool_k_json()), (False, True))
+
+    def test_on(self):
+        out = _ethtool_k_json(**{'rx-gro-hw': {'active': True,
+                                               'fixed': False,
+                                               'requested': True}})
+        self.assertEqual(self._run(out), (True, True))
+
+    def test_fixed_is_not_changeable(self):
+        out = _ethtool_k_json(**{'rx-gro-hw': {'active': False,
+                                               'fixed': True,
+                                               'requested': False}})
+        self.assertEqual(self._run(out), (False, False))
+
+    def test_requested_does_not_affect_the_answer(self):
+        # "off [requested on]" in the plain-text output
+        out = _ethtool_k_json(**{'rx-gro-hw': {'active': False,
+                                               'fixed': False,
+                                               'requested': True}})
+        self.assertEqual(self._run(out), (False, True))
+
+    def test_null_fixed_is_not_changeable(self):
+        # Synthetic legacy-flag entry: "fixed" is null, not false
+        self.assertEqual(self._run(_ethtool_k_json(),
+                                   feature='tx-checksumming'), (True, False))
+
+    def test_subfeature_is_top_level(self):
+        # Text output indents these under their flag; JSON keeps them flat
+        self.assertEqual(self._run(_ethtool_k_json(),
+                                   feature='tx-checksum-ipv4'), (True, True))
+
+    def test_missing_feature(self):
+        self.assertEqual(self._run(_ethtool_k_json(), feature='rx-gro-nope'),
+                         (None, None))
+
+    def test_non_feature_key(self):
+        self.assertEqual(self._run(_ethtool_k_json(), feature='ifname'),
+                         (None, None))
+
+    def test_plain_text_fallback(self):
+        # ethtool older than v5.17 ignores --json for -k and prints text
+        self.assertEqual(self._run(b'Features for eth0:\nrx-gro-hw: off\n'),
+                         (None, None))
+
+    def test_ethtool_failure(self):
+        self.assertEqual(self._run(b'', returncode=1), (None, None))
+
+    def test_ethtool_missing(self):
+        from hw_worker import _get_feature
+        with mock.patch('subprocess.run', side_effect=OSError):
+            self.assertEqual(_get_feature('eth0', 'rx-gro-hw'), (None, None))
+
+
+class TestEnableHwGro(unittest.TestCase):
+    """_enable_hw_gro() only touches mlx5 NICs advertising rx-gro-hw off."""
+
+    def _run(self, driver, feature):
+        from hw_worker import _enable_hw_gro
+        ok = mock.Mock(returncode=0, stdout=b'', stderr=b'')
+        with mock.patch('hw_worker._get_driver', return_value=driver), \
+             mock.patch('hw_worker._get_feature', return_value=feature), \
+             mock.patch('subprocess.run', return_value=ok) as mock_run:
+            _enable_hw_gro('eth0')
+        return mock_run
+
+    def test_mlx5_off_gets_enabled(self):
+        mock_run = self._run('mlx5_core', (False, True))
+        mock_run.assert_called_once()
+        self.assertEqual(mock_run.call_args.args[0],
+                         ['ethtool', '-K', 'eth0', 'rx-gro-hw', 'on'])
+
+    def test_mlx5_already_on_is_left_alone(self):
+        self._run('mlx5_core', (True, True)).assert_not_called()
+
+    def test_mlx5_fixed_is_left_alone(self):
+        self._run('mlx5_core', (False, False)).assert_not_called()
+
+    def test_mlx5_without_the_feature(self):
+        self._run('mlx5_core', (None, None)).assert_not_called()
+
+    def test_other_driver_is_left_alone(self):
+        self._run('fbnic', (False, True)).assert_not_called()
+
+    def test_unknown_driver_is_left_alone(self):
+        self._run(None, (False, True)).assert_not_called()
+
+
 if __name__ == '__main__':
     unittest.main()

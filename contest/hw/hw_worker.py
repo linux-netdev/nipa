@@ -216,6 +216,77 @@ def _get_ifindex(netif):
         return None
 
 
+def _get_driver(netif):
+    """Return the name of the driver bound to an interface, or None."""
+    try:
+        return os.path.basename(
+            os.readlink(f'/sys/class/net/{netif}/device/driver'))
+    except OSError:
+        return None
+
+
+def _get_feature(netif, feature):
+    """Read one ethtool feature.
+
+    Returns (enabled, changeable), or (None, None) if the feature is not
+    listed at all (tool missing, unknown device, ethtool older than v5.17
+    which predates --json here and falls back to plain text, ...).
+
+    Every feature is a top-level key of the per-device object, each with
+    "active" and "fixed" booleans -- sub-features are *not* nested, the
+    indentation of the plain-text output has no JSON counterpart.  "fixed"
+    is null for the synthetic entries ethtool emits for a legacy offload
+    flag backed by several features, so only an explicit false means the
+    feature can be toggled.
+    """
+    try:
+        ret = subprocess.run(['ethtool', '--json', '-k', netif],
+                             capture_output=True, timeout=10, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return None, None
+    if ret.returncode != 0:
+        return None, None
+    try:
+        info = json.loads(ret.stdout)[0][feature]
+        return info['active'], info['fixed'] is False
+    except (json.JSONDecodeError, IndexError, KeyError, TypeError):
+        return None, None
+
+
+def _enable_hw_gro(netif):
+    """Turn HW GRO on for mlx5 NICs which advertise it but leave it off.
+
+    mlx5 supports rx-gro-hw but does not enable it by default, so the HW
+    tests would never exercise the offload.  Other drivers are left as
+    they come up.  Best-effort — a missing or fixed feature is only logged.
+    """
+    driver = _get_driver(netif)
+    if driver is None or not driver.startswith('mlx5'):
+        return
+
+    enabled, changeable = _get_feature(netif, 'rx-gro-hw')
+    if enabled is None:
+        print(f"WARN: {netif} ({driver}) does not report rx-gro-hw")
+        return
+    if enabled:
+        return
+    if not changeable:
+        print(f"WARN: rx-gro-hw is off and fixed on {netif} ({driver})")
+        return
+
+    try:
+        ret = subprocess.run(['ethtool', '-K', netif, 'rx-gro-hw', 'on'],
+                             capture_output=True, timeout=10, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        print(f"WARN: could not enable rx-gro-hw on {netif}")
+        return
+    if ret.returncode == 0:
+        print(f"Enabled rx-gro-hw on {netif} ({driver})")
+    else:
+        stderr = ret.stderr.decode('utf-8', 'ignore').strip()
+        print(f"WARN: could not enable rx-gro-hw on {netif}: {stderr}")
+
+
 def _read_combined_channels(netif):
     """Read channel config via ethtool.
 
@@ -359,6 +430,13 @@ def setup_test_interfaces(test_dir):
             _ensure_addr(netif, env['LOCAL_V4'])
         if env.get('LOCAL_V6'):
             _ensure_addr(netif, env['LOCAL_V6'])
+
+        # Enable HW GRO before pinning IRQs -- toggling the feature
+        # resets the channels, and with them the NAPI IRQs we map below.
+        try:
+            _enable_hw_gro(netif)
+        except Exception as e:  # pylint: disable=broad-except
+            print(f"WARN: HW GRO setup failed for {netif}: {e}")
 
         # Spread the NIC's IRQs across CPUs for the test run
         try:
