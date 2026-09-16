@@ -2,8 +2,12 @@
 
 """Helpers for extracting and summarizing metrics from a NIPA result."""
 
+import collections
+import copy
 import json
 import math
+import re
+import statistics
 
 
 def _series_key(metric):
@@ -191,6 +195,138 @@ def summarize_metrics(metrics):
         summaries.append(base)
 
     return summaries
+
+
+_BRANCH_DATE = r'[0-9]{4}-[0-9]{2}-[0-9]{2}--[0-9]{2}-[0-9]{2}'
+# Date stamp of NIPA branches, valid in Python and PostgreSQL regexes
+BRANCH_DATE_SUFFIX = rf'-{_BRANCH_DATE}$'
+_BRANCH_DATE_SUFFIX_RE = re.compile(BRANCH_DATE_SUFFIX)
+
+
+def branch_prefix(branch):
+    return _BRANCH_DATE_SUFFIX_RE.sub('', branch)
+
+
+def branch_pattern(prefix):
+    return rf'^{re.escape(prefix)}-{_BRANCH_DATE}$'
+
+
+def _regression_series_key(row, metric):
+    dimensions = {
+        key: value for key, value in metric.items()
+        if key not in {
+            'summary', 'samples', 'value_count', 'cpus', 'display_range',
+            'display_scale', 'display_label', 'regression_value',
+            'regression_result'}
+    }
+    identity = {
+        'branch_prefix': branch_prefix(row['branch']),
+        'remote': row['remote'],
+        'executor': row['executor'],
+        'group': row['group'],
+        'test': row['test'],
+        'subtest': row['subtest'],
+        'metric': dimensions,
+    }
+    return json.dumps(identity, sort_keys=True, separators=(',', ':'))
+
+
+# How much worse than the median of its recent results a performance metric
+# has to get to regress
+REGRESSION_TOLERANCE = 0.1
+# How many earlier results the median is taken of
+REGRESSION_WINDOW = 5
+
+
+def evaluate_regressions(rows, *, window=REGRESSION_WINDOW):
+    """Annotate compact metric rows using earlier comparable results.
+
+    The goal of a metric gives its direction: an error metric must be zero,
+    a performance metric regresses when it is worse than the median of its
+    recent results by more than REGRESSION_TOLERANCE. NIPA owns the
+    historical cohort: successful results from the same branch family,
+    runner, test case, and metric series. Input ordering is preserved in the
+    returned deep copy.
+    """
+    evaluated = copy.deepcopy(rows)
+    history = {}
+    ordered = sorted(enumerate(evaluated),
+                     key=lambda item: (item[1]['start'], item[0]))
+
+    for _index, row in ordered:
+        if row['result'] != 'pass':
+            continue
+        for metric in row['short_json']:
+            goal = metric.get('goal')
+            if goal not in ('higher', 'lower', 'zero'):
+                continue
+
+            try:
+                current = metric['regression_value']
+                # Anything else in the history would stop all later checks
+                if not _is_number(current):
+                    continue
+                if goal == 'zero':
+                    metric['regression_result'] = {
+                        'status': 'error' if current else 'ok',
+                        'current': _summary_number(current),
+                    }
+                    continue
+                key = _regression_series_key(row, metric)
+                baseline_values = history.setdefault(key, [])[-window:]
+                result = {
+                    'status': 'insufficient-data',
+                    'current': _summary_number(current),
+                    'baseline_samples': len(baseline_values),
+                }
+                if baseline_values:
+                    baseline = statistics.median(baseline_values)
+                    threshold = REGRESSION_TOLERANCE * abs(baseline)
+                    if goal == 'higher':
+                        worsening = baseline - current
+                    else:
+                        worsening = current - baseline
+                    result.update({
+                        'status': ('regression'
+                                   if worsening > threshold else 'ok'),
+                        'baseline': _summary_number(baseline),
+                        'threshold': _summary_number(threshold),
+                    })
+                    if baseline:
+                        result['delta_percent'] = _summary_number(
+                            (current - baseline) / abs(baseline) * 100)
+                metric['regression_result'] = result
+                history[key].append(current)
+            except (KeyError, TypeError, ValueError, ArithmeticError):
+                continue
+
+    return evaluated
+
+
+def _case_key(row):
+    return (branch_prefix(row['branch']), row['remote'], row['executor'],
+            row['group'], row['test'], row['subtest'])
+
+
+def evaluate_recent_regressions(rows, limit, *, window=REGRESSION_WINDOW):
+    """Evaluate rows, then return the latest `limit` results of each test case.
+
+    The older rows only serve as the baseline: given `window` of them for
+    each test case, even the oldest returned result is compared with a full
+    window of history.
+    """
+    evaluated = evaluate_regressions(rows, window=window)
+    latest = sorted(enumerate(evaluated),
+                    key=lambda item: (item[1]['start'], item[0]),
+                    reverse=True)
+    counts = collections.Counter()
+    keep = set()
+    for index, row in latest:
+        key = _case_key(row)
+        counts[key] += 1
+        if counts[key] <= limit:
+            keep.add(index)
+    return [row for index, row in enumerate(evaluated) if index in keep]
 
 
 def extract_result_metrics(data):

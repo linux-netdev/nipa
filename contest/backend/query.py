@@ -11,6 +11,10 @@ import os
 import re
 import datetime
 
+from result_metrics import BRANCH_DATE_SUFFIX, REGRESSION_WINDOW, \
+    branch_pattern, branch_prefix, evaluate_recent_regressions, \
+    evaluate_regressions
+
 
 app = Flask("NIPA contest query")
 
@@ -20,6 +24,9 @@ psql.autocommit = True
 
 # How many branches to query to get flakes for last month
 flake_cnt = 300
+# How many of the latest results of each test case to include in metric
+# history
+metric_history_limit = 50
 
 
 @app.route('/')
@@ -203,6 +210,158 @@ def remotes():
     return rows
 
 
+def _metric_start(timestamp):
+    start = timestamp.isoformat()
+    if timestamp.tzinfo is None:
+        start += '+00:00'
+    return start
+
+
+def _metric_response(row, include_full=False):
+    data = {
+        'id': row[0],
+        'branch': row[1],
+        'branch_date': row[2],
+        'remote': row[3],
+        'executor': row[4],
+        'start': _metric_start(row[5]),
+        'group': row[6],
+        'test': row[7],
+        'subtest': row[8],
+        'short_json': row[9],
+    }
+    offset = 0
+    if include_full:
+        data['full_json'] = row[10]
+        offset = 1
+    data.update({
+        'attempt': row[10 + offset],
+        'result': row[11 + offset],
+        'link': row[12 + offset],
+    })
+    return data
+
+
+@app.route('/metrics')
+def metrics():
+    """Return compact summaries of the latest successful test-case attempts."""
+    t1 = datetime.datetime.now()
+
+    clauses = ["result = 'pass'"]
+    params = []
+    filters = {
+        'remote': 'remote',
+        'executor': 'executor',
+        'group': 'grp',
+        'test': 'test',
+        'subtest': 'subtest',
+    }
+    for arg, column in filters.items():
+        value = request.args.get(arg)
+        if value:
+            clauses.append(f"{column} = %s")
+            params.append(value)
+
+    requested_prefix = request.args.get('br-pfx')
+    if requested_prefix:
+        clauses.append("branch ~ %s")
+        params.append(branch_pattern(requested_prefix))
+
+    where = " WHERE " + " AND ".join(clauses)
+    with psql.cursor() as cur:
+        # Number the latest successful attempt of each run from the latest
+        # run, within each test case of a branch family and runner
+        cur.execute(
+            f"""WITH successful_metrics AS (
+                    SELECT DISTINCT ON (
+                               branch, remote, executor, grp, test, subtest)
+                           id, branch, branch_date, remote, executor, t_start,
+                           grp, test, subtest, short_json,
+                           attempt, result, link
+                    FROM result_metrics{where}
+                    ORDER BY branch, remote, executor, grp, test, subtest,
+                             attempt DESC
+                ), numbered_metrics AS (
+                    SELECT *, ROW_NUMBER() OVER (
+                               PARTITION BY regexp_replace(branch, %s, ''),
+                                            remote, executor, grp, test,
+                                            subtest
+                               ORDER BY t_start DESC, id DESC) AS position
+                    FROM successful_metrics
+                )
+                SELECT id, branch, branch_date, remote, executor, t_start,
+                       grp, test, subtest, short_json, attempt, result, link
+                FROM numbered_metrics
+                WHERE position <= %s
+                ORDER BY t_start, id""",
+            params + [BRANCH_DATE_SUFFIX,
+                      metric_history_limit + REGRESSION_WINDOW])
+        rows = cur.fetchall()
+
+    # The results beyond the limit are only the baseline of the oldest ones
+    data = evaluate_recent_regressions(
+        [_metric_response(row) for row in rows], metric_history_limit)
+    print(f"Query for {len(data)} metric-bearing test-case results, up to "
+          f"{metric_history_limit} of each test case, took: "
+          f"{str(datetime.datetime.now() - t1)}")
+    return data
+
+
+@app.route('/metrics/<int:metric_id>')
+def metric_details(metric_id):
+    """Return all observations for one test-case attempt."""
+    t1 = datetime.datetime.now()
+    with psql.cursor() as cur:
+        cur.execute(
+            """SELECT id, branch, branch_date, remote, executor, t_start,
+                      grp, test, subtest, short_json, full_json,
+                      attempt, result, link
+                 FROM result_metrics
+                WHERE id = %s""",
+            (metric_id,))
+        row = cur.fetchone()
+
+    if row is None:
+        return {'error': 'metric result not found'}, 404
+
+    data = _metric_response(row, include_full=True)
+    if data['result'] == 'pass':
+        # The baseline of /metrics: the latest successful attempts of the
+        # previous runs of the test case
+        pattern = branch_pattern(branch_prefix(data['branch']))
+        with psql.cursor() as cur:
+            cur.execute(
+                """SELECT id, branch, branch_date, remote, executor, t_start,
+                          grp, test, subtest, short_json,
+                          attempt, result, link
+                     FROM (SELECT DISTINCT ON (branch)
+                                  id, branch, branch_date, remote, executor,
+                                  t_start, grp, test, subtest, short_json,
+                                  attempt, result, link
+                             FROM result_metrics
+                            WHERE result = 'pass' AND branch ~ %s
+                              AND branch <> %s
+                              AND remote = %s AND executor = %s
+                              AND grp = %s AND test = %s AND subtest = %s
+                              AND t_start <= %s
+                            ORDER BY branch, attempt DESC) AS previous_runs
+                    ORDER BY t_start DESC, id DESC
+                    LIMIT %s""",
+                (pattern, data['branch'], data['remote'], data['executor'],
+                 data['group'], data['test'], data['subtest'],
+                 data['start'], REGRESSION_WINDOW))
+            history = [_metric_response(item)
+                       for item in reversed(cur.fetchall())]
+        current = {key: value for key, value in data.items()
+                   if key != 'full_json'}
+        data['short_json'] = evaluate_regressions(
+            history + [current])[-1]['short_json']
+
+    print(f"Query for metric result {metric_id} took: "
+          f"{str(datetime.datetime.now() - t1)}")
+    return data
+
+
 @app.route('/stability')
 def stability():
     # auto = query only tests which NIPA ignores based on stability
@@ -300,8 +459,7 @@ def flaky_tests():
     for row in rows:
         rem, exe, test, branch, br_date = row
         if group_pfx:
-            # Strip the trailing date stamp ("-YYYY-MM-DD--HH-MM", 18 chars)
-            key = (rem, exe, test, branch[:-18])
+            key = (rem, exe, test, branch_prefix(branch))
         else:
             key = (rem, exe, test)
         if not month:

@@ -2,7 +2,8 @@
 
 import unittest
 
-from contest.backend.result_metrics import extract_result_metrics
+from contest.backend.result_metrics import evaluate_recent_regressions, \
+    evaluate_regressions, extract_result_metrics
 
 
 class TestResultMetrics(unittest.TestCase):
@@ -298,6 +299,133 @@ class TestResultMetrics(unittest.TestCase):
             'summary': {'total': 5}, 'value_count': 3,
         })
 
+    def test_regressions_use_previous_comparable_results(self):
+        rows = []
+        for index, value in enumerate([100, 88, 100, 100, 100, 100, 88]):
+            rows.append({
+                'id': index + 1,
+                'branch': f'net-next-2026-01-{index + 1:02d}--00-00',
+                'remote': 'metal', 'executor': 'executor',
+                'start': f'2026-01-{index + 1:02d}T00:00:00+00:00',
+                'group': 'group', 'test': 'test', 'subtest': 'case',
+                'attempt': 0, 'result': 'pass',
+                'short_json': [{
+                    'name': 'throughput', 'goal': 'higher',
+                    'host': 'local', 'summarize': 'last',
+                    'samples': 1, 'value_count': 1,
+                    'summary': {'last': value},
+                    'regression_value': value,
+                }],
+            })
+
+        evaluated = evaluate_regressions(rows)
+
+        self.assertNotIn('regression_result', rows[-1]['short_json'][0])
+        first = evaluated[0]['short_json'][0]['regression_result']
+        self.assertEqual(first, {
+            'status': 'insufficient-data', 'current': 100,
+            'baseline_samples': 0,
+        })
+        early = evaluated[1]['short_json'][0]['regression_result']
+        self.assertEqual(early, {
+            'status': 'regression', 'current': 88,
+            'baseline_samples': 1, 'baseline': 100,
+            'threshold': 10.0, 'delta_percent': -12.0,
+        })
+        stable = evaluated[5]['short_json'][0]['regression_result']
+        self.assertEqual(stable['status'], 'ok')
+        self.assertEqual(stable['baseline'], 100)
+        regressed = evaluated[6]['short_json'][0]['regression_result']
+        self.assertEqual(regressed, {
+            'status': 'regression', 'current': 88,
+            'baseline_samples': 5, 'baseline': 100,
+            'threshold': 10.0, 'delta_percent': -12.0,
+        })
+
+        other_runner = [dict(rows[-1], id=20, executor='other')]
+        isolated = evaluate_regressions(rows[:-1] + other_runner)[-1]
+        self.assertEqual(
+            isolated['short_json'][0]['regression_result']['status'],
+            'insufficient-data')
+
+    def test_error_metrics_must_be_zero(self):
+        rows = [{
+            'id': index + 1,
+            'branch': f'net-next-2026-01-{index + 1:02d}--00-00',
+            'remote': 'metal', 'executor': 'executor',
+            'start': f'2026-01-{index + 1:02d}T00:00:00+00:00',
+            'group': 'group', 'test': 'test', 'subtest': 'case',
+            'attempt': 0, 'result': 'pass',
+            'short_json': [{
+                'name': 'ring.rx_alloc_fail', 'goal': 'zero',
+                'summarize': 'last', 'samples': 1, 'value_count': 1,
+                'summary': {'last': value}, 'regression_value': value,
+            }],
+        } for index, value in enumerate([0, 2])]
+
+        evaluated = evaluate_regressions(rows)
+
+        self.assertEqual(evaluated[0]['short_json'][0]['regression_result'],
+                         {'status': 'ok', 'current': 0})
+        self.assertEqual(evaluated[1]['short_json'][0]['regression_result'],
+                         {'status': 'error', 'current': 2})
+
+    def test_values_which_are_not_numbers_stay_out_of_history(self):
+        rows = [{
+            'id': index + 1,
+            'branch': f'net-next-2026-01-{index + 1:02d}--00-00',
+            'remote': 'metal', 'executor': 'executor',
+            'start': f'2026-01-{index + 1:02d}T00:00:00+00:00',
+            'group': 'group', 'test': 'test', 'subtest': 'case',
+            'attempt': 0, 'result': 'pass',
+            'short_json': [{
+                'name': 'throughput', 'goal': 'higher',
+                'summarize': 'last', 'samples': 1, 'value_count': 1,
+                'summary': {'last': value}, 'regression_value': value,
+            }],
+        } for index, value in enumerate([None, 100, 'fast', 100, 50])]
+
+        evaluated = evaluate_regressions(rows)
+
+        results = [row['short_json'][0].get('regression_result')
+                   for row in evaluated]
+        self.assertIsNone(results[0])
+        self.assertEqual(results[1]['status'], 'insufficient-data')
+        self.assertIsNone(results[2])
+        self.assertEqual(results[3]['status'], 'ok')
+        self.assertEqual(results[4]['status'], 'regression')
+        self.assertEqual(results[4]['baseline_samples'], 2)
+
+    def test_malformed_regression_does_not_stop_evaluation(self):
+        rows = []
+        for index in range(2):
+            rows.append({
+                'id': index + 1,
+                'branch': f'net-next-2026-01-{index + 1:02d}--00-00',
+                'remote': 'metal', 'executor': 'executor',
+                'start': f'2026-01-{index + 1:02d}T00:00:00+00:00',
+                'group': 'group', 'test': 'test', 'subtest': 'case',
+                'attempt': 0, 'result': 'pass',
+                'short_json': [{
+                    'name': 'invalid', 'goal': 'higher',
+                    'summarize': 'last', 'samples': 1, 'value_count': 1,
+                    'summary': {'last': 10},
+                }, {
+                    'name': 'valid', 'goal': 'higher',
+                    'summarize': 'last', 'samples': 1, 'value_count': 1,
+                    'summary': {'last': 20},
+                    'regression_value': 20,
+                }],
+            })
+
+        evaluated = evaluate_regressions(rows)
+
+        self.assertNotIn(
+            'regression_result', evaluated[1]['short_json'][0])
+        self.assertEqual(
+            evaluated[1]['short_json'][1]['regression_result']['status'],
+            'ok')
+
     def test_full_json_preserves_samples(self):
         metric = {'name': 'throughput', 'type': 'scalar', 'time': 2,
                   'value': 1, 'host': 'local', 'summarize': 'p50'}
@@ -401,6 +529,39 @@ class TestResultMetrics(unittest.TestCase):
 
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]['full_json'], [{'name': 'x', 'value': 1}])
+
+    def test_recent_regressions_keep_the_baseline_of_the_oldest(self):
+        def row(index, executor, value):
+            return {
+                'id': index,
+                'branch': f'net-next-2026-01-{index:02d}--00-00',
+                'remote': 'metal', 'executor': executor,
+                'start': f'2026-01-{index:02d}T00:00:00+00:00',
+                'group': 'group', 'test': 'test', 'subtest': 'case',
+                'attempt': 0, 'result': 'pass',
+                'short_json': [{
+                    'name': 'throughput', 'goal': 'higher',
+                    'summarize': 'last', 'samples': 1, 'value_count': 1,
+                    'summary': {'last': value}, 'regression_value': value,
+                }],
+            }
+
+        # Nine results of one runner, the latest three of them regressed,
+        # and one result of another runner
+        rows = [row(index, 'executor', 100 if index < 7 else 80)
+                for index in range(1, 10)]
+        rows.append(row(10, 'other', 80))
+
+        recent = evaluate_recent_regressions(rows, 3)
+
+        self.assertEqual([entry['id'] for entry in recent], [7, 8, 9, 10])
+        results = [entry['short_json'][0]['regression_result']
+                   for entry in recent]
+        self.assertEqual(results[0], {
+            'status': 'regression', 'current': 80, 'baseline_samples': 5,
+            'baseline': 100, 'threshold': 10.0, 'delta_percent': -20.0,
+        })
+        self.assertEqual(results[3]['status'], 'insufficient-data')
 
 
 if __name__ == '__main__':
