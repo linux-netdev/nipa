@@ -4,6 +4,7 @@ import json
 import os
 import unittest
 
+from contest.backend.result_metrics import extract_result_metrics
 from contest.remote.lib.names import namify
 from contest.remote.lib.results import parse_nested_tests
 
@@ -32,6 +33,18 @@ class TestNestedMetrics(unittest.TestCase):
         self.assertAlmostEqual(metrics[0]['value'], 389.127)
         self.assertEqual(metrics[0]['goal'], 'higher')
 
+        rows = extract_result_metrics({'results': [{
+            'group': 'selftests-drivers-net-perf',
+            'test': 'devmem-py',
+            'result': 'pass',
+            'link': ('https://netdev.bots.linux.dev/results/123456/'
+                     'test-outputs/0-devmem-py/'),
+            'results': nested,
+        }]})
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['subtest'], 'devmem-kperf')
+        self.assertEqual(len(rows[0]['short_json']), 1)
+        self.assertEqual(len(rows[0]['full_json']), 1)
 
     def test_retry_metrics_are_separate(self):
         first = ('# TAP version 13\n'
