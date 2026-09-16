@@ -21,7 +21,7 @@ if [[ ! -d ./ui/static ]]; then
 fi
 
 # Need to run a local webserver to avoid CORS violations
-python -m http.server -d ./ui -b localhost 8080 &> /dev/null &
+python3 -m http.server -d ./ui -b localhost 8080 &> /dev/null &
 pid=$!
 trap 'kill ${pid}' EXIT
 
