@@ -267,11 +267,22 @@ function systemd(data_raw, data_local, data_remote)
     reload_systemd();
 }
 
-function load_runners(data_raw)
+let runners_entries = [];
+
+function reload_runners()
 {
     var table = document.getElementById("runners");
+    const summarize = document.getElementById("runner-summary").checked;
+    var hidden = 0;
 
-    $.each(data_raw, function(i, v) {
+    $("#runners tr").slice(1).remove();
+
+    $.each(runners_entries, function(i, e) {
+	if (summarize && !e.v.patch) {
+	    hidden++;
+	    return 1;
+	}
+
 	var row = table.insertRow();
 	let cell_id = 0;
 	var name = row.insertCell(cell_id++);
@@ -281,8 +292,9 @@ function load_runners(data_raw)
 	var test = row.insertCell(cell_id++);
 	var pid = row.insertCell(cell_id++);
 	var patch = row.insertCell(cell_id++);
+	var v = e.v;
 
-	name.innerHTML = i.slice(0, -6);
+	name.innerHTML = e.name.slice(0, -6);
 	pid.innerHTML = v.progress;
 	patch.innerHTML = v.patch;
 	tid.innerHTML = v["test-progress"];
@@ -295,7 +307,27 @@ function load_runners(data_raw)
 		row.setAttribute("style", "color: red");
 	}
     });
+
+    if (summarize && hidden) {
+	var row = table.insertRow();
+	var cell = row.insertCell(0);
+	cell.innerHTML = '<span style="font-style: italic;"><b>' + hidden + ' / ' + runners_entries.length + '</b> idle runners hidden</span>';
+	cell.setAttribute("colspan", "7");
+	cell.setAttribute("style", "text-align: right");
+    }
 }
+
+function load_runners(data_raw)
+{
+    runners_entries = [];
+
+    $.each(data_raw, function(i, v) {
+	runners_entries.push({name: i, v: v});
+    });
+
+    reload_runners();
+}
+
 
 function load_runtime(data_raw)
 {
@@ -408,6 +440,9 @@ function status_system(data_raw)
 
     let summary_checkbox = document.getElementById("systemd-summary");
     summary_checkbox.addEventListener("change", reload_systemd);
+
+    let build_summary_checkbox = document.getElementById("runner-summary");
+    build_summary_checkbox.addEventListener("change", reload_runners);
 }
 
 function msec_to_str(msec) {
