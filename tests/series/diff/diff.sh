@@ -26,10 +26,12 @@ if ! GIT_RANGE=$(echo "${B4_OUT}" | tail -n1 |
 fi
 
 HAS_DIFF=0
-for factor in 40 60 80; do
-  if [ "${factor}" -eq 60 ]; then
-    # 60 is the default, so we don't need to specify it
-    out="${RESULTS_DIR}/b4-diff.ansi"
+OUT="${RESULTS_DIR}/b4-diff.ansi"
+DEFAULT=60
+for factor in "${DEFAULT}" 40 80; do
+  if [ "${factor}" -eq "${DEFAULT}" ]; then
+    # default, we don't need to specify the factor
+    out="${OUT}"
   else
     out="${RESULTS_DIR}/b4-diff-${factor}.ansi"
   fi
@@ -45,6 +47,10 @@ for factor in 40 60 80; do
     rm -f "${out}"
   else
     HAS_DIFF=1
+    if [ "${factor}" -ne "${DEFAULT}" ] && cmp -s "${out}" "${OUT}"; then
+      echo "Range-diff for factor ${factor} is identical to default, removing"
+      rm -f "${out}"
+    fi
   fi
 done
 
