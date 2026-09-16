@@ -1,0 +1,1184 @@
+[
+  {
+    "group": "selftests-drivers-net-perf",
+    "test": "devmem-py",
+    "subtest": "devmem-kperf",
+    "link": "/artifacts/0/test-outputs/0-devmem-py/",
+    "short_json": [
+      {
+        "goal": "higher",
+        "name": "throughput",
+        "origin": "selftest",
+        "samples": 1,
+        "summarize": "last",
+        "display_label": "Gbps",
+        "summary": {
+          "last": 215.378
+        },
+        "regression_value": 215.378,
+        "value_count": 1,
+        "regression_result": {
+          "status": "insufficient-data",
+          "current": 215.378,
+          "baseline_samples": 0
+        }
+      },
+      {
+        "name": "cpu.time.usr",
+        "type": "per-cpu",
+        "host": "local",
+        "origin": "system-monitor",
+        "summarize": "p90",
+        "transform": "rate",
+        "aggregation": "busy-core-equivalents",
+        "display_range": {
+          "min": 0,
+          "max": 100
+        },
+        "display_scale": 100,
+        "display_label": "Percent of one CPU",
+        "samples": 18,
+        "cpus": 8,
+        "summary": {
+          "p90": 0.079788
+        },
+        "value_count": 17
+      },
+      {
+        "name": "cpu.time.sys",
+        "type": "per-cpu",
+        "host": "local",
+        "origin": "system-monitor",
+        "summarize": "p90",
+        "transform": "rate",
+        "aggregation": "busy-core-equivalents",
+        "display_range": {
+          "min": 0,
+          "max": 100
+        },
+        "display_scale": 100,
+        "display_label": "Percent of one CPU",
+        "samples": 18,
+        "cpus": 8,
+        "summary": {
+          "p90": 3.050889
+        },
+        "value_count": 17
+      },
+      {
+        "name": "cpu.time.sirq",
+        "type": "per-cpu",
+        "host": "local",
+        "origin": "system-monitor",
+        "summarize": "p90",
+        "transform": "rate",
+        "aggregation": "busy-core-equivalents",
+        "display_range": {
+          "min": 0,
+          "max": 100
+        },
+        "display_scale": 100,
+        "display_label": "Percent of one CPU",
+        "samples": 18,
+        "cpus": 8,
+        "summary": {
+          "p90": 2.148583
+        },
+        "value_count": 17
+      },
+      {
+        "name": "nic.rx.dropped",
+        "type": "scalar",
+        "host": "local",
+        "origin": "system-monitor",
+        "summarize": "max",
+        "transform": "rate",
+        "display_range": {
+          "min": 0
+        },
+        "samples": 18,
+        "summary": {
+          "max": 0.0
+        },
+        "value_count": 17
+      },
+      {
+        "name": "nic.rx.missed_errors",
+        "type": "scalar",
+        "host": "local",
+        "origin": "system-monitor",
+        "summarize": "max",
+        "transform": "rate",
+        "display_range": {
+          "min": 0
+        },
+        "samples": 18,
+        "summary": {
+          "max": 633.769492
+        },
+        "value_count": 17
+      },
+      {
+        "name": "nic.tx.dropped",
+        "type": "scalar",
+        "host": "local",
+        "origin": "system-monitor",
+        "summarize": "max",
+        "transform": "rate",
+        "display_range": {
+          "min": 0
+        },
+        "samples": 18,
+        "summary": {
+          "max": 0.0
+        },
+        "value_count": 17
+      },
+      {
+        "name": "cpu.utilization",
+        "type": "per-cpu",
+        "host": "local",
+        "origin": "system-monitor",
+        "summarize": "p90",
+        "aggregation": "busy-core-equivalents",
+        "display_range": {
+          "min": 0,
+          "max": 100
+        },
+        "display_label": "Percent of one CPU",
+        "samples": 17,
+        "cpus": 8,
+        "summary": {
+          "p90": 5.486676
+        },
+        "value_count": 17
+      },
+      {
+        "name": "cpu.time.usr",
+        "type": "per-cpu",
+        "host": "remote",
+        "origin": "system-monitor",
+        "summarize": "p90",
+        "transform": "rate",
+        "aggregation": "busy-core-equivalents",
+        "display_range": {
+          "min": 0,
+          "max": 100
+        },
+        "display_scale": 100,
+        "display_label": "Percent of one CPU",
+        "samples": 18,
+        "cpus": 8,
+        "summary": {
+          "p90": 0.054877
+        },
+        "value_count": 17
+      },
+      {
+        "name": "cpu.time.sys",
+        "type": "per-cpu",
+        "host": "remote",
+        "origin": "system-monitor",
+        "summarize": "p90",
+        "transform": "rate",
+        "aggregation": "busy-core-equivalents",
+        "display_range": {
+          "min": 0,
+          "max": 100
+        },
+        "display_scale": 100,
+        "display_label": "Percent of one CPU",
+        "samples": 18,
+        "cpus": 8,
+        "summary": {
+          "p90": 0.573283
+        },
+        "value_count": 17
+      },
+      {
+        "name": "cpu.time.sirq",
+        "type": "per-cpu",
+        "host": "remote",
+        "origin": "system-monitor",
+        "summarize": "p90",
+        "transform": "rate",
+        "aggregation": "busy-core-equivalents",
+        "display_range": {
+          "min": 0,
+          "max": 100
+        },
+        "display_scale": 100,
+        "display_label": "Percent of one CPU",
+        "samples": 18,
+        "cpus": 8,
+        "summary": {
+          "p90": 0.762722
+        },
+        "value_count": 17
+      },
+      {
+        "name": "nic.rx.dropped",
+        "type": "scalar",
+        "host": "remote",
+        "origin": "system-monitor",
+        "summarize": "max",
+        "transform": "rate",
+        "display_range": {
+          "min": 0
+        },
+        "samples": 18,
+        "summary": {
+          "max": 0.0
+        },
+        "value_count": 17
+      },
+      {
+        "name": "nic.rx.missed_errors",
+        "type": "scalar",
+        "host": "remote",
+        "origin": "system-monitor",
+        "summarize": "max",
+        "transform": "rate",
+        "display_range": {
+          "min": 0
+        },
+        "samples": 18,
+        "summary": {
+          "max": 0.0
+        },
+        "value_count": 17
+      },
+      {
+        "name": "nic.tx.dropped",
+        "type": "scalar",
+        "host": "remote",
+        "origin": "system-monitor",
+        "summarize": "max",
+        "transform": "rate",
+        "display_range": {
+          "min": 0
+        },
+        "samples": 18,
+        "summary": {
+          "max": 0.0
+        },
+        "value_count": 17
+      },
+      {
+        "name": "cpu.utilization",
+        "type": "per-cpu",
+        "host": "remote",
+        "origin": "system-monitor",
+        "summarize": "p90",
+        "aggregation": "busy-core-equivalents",
+        "display_range": {
+          "min": 0,
+          "max": 100
+        },
+        "display_label": "Percent of one CPU",
+        "samples": 17,
+        "cpus": 8,
+        "summary": {
+          "p90": 1.29674
+        },
+        "value_count": 17
+      }
+    ],
+    "attempt": 0,
+    "result": "pass",
+    "id": 1,
+    "branch": "ksft-perf-rfc-v2/net-next-2026-09-25--21-33",
+    "branch_date": "2026-09-25--21-33",
+    "remote": "local",
+    "executor": "root@dut.example.com",
+    "start": "2026-09-25T21:33:21.292718+00:00"
+  },
+  {
+    "group": "selftests-drivers-net-perf",
+    "test": "iperf-py",
+    "subtest": "iperf-tcp",
+    "link": "/artifacts/0/test-outputs/1-iperf-py/",
+    "short_json": [
+      {
+        "goal": "higher",
+        "name": "throughput",
+        "origin": "selftest",
+        "samples": 1,
+        "summarize": "last",
+        "display_label": "Gbps",
+        "summary": {
+          "last": 57.294036
+        },
+        "regression_value": 57.294036,
+        "value_count": 1,
+        "regression_result": {
+          "status": "insufficient-data",
+          "current": 57.294036,
+          "baseline_samples": 0
+        }
+      },
+      {
+        "name": "cpu.time.usr",
+        "type": "per-cpu",
+        "host": "local",
+        "origin": "system-monitor",
+        "summarize": "p90",
+        "transform": "rate",
+        "aggregation": "busy-core-equivalents",
+        "display_range": {
+          "min": 0,
+          "max": 100
+        },
+        "display_scale": 100,
+        "display_label": "Percent of one CPU",
+        "samples": 7,
+        "cpus": 8,
+        "summary": {
+          "p90": 0.074759
+        },
+        "value_count": 6
+      },
+      {
+        "name": "cpu.time.sys",
+        "type": "per-cpu",
+        "host": "local",
+        "origin": "system-monitor",
+        "summarize": "p90",
+        "transform": "rate",
+        "aggregation": "busy-core-equivalents",
+        "display_range": {
+          "min": 0,
+          "max": 100
+        },
+        "display_scale": 100,
+        "display_label": "Percent of one CPU",
+        "samples": 7,
+        "cpus": 8,
+        "summary": {
+          "p90": 1.554998
+        },
+        "value_count": 6
+      },
+      {
+        "name": "cpu.time.sirq",
+        "type": "per-cpu",
+        "host": "local",
+        "origin": "system-monitor",
+        "summarize": "p90",
+        "transform": "rate",
+        "aggregation": "busy-core-equivalents",
+        "display_range": {
+          "min": 0,
+          "max": 100
+        },
+        "display_scale": 100,
+        "display_label": "Percent of one CPU",
+        "samples": 7,
+        "cpus": 8,
+        "summary": {
+          "p90": 0.827338
+        },
+        "value_count": 6
+      },
+      {
+        "name": "nic.rx.dropped",
+        "type": "scalar",
+        "host": "local",
+        "origin": "system-monitor",
+        "summarize": "max",
+        "transform": "rate",
+        "display_range": {
+          "min": 0
+        },
+        "samples": 7,
+        "summary": {
+          "max": 0.0
+        },
+        "value_count": 6
+      },
+      {
+        "name": "nic.rx.missed_errors",
+        "type": "scalar",
+        "host": "local",
+        "origin": "system-monitor",
+        "summarize": "max",
+        "transform": "rate",
+        "display_range": {
+          "min": 0
+        },
+        "samples": 7,
+        "summary": {
+          "max": 0.0
+        },
+        "value_count": 6
+      },
+      {
+        "name": "nic.tx.dropped",
+        "type": "scalar",
+        "host": "local",
+        "origin": "system-monitor",
+        "summarize": "max",
+        "transform": "rate",
+        "display_range": {
+          "min": 0
+        },
+        "samples": 7,
+        "summary": {
+          "max": 0.0
+        },
+        "value_count": 6
+      },
+      {
+        "name": "cpu.utilization",
+        "type": "per-cpu",
+        "host": "local",
+        "origin": "system-monitor",
+        "summarize": "p90",
+        "aggregation": "busy-core-equivalents",
+        "display_range": {
+          "min": 0,
+          "max": 100
+        },
+        "display_label": "Percent of one CPU",
+        "samples": 6,
+        "cpus": 8,
+        "summary": {
+          "p90": 2.680909
+        },
+        "value_count": 6
+      },
+      {
+        "name": "cpu.time.usr",
+        "type": "per-cpu",
+        "host": "remote",
+        "origin": "system-monitor",
+        "summarize": "p90",
+        "transform": "rate",
+        "aggregation": "busy-core-equivalents",
+        "display_range": {
+          "min": 0,
+          "max": 100
+        },
+        "display_scale": 100,
+        "display_label": "Percent of one CPU",
+        "samples": 7,
+        "cpus": 8,
+        "summary": {
+          "p90": 0.049845
+        },
+        "value_count": 6
+      },
+      {
+        "name": "cpu.time.sys",
+        "type": "per-cpu",
+        "host": "remote",
+        "origin": "system-monitor",
+        "summarize": "p90",
+        "transform": "rate",
+        "aggregation": "busy-core-equivalents",
+        "display_range": {
+          "min": 0,
+          "max": 100
+        },
+        "display_scale": 100,
+        "display_label": "Percent of one CPU",
+        "samples": 7,
+        "cpus": 8,
+        "summary": {
+          "p90": 0.737702
+        },
+        "value_count": 6
+      },
+      {
+        "name": "cpu.time.sirq",
+        "type": "per-cpu",
+        "host": "remote",
+        "origin": "system-monitor",
+        "summarize": "p90",
+        "transform": "rate",
+        "aggregation": "busy-core-equivalents",
+        "display_range": {
+          "min": 0,
+          "max": 100
+        },
+        "display_scale": 100,
+        "display_label": "Percent of one CPU",
+        "samples": 7,
+        "cpus": 8,
+        "summary": {
+          "p90": 0.269162
+        },
+        "value_count": 6
+      },
+      {
+        "name": "nic.rx.dropped",
+        "type": "scalar",
+        "host": "remote",
+        "origin": "system-monitor",
+        "summarize": "max",
+        "transform": "rate",
+        "display_range": {
+          "min": 0
+        },
+        "samples": 7,
+        "summary": {
+          "max": 0.0
+        },
+        "value_count": 6
+      },
+      {
+        "name": "nic.rx.missed_errors",
+        "type": "scalar",
+        "host": "remote",
+        "origin": "system-monitor",
+        "summarize": "max",
+        "transform": "rate",
+        "display_range": {
+          "min": 0
+        },
+        "samples": 7,
+        "summary": {
+          "max": 0.0
+        },
+        "value_count": 6
+      },
+      {
+        "name": "nic.tx.dropped",
+        "type": "scalar",
+        "host": "remote",
+        "origin": "system-monitor",
+        "summarize": "max",
+        "transform": "rate",
+        "display_range": {
+          "min": 0
+        },
+        "samples": 7,
+        "summary": {
+          "max": 0.0
+        },
+        "value_count": 6
+      },
+      {
+        "name": "cpu.utilization",
+        "type": "per-cpu",
+        "host": "remote",
+        "origin": "system-monitor",
+        "summarize": "p90",
+        "aggregation": "busy-core-equivalents",
+        "display_range": {
+          "min": 0,
+          "max": 100
+        },
+        "display_label": "Percent of one CPU",
+        "samples": 6,
+        "cpus": 8,
+        "summary": {
+          "p90": 1.015569
+        },
+        "value_count": 6
+      }
+    ],
+    "attempt": 0,
+    "result": "pass",
+    "id": 2,
+    "branch": "ksft-perf-rfc-v2/net-next-2026-09-25--21-33",
+    "branch_date": "2026-09-25--21-33",
+    "remote": "local",
+    "executor": "root@dut.example.com",
+    "start": "2026-09-25T21:33:21.292718+00:00"
+  },
+  {
+    "group": "selftests-drivers-net-perf",
+    "test": "devmem-py",
+    "subtest": "devmem-kperf",
+    "link": "/artifacts/1/test-outputs/0-devmem-py/",
+    "short_json": [
+      {
+        "goal": "higher",
+        "name": "throughput",
+        "origin": "selftest",
+        "samples": 1,
+        "summarize": "last",
+        "display_label": "Gbps",
+        "summary": {
+          "last": 328.177
+        },
+        "regression_value": 328.177,
+        "value_count": 1,
+        "regression_result": {
+          "status": "ok",
+          "current": 328.177,
+          "baseline_samples": 1,
+          "baseline": 215.378,
+          "threshold": 21.5378,
+          "delta_percent": 52.372573
+        }
+      },
+      {
+        "name": "cpu.time.usr",
+        "type": "per-cpu",
+        "host": "local",
+        "origin": "system-monitor",
+        "summarize": "p90",
+        "transform": "rate",
+        "aggregation": "busy-core-equivalents",
+        "display_range": {
+          "min": 0,
+          "max": 100
+        },
+        "display_scale": 100,
+        "display_label": "Percent of one CPU",
+        "samples": 18,
+        "cpus": 8,
+        "summary": {
+          "p90": 0.189528
+        },
+        "value_count": 17
+      },
+      {
+        "name": "cpu.time.sys",
+        "type": "per-cpu",
+        "host": "local",
+        "origin": "system-monitor",
+        "summarize": "p90",
+        "transform": "rate",
+        "aggregation": "busy-core-equivalents",
+        "display_range": {
+          "min": 0,
+          "max": 100
+        },
+        "display_scale": 100,
+        "display_label": "Percent of one CPU",
+        "samples": 18,
+        "cpus": 8,
+        "summary": {
+          "p90": 2.741172
+        },
+        "value_count": 17
+      },
+      {
+        "name": "cpu.time.sirq",
+        "type": "per-cpu",
+        "host": "local",
+        "origin": "system-monitor",
+        "summarize": "p90",
+        "transform": "rate",
+        "aggregation": "busy-core-equivalents",
+        "display_range": {
+          "min": 0,
+          "max": 100
+        },
+        "display_scale": 100,
+        "display_label": "Percent of one CPU",
+        "samples": 18,
+        "cpus": 8,
+        "summary": {
+          "p90": 2.463136
+        },
+        "value_count": 17
+      },
+      {
+        "name": "nic.rx.dropped",
+        "type": "scalar",
+        "host": "local",
+        "origin": "system-monitor",
+        "summarize": "max",
+        "transform": "rate",
+        "display_range": {
+          "min": 0
+        },
+        "samples": 18,
+        "summary": {
+          "max": 0.0
+        },
+        "value_count": 17
+      },
+      {
+        "name": "nic.rx.missed_errors",
+        "type": "scalar",
+        "host": "local",
+        "origin": "system-monitor",
+        "summarize": "max",
+        "transform": "rate",
+        "display_range": {
+          "min": 0
+        },
+        "samples": 18,
+        "summary": {
+          "max": 333.128203
+        },
+        "value_count": 17
+      },
+      {
+        "name": "nic.tx.dropped",
+        "type": "scalar",
+        "host": "local",
+        "origin": "system-monitor",
+        "summarize": "max",
+        "transform": "rate",
+        "display_range": {
+          "min": 0
+        },
+        "samples": 18,
+        "summary": {
+          "max": 0.0
+        },
+        "value_count": 17
+      },
+      {
+        "name": "cpu.utilization",
+        "type": "per-cpu",
+        "host": "local",
+        "origin": "system-monitor",
+        "summarize": "p90",
+        "aggregation": "busy-core-equivalents",
+        "display_range": {
+          "min": 0,
+          "max": 100
+        },
+        "display_label": "Percent of one CPU",
+        "samples": 17,
+        "cpus": 8,
+        "summary": {
+          "p90": 5.351488
+        },
+        "value_count": 17
+      },
+      {
+        "name": "cpu.time.usr",
+        "type": "per-cpu",
+        "host": "remote",
+        "origin": "system-monitor",
+        "summarize": "p90",
+        "transform": "rate",
+        "aggregation": "busy-core-equivalents",
+        "display_range": {
+          "min": 0,
+          "max": 100
+        },
+        "display_scale": 100,
+        "display_label": "Percent of one CPU",
+        "samples": 18,
+        "cpus": 8,
+        "summary": {
+          "p90": 0.029922
+        },
+        "value_count": 17
+      },
+      {
+        "name": "cpu.time.sys",
+        "type": "per-cpu",
+        "host": "remote",
+        "origin": "system-monitor",
+        "summarize": "p90",
+        "transform": "rate",
+        "aggregation": "busy-core-equivalents",
+        "display_range": {
+          "min": 0,
+          "max": 100
+        },
+        "display_scale": 100,
+        "display_label": "Percent of one CPU",
+        "samples": 18,
+        "cpus": 8,
+        "summary": {
+          "p90": 1.226591
+        },
+        "value_count": 17
+      },
+      {
+        "name": "cpu.time.sirq",
+        "type": "per-cpu",
+        "host": "remote",
+        "origin": "system-monitor",
+        "summarize": "p90",
+        "transform": "rate",
+        "aggregation": "busy-core-equivalents",
+        "display_range": {
+          "min": 0,
+          "max": 100
+        },
+        "display_scale": 100,
+        "display_label": "Percent of one CPU",
+        "samples": 18,
+        "cpus": 8,
+        "summary": {
+          "p90": 1.426115
+        },
+        "value_count": 17
+      },
+      {
+        "name": "nic.rx.dropped",
+        "type": "scalar",
+        "host": "remote",
+        "origin": "system-monitor",
+        "summarize": "max",
+        "transform": "rate",
+        "display_range": {
+          "min": 0
+        },
+        "samples": 18,
+        "summary": {
+          "max": 0.0
+        },
+        "value_count": 17
+      },
+      {
+        "name": "nic.rx.missed_errors",
+        "type": "scalar",
+        "host": "remote",
+        "origin": "system-monitor",
+        "summarize": "max",
+        "transform": "rate",
+        "display_range": {
+          "min": 0
+        },
+        "samples": 18,
+        "summary": {
+          "max": 0.0
+        },
+        "value_count": 17
+      },
+      {
+        "name": "nic.tx.dropped",
+        "type": "scalar",
+        "host": "remote",
+        "origin": "system-monitor",
+        "summarize": "max",
+        "transform": "rate",
+        "display_range": {
+          "min": 0
+        },
+        "samples": 18,
+        "summary": {
+          "max": 0.0
+        },
+        "value_count": 17
+      },
+      {
+        "name": "cpu.utilization",
+        "type": "per-cpu",
+        "host": "remote",
+        "origin": "system-monitor",
+        "summarize": "p90",
+        "aggregation": "busy-core-equivalents",
+        "display_range": {
+          "min": 0,
+          "max": 100
+        },
+        "display_label": "Percent of one CPU",
+        "samples": 17,
+        "cpus": 8,
+        "summary": {
+          "p90": 2.837191
+        },
+        "value_count": 17
+      }
+    ],
+    "attempt": 0,
+    "result": "pass",
+    "id": 3,
+    "branch": "ksft-perf-rfc-v2/net-next-2026-09-25--21-47",
+    "branch_date": "2026-09-25--21-47",
+    "remote": "local",
+    "executor": "root@dut.example.com",
+    "start": "2026-09-25T21:47:16.227591+00:00"
+  },
+  {
+    "group": "selftests-drivers-net-perf",
+    "test": "iperf-py",
+    "subtest": "iperf-tcp",
+    "link": "/artifacts/1/test-outputs/1-iperf-py/",
+    "short_json": [
+      {
+        "goal": "higher",
+        "name": "throughput",
+        "origin": "selftest",
+        "samples": 1,
+        "summarize": "last",
+        "display_label": "Gbps",
+        "summary": {
+          "last": 33.511069
+        },
+        "regression_value": 33.511069,
+        "value_count": 1,
+        "regression_result": {
+          "status": "regression",
+          "current": 33.511069,
+          "baseline_samples": 1,
+          "baseline": 57.294036,
+          "threshold": 5.729404,
+          "delta_percent": -41.510371
+        }
+      },
+      {
+        "name": "cpu.time.usr",
+        "type": "per-cpu",
+        "host": "local",
+        "origin": "system-monitor",
+        "summarize": "p90",
+        "transform": "rate",
+        "aggregation": "busy-core-equivalents",
+        "display_range": {
+          "min": 0,
+          "max": 100
+        },
+        "display_scale": 100,
+        "display_label": "Percent of one CPU",
+        "samples": 7,
+        "cpus": 8,
+        "summary": {
+          "p90": 0.109655
+        },
+        "value_count": 6
+      },
+      {
+        "name": "cpu.time.sys",
+        "type": "per-cpu",
+        "host": "local",
+        "origin": "system-monitor",
+        "summarize": "p90",
+        "transform": "rate",
+        "aggregation": "busy-core-equivalents",
+        "display_range": {
+          "min": 0,
+          "max": 100
+        },
+        "display_scale": 100,
+        "display_label": "Percent of one CPU",
+        "samples": 7,
+        "cpus": 8,
+        "summary": {
+          "p90": 1.116483
+        },
+        "value_count": 6
+      },
+      {
+        "name": "cpu.time.sirq",
+        "type": "per-cpu",
+        "host": "local",
+        "origin": "system-monitor",
+        "summarize": "p90",
+        "transform": "rate",
+        "aggregation": "busy-core-equivalents",
+        "display_range": {
+          "min": 0,
+          "max": 100
+        },
+        "display_scale": 100,
+        "display_label": "Percent of one CPU",
+        "samples": 7,
+        "cpus": 8,
+        "summary": {
+          "p90": 0.852315
+        },
+        "value_count": 6
+      },
+      {
+        "name": "nic.rx.dropped",
+        "type": "scalar",
+        "host": "local",
+        "origin": "system-monitor",
+        "summarize": "max",
+        "transform": "rate",
+        "display_range": {
+          "min": 0
+        },
+        "samples": 7,
+        "summary": {
+          "max": 0.0
+        },
+        "value_count": 6
+      },
+      {
+        "name": "nic.rx.missed_errors",
+        "type": "scalar",
+        "host": "local",
+        "origin": "system-monitor",
+        "summarize": "max",
+        "transform": "rate",
+        "display_range": {
+          "min": 0
+        },
+        "samples": 7,
+        "summary": {
+          "max": 0.0
+        },
+        "value_count": 6
+      },
+      {
+        "name": "nic.tx.dropped",
+        "type": "scalar",
+        "host": "local",
+        "origin": "system-monitor",
+        "summarize": "max",
+        "transform": "rate",
+        "display_range": {
+          "min": 0
+        },
+        "samples": 7,
+        "summary": {
+          "max": 0.0
+        },
+        "value_count": 6
+      },
+      {
+        "name": "cpu.utilization",
+        "type": "per-cpu",
+        "host": "local",
+        "origin": "system-monitor",
+        "summarize": "p90",
+        "aggregation": "busy-core-equivalents",
+        "display_range": {
+          "min": 0,
+          "max": 100
+        },
+        "display_label": "Percent of one CPU",
+        "samples": 6,
+        "cpus": 8,
+        "summary": {
+          "p90": 2.064525
+        },
+        "value_count": 6
+      },
+      {
+        "name": "cpu.time.usr",
+        "type": "per-cpu",
+        "host": "remote",
+        "origin": "system-monitor",
+        "summarize": "p90",
+        "transform": "rate",
+        "aggregation": "busy-core-equivalents",
+        "display_range": {
+          "min": 0,
+          "max": 100
+        },
+        "display_scale": 100,
+        "display_label": "Percent of one CPU",
+        "samples": 7,
+        "cpus": 8,
+        "summary": {
+          "p90": 0.159968
+        },
+        "value_count": 6
+      },
+      {
+        "name": "cpu.time.sys",
+        "type": "per-cpu",
+        "host": "remote",
+        "origin": "system-monitor",
+        "summarize": "p90",
+        "transform": "rate",
+        "aggregation": "busy-core-equivalents",
+        "display_range": {
+          "min": 0,
+          "max": 100
+        },
+        "display_scale": 100,
+        "display_label": "Percent of one CPU",
+        "samples": 7,
+        "cpus": 8,
+        "summary": {
+          "p90": 0.668028
+        },
+        "value_count": 6
+      },
+      {
+        "name": "cpu.time.sirq",
+        "type": "per-cpu",
+        "host": "remote",
+        "origin": "system-monitor",
+        "summarize": "p90",
+        "transform": "rate",
+        "aggregation": "busy-core-equivalents",
+        "display_range": {
+          "min": 0,
+          "max": 100
+        },
+        "display_scale": 100,
+        "display_label": "Percent of one CPU",
+        "samples": 7,
+        "cpus": 8,
+        "summary": {
+          "p90": 0.239293
+        },
+        "value_count": 6
+      },
+      {
+        "name": "nic.rx.dropped",
+        "type": "scalar",
+        "host": "remote",
+        "origin": "system-monitor",
+        "summarize": "max",
+        "transform": "rate",
+        "display_range": {
+          "min": 0
+        },
+        "samples": 7,
+        "summary": {
+          "max": 0.0
+        },
+        "value_count": 6
+      },
+      {
+        "name": "nic.rx.missed_errors",
+        "type": "scalar",
+        "host": "remote",
+        "origin": "system-monitor",
+        "summarize": "max",
+        "transform": "rate",
+        "display_range": {
+          "min": 0
+        },
+        "samples": 7,
+        "summary": {
+          "max": 0.0
+        },
+        "value_count": 6
+      },
+      {
+        "name": "nic.tx.dropped",
+        "type": "scalar",
+        "host": "remote",
+        "origin": "system-monitor",
+        "summarize": "max",
+        "transform": "rate",
+        "display_range": {
+          "min": 0
+        },
+        "samples": 7,
+        "summary": {
+          "max": 0.0
+        },
+        "value_count": 6
+      },
+      {
+        "name": "cpu.utilization",
+        "type": "per-cpu",
+        "host": "remote",
+        "origin": "system-monitor",
+        "summarize": "p90",
+        "aggregation": "busy-core-equivalents",
+        "display_range": {
+          "min": 0,
+          "max": 100
+        },
+        "display_label": "Percent of one CPU",
+        "samples": 6,
+        "cpus": 8,
+        "summary": {
+          "p90": 0.932169
+        },
+        "value_count": 6
+      }
+    ],
+    "attempt": 0,
+    "result": "pass",
+    "id": 4,
+    "branch": "ksft-perf-rfc-v2/net-next-2026-09-25--21-47",
+    "branch_date": "2026-09-25--21-47",
+    "remote": "local",
+    "executor": "root@dut.example.com",
+    "start": "2026-09-25T21:47:16.227591+00:00"
+  }
+]

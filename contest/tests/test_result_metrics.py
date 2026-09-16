@@ -1,9 +1,25 @@
 # SPDX-License-Identifier: GPL-2.0
 
+import json
+import os
 import unittest
 
 from contest.backend.result_metrics import evaluate_recent_regressions, \
-    evaluate_regressions, extract_result_metrics
+    evaluate_regressions, extract_result_metrics, summarize_metrics
+
+
+UI_MOCK_DIR = os.path.join(os.path.dirname(__file__), '..', '..', 'ui', 'mock')
+
+
+def _load_ui_mock(name):
+    with open(os.path.join(UI_MOCK_DIR, name), encoding='utf-8') as fp:
+        return json.load(fp)
+
+
+def _without_full_json(details):
+    return [{key: value for key, value in detail.items()
+             if key != 'full_json'}
+            for detail in details]
 
 
 class TestResultMetrics(unittest.TestCase):
@@ -425,6 +441,22 @@ class TestResultMetrics(unittest.TestCase):
         self.assertEqual(
             evaluated[1]['short_json'][1]['regression_result']['status'],
             'ok')
+
+    def test_ui_mock_details_match_overview(self):
+        rows = _load_ui_mock('result-metrics.json')
+        details = _load_ui_mock('result-metric-details.json')
+
+        self.assertEqual(_without_full_json(details), rows)
+
+    def test_ui_mock_summaries_match_observations(self):
+        """Fixture summaries and regressions follow from the observations."""
+        details = _load_ui_mock('result-metric-details.json')
+        rows = _without_full_json(details)
+        for row, detail in zip(rows, details):
+            row['short_json'] = summarize_metrics(detail['full_json'])
+
+        self.assertEqual(evaluate_regressions(rows),
+                         _without_full_json(details))
 
     def test_full_json_preserves_samples(self):
         metric = {'name': 'throughput', 'type': 'scalar', 'time': 2,
