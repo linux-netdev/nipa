@@ -136,6 +136,7 @@ Run before committing changes to this repository's Python code.
 Unit tests (`unittest`-based, no `pytest` dependency required):
 
 ```console
+$ python3 -m unittest discover -s contest/tests -p "test_*.py"
 $ python3 -m unittest discover -s contest/hw/tests -p "test_*.py"
 $ python3 -m unittest discover -s ml-agent/tests -p "test_*.py"
 ```
