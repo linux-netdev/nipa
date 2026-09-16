@@ -14,7 +14,25 @@ no_diff() {
 }
 
 # ignore errors, we just want to see the diff if available
-if ! B4_OUT=$(b4 diff -n "${MSGID}" 2>&1); then
+for i in {1..10}; do
+  if B4_OUT=$(b4 diff -n "${MSGID}" 2>&1); then
+    break
+  fi
+
+  # retry for max 5 minutes, but only if the message is not on lore yet
+  if echo "${B4_OUT}" | grep -q "Unable to retrieve thread: "; then
+    echo "Attempt ${i}: retrying in 30 sec"
+    sleep 30
+    continue
+  fi
+
+  echo "${B4_OUT}"
+  no_diff
+done
+
+if [ "${i}" -eq 10 ]; then
+  echo "Error running b4 diff, giving up after ${i} attempts"
+  echo "${B4_OUT}"
   no_diff
 fi
 
