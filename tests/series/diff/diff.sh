@@ -8,13 +8,48 @@ if [ -z "${MSGID}" ]; then
   exit 0
 fi
 
-OUT="${RESULTS_DIR}/b4-diff.ansi"
+no_diff() {
+  echo "No diff available" >&"${DESC_FD}"
+  exit 0
+}
 
 # ignore errors, we just want to see the diff if available
-b4 diff --color --output-diff "${OUT}" "${MSGID}" || true
+if ! B4_OUT=$(b4 diff -n "${MSGID}" 2>&1); then
+  no_diff
+fi
 
-if grep -q "^    " "${OUT}" 2>/dev/null; then
-  echo "Diff with the previous version in $(basename "${OUT}")" >&"${DESC_FD}"
+if ! GIT_RANGE=$(echo "${B4_OUT}" | tail -n1 |
+                   awk '/^\s*git range-diff / { print $3" "$4 }'); then
+  echo "Strange output from b4 diff, no git range found"
+  echo "${B4_OUT}"
+  no_diff
+fi
+
+HAS_DIFF=0
+for factor in 40 60 80; do
+  if [ "${factor}" -eq 60 ]; then
+    # 60 is the default, so we don't need to specify it
+    out="${RESULTS_DIR}/b4-diff.ansi"
+  else
+    out="${RESULTS_DIR}/b4-diff-${factor}.ansi"
+  fi
+
+  # shellcheck disable=SC2086 # We want word splitting here
+  if ! git range-diff --color=always --creation-factor="${factor}" \
+           ${GIT_RANGE} > "${out}"; then
+    echo "Error running git range-diff for factor ${factor}"
+    cat "${out}" 2>/dev/null || true
+    rm -f "${out}"
+  elif ! grep -q "^    " "${out}" 2>/dev/null; then
+    echo "Empty range-diff for factor ${factor}, removing ${out}"
+    rm -f "${out}"
+  else
+    HAS_DIFF=1
+  fi
+done
+
+if [ "${HAS_DIFF}" -eq 1 ]; then
+  echo "Diff with the previous version available" >&"${DESC_FD}"
 else
-  echo "No diff available" >&"${DESC_FD}"
+  no_diff
 fi
