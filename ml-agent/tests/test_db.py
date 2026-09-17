@@ -155,6 +155,39 @@ class TestSubmission(unittest.TestCase):
         prev = self.db.find_previous_version(self.iid, "net: fix foo", 5)
         self.assertIsNone(prev)
 
+    def test_previous_version_reworded_title(self):
+        self.db.add_submission(
+            "<msg1>", self.iid,
+            "igb: initialize PTP lock before registering PHC", None,
+            "2026-08-30T15:49:12")
+        prev = self.db.find_previous_version(
+            self.iid, "igb: initialize PTP state before registering PHC", 2)
+        self.assertIsNotNone(prev)
+        self.assertEqual(prev[0], "<msg1>")
+
+    def test_previous_version_unrelated_title(self):
+        self.db.add_submission("<msg1>", self.iid, "net: fix foo", 1,
+                               "2026-04-20T10:00:00")
+        prev = self.db.find_previous_version(
+            self.iid, "eth: add support for the frobnicator", 2)
+        self.assertIsNone(prev)
+
+    def test_previous_version_picks_closest(self):
+        self.db.add_submission("<fuzzy>", self.iid, "net: fix the foo", 1,
+                               "2026-04-21T10:00:00")
+        self.db.add_submission("<exact>", self.iid, "net: fix foo", 1,
+                               "2026-04-20T10:00:00")
+        prev = self.db.find_previous_version(self.iid, "net: fix foo", 2)
+        self.assertIsNotNone(prev)
+        self.assertEqual(prev[0], "<exact>")
+
+    def test_previous_version_different_identity(self):
+        iid2 = self.db.resolve_identity("Other", "other@example.com")
+        self.db.add_submission("<msg1>", self.iid, "net: fix foo", 1,
+                               "2026-04-20T10:00:00")
+        prev = self.db.find_previous_version(iid2, "net: fix foo", 2)
+        self.assertIsNone(prev)
+
     def test_warned_bitmask(self):
         self.db.add_submission("<msg1>", self.iid, "net: fix foo", 1,
                                "2026-04-20T10:00:00")

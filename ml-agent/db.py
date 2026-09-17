@@ -2,7 +2,23 @@
 # pylint: disable=missing-module-docstring,missing-function-docstring
 # pylint: disable=missing-class-docstring
 
+import difflib
 import sqlite3
+
+
+# Authors routinely reword the subject between versions, so the previous
+# version is matched on title similarity rather than equality. Requiring
+# equality missed ~19% of the resubmissions in the netdev archive; 0.85
+# recovers most of those, below it the pairs are mostly unrelated.
+#
+# There is no clean separation at the top of the range: sibling patches of
+# a treewide series differ by just a driver name and score much like a
+# reworded title ("NFC: nfcmrvl: Replace strcpy() with strscpy()" vs
+# "NFC: s3fwrn5: ..." is 0.867), so some of those get matched. That's
+# tolerable - the caller only looks for a previous version once the message
+# is already known to be a vN posted as a reply, so matching the wrong
+# predecessor does not make the warning itself wrong.
+TITLE_MATCH_RATIO = 0.85
 
 
 SCHEMA = """
@@ -164,12 +180,24 @@ class AgentDB:
 
         placeholders = ",".join("?" * len(prev_versions))
         cur.execute(
-            f"SELECT message_id, version, timestamp FROM submission "
-            f"WHERE identity_id = ? AND title = ? "
+            f"SELECT message_id, version, timestamp, title FROM submission "
+            f"WHERE identity_id = ? "
             f"AND COALESCE(version, 0) IN ({placeholders}) "
-            f"ORDER BY timestamp DESC LIMIT 1",
-            (identity_id, title) + tuple(prev_versions))
-        return cur.fetchone()
+            f"ORDER BY timestamp DESC",
+            (identity_id,) + tuple(prev_versions))
+
+        # Rows come newest first, so a strict > keeps the most recent of
+        # equally good matches.
+        best = None
+        best_ratio = 0.0
+        for row in cur.fetchall():
+            ratio = difflib.SequenceMatcher(None, title, row[3]).ratio()
+            if ratio > best_ratio:
+                best_ratio = ratio
+                best = row
+        if best_ratio < TITLE_MATCH_RATIO:
+            return None
+        return best[:3]
 
     def set_submission_warned(self, message_id, flag):
         self.conn.execute(
