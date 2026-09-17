@@ -278,7 +278,7 @@ function reload_runners()
     $("#runners tr").slice(1).remove();
 
     $.each(runners_entries, function(i, e) {
-	if (summarize && !e.v.patch) {
+	if (summarize && !e.v.test) {
 	    hidden++;
 	    return 1;
 	}
