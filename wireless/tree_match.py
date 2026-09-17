@@ -19,18 +19,6 @@ def _file_name_match_start(pfx, fn):
     return fn.startswith(pfx)
 
 
-def _file_name_match_dotted(pfx, fn):
-    dirs = pfx.split('/')
-    while True:
-        dirs.pop(0)
-        dotted = '.../' + '/'.join(dirs)
-        if dotted == '.../':
-            return False
-
-        if fn.startswith(dotted):
-            return True
-
-
 def _tree_name_should_be_local_files(raw_email):
     """
     Returns True: patch should have been explicitly designated for local tree
@@ -38,7 +26,6 @@ def _tree_name_should_be_local_files(raw_email):
             None: patch has mixed contents, it touches local code, but also code outside
     """
     acceptable_files = {
-        '.../',
         'CREDITS',
         'MAINTAINERS',
         'Documentation/',
@@ -76,7 +63,8 @@ def _tree_name_should_be_local_files(raw_email):
 
     lines = raw_email.split('\n')
     r_diffstat = re.compile(r'^\s*([-\w/._,]+)\s+\|\s+\d+\s*[-+]*\s*$')
-    r_header = re.compile(r'\+\+\+ b/([-\w/._,]+)$')
+    # Deletions carry the name on the '--- a/' side, '+++' is /dev/null there
+    r_header = re.compile(r'(?:\+\+\+ b|--- a)/([-\w/._,]+)$')
     for line in lines:
         match = r_header.match(line)
         if not match:
@@ -84,17 +72,20 @@ def _tree_name_should_be_local_files(raw_email):
         if not match:
             continue
 
+        file_name = match.group(1)
+        # git elides long paths in the diffstat ('.../af/rvu_debugfs.c').
+        # There is no way to place those reliably, and the full path shows up
+        # in the diff header anyway, so skip them rather than let them count
+        # as foreign.
+        if file_name.startswith('.../'):
+            continue
+
         found = False
         excluded = False
-        file_name = match.group(1)
         log_open_sec(f'Checking file name {file_name}')
-        if file_name.startswith('.../'):
-            compare = _file_name_match_dotted
-        else:
-            compare = _file_name_match_start
 
         for fn in excluded_files:
-            if compare(fn, file_name):
+            if _file_name_match_start(fn, file_name):
                 log(f'Excluded by {fn}', "")
                 excluded = True
                 break
@@ -103,7 +94,7 @@ def _tree_name_should_be_local_files(raw_email):
             log_end_sec()
             continue
         for fn in all_files:
-            matches = compare(fn, file_name)
+            matches = _file_name_match_start(fn, file_name)
             if not matches:
                 continue
             log(f'Matched by {fn}', "")
