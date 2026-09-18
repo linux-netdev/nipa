@@ -1020,7 +1020,7 @@ function load_result_table(data_raw, reload)
     }
 }
 
-let xfr_todo = 5;
+let xfr_todo = 6;
 let all_results = null;
 let branch_pull_status = {};
 let branches = new Set();
@@ -1312,7 +1312,10 @@ function do_it()
         $.get("query/results?branches=10&pending=y", results_loaded)
     });
     $(document).ready(function() {
-        $.get("contest/branches-info.json", branches_loaded)
+        $.get("contest/branches-info-nn.json", branches_loaded)
+    });
+    $(document).ready(function() {
+        $.get("contest/branches-info-hw.json", branches_loaded)
     });
     $(document).ready(function() {
         $.get("query/flaky-tests?group-pfx=1", flakes_doit)

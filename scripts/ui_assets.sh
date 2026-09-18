@@ -21,7 +21,8 @@ ASSETS=(
   "issues.json"
   "contest/branch-results.json"
   "contest/branch-results-hw.json"
-  "contest/branches-info.json"
+  "contest/branches-info-nn.json"
+  "contest/branches-info-hw.json"
   "contest/filters.json"
   "contest/all-results.json"
 )
