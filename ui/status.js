@@ -862,23 +862,7 @@ function runner_name(v)
 
 function load_result_table(data_raw, reload)
 {
-    var branch_pull_status = {};
     var branch_start = {};
-
-    // Parse branch info to extract pull status
-    $.each(branches_info, function(i, v) {
-	let summary = null;
-	$.each(v['base-pulls'], function(url, res) {
-	    if (res == "okay" && !summary) {
-		summary = res;
-	    } else if (res == "resolved" && (!summary || summary == "okay")) {
-		summary = res;
-	    } else {
-		summary = res;
-	    }
-	});
-	branch_pull_status[i] = summary;
-    });
 
     // Decorate branchers and collect branch_start
     $.each(data_raw, function(i, v) {
@@ -1038,7 +1022,7 @@ function load_result_table(data_raw, reload)
 
 let xfr_todo = 5;
 let all_results = null;
-let branches_info = null;
+let branch_pull_status = {};
 let branches = new Set();
 let branch_results = {};
 
@@ -1159,7 +1143,21 @@ function filters_doit(data_raw)
 
 function branches_loaded(data_raw)
 {
-    branches_info = data_raw;
+    // Parse branch info to extract pull status
+    $.each(data_raw, function(i, v) {
+	let summary = null;
+	$.each(v['base-pulls'], function(url, res) {
+	    if (res == "okay" && !summary) {
+		summary = res;
+	    } else if (res == "resolved" && (!summary || summary == "okay")) {
+		summary = res;
+	    } else {
+		summary = res;
+	    }
+	});
+	branch_pull_status[i] = summary;
+    });
+
     loaded_one();
 }
 
