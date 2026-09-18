@@ -735,7 +735,7 @@ function load_result_table_one(data_raw, table, reported, avgs)
 
 	    var a = "<a href=\"" + link + "\">";
 
-	if (v.remote != "brancher") {
+	if (v.executor != "brancher") {
 	    var time = row.insertCell(2);
 
 	    if (link)
@@ -874,7 +874,7 @@ function load_result_table(data_raw, reload)
 
 	branches.add(v.branch);
 
-	if (v.remote == "brancher") {
+	if (v.executor == "brancher") {
             branch_start[v.branch] = v.start;
 	    v.pull_status = branch_pull_status[v.branch];
 	}
