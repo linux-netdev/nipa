@@ -53,6 +53,8 @@ def _tree_name_should_be_local_files(raw_email):
         # lib/ is pretty broad but patch volume is low
         'lib/',
         'net/',
+        'rust/kernel/net',
+        'rust/helpers/net',
         'drivers/atm/',
         'drivers/bluetooth/',
         'drivers/dibs/',
