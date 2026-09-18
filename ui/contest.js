@@ -173,7 +173,7 @@ function load_result_table(data_raw)
 function find_branch_urls(loaded_data)
 {
     $.each(loaded_data, function(i, v) {
-	if (v.remote == "brancher")
+	if (v.executor == "brancher")
 	    branch_urls[v.branch] = v.results[0].link;
     });
 }
