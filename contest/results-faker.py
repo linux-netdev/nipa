@@ -25,7 +25,7 @@ info=/path/to/info.json
 
 def combine_infos(config):
     paths = config.get("input", "infos", fallback="").split(',')
-    if not paths:
+    if not paths or not paths[0]:
         return
 
     infos = {}
