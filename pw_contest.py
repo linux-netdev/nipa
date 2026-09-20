@@ -287,8 +287,13 @@ def main_loop(pw) -> int:
         branches = json.load(fp)
     with open(config.get('input', 'results'), "rb") as fp:
         results = json.load(fp)
+    filters = {}
     with open(config.get('input', 'filters'), "rb") as fp:
-        filters = json.load(fp)
+        filters.update(json.load(fp))
+    filters_override = config.get('input', 'filters_override', fallback=None)
+    if filters_override:
+        with open(filters_override, "rb") as fp:
+            filters.update(json.load(fp))
 
     results_by_branch = results_pivot(filters, results)
     branch_outcome = branch_summarize(filters, results_by_branch)
