@@ -1,0 +1,5 @@
+[519933.331756] nipa-hw-worker: Warning: no known-bad file at /tmp/nipa-local-20261028-220006-1803794/tests/known-bad.json
+[519933.371082] nipa-hw-worker: Saved 14405 lines of boot dmesg
+[519933.395934] nipa-hw-worker: [1/2] Running drivers/net/perf:devmem.py
+[519934.090502] nipa-hw-worker:   drivers/net/perf:devmem.py: running subtest kperf
+[519934.406042] kselftest: Running tests in drivers/net/perf

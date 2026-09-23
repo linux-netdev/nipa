@@ -1,0 +1,1 @@
+{"driver": "mlx5_core", "serial_number": "3a9b94165795f0118000549b244f238a", "board.serial_number": "MT2538600RD6", "versions": {"fixed": {"fw.psid": "FB_0000000059"}, "running": {"fw.version": "40.47.1088", "fw": "40.47.1088"}, "stored": {"fw.version": "40.47.1088", "fw": "40.47.1088"}}}
