@@ -275,6 +275,94 @@ class TestThreadedWarning(unittest.TestCase):
         self.assertEqual(len(warn_calls), 0)
 
 
+class TestAiReviewWarning(unittest.TestCase):
+    def setUp(self):
+        self.db = AgentDB(":memory:")
+        self.config = configparser.ConfigParser()
+        self.config.read_dict({'ml-agent': {
+            'sashiko-url': 'https://sashiko.example/'}})
+        self.templates = {
+            'welcome': 'Welcome!',
+            'resubmit-warn': 'Too fast!',
+            'threaded-warn': 'Do not thread!',
+            'ai-review-warn': 'Wait for AI: {url}',
+        }
+
+    def tearDown(self):
+        self.db.close()
+
+    def _post_v1_v2(self, v2_ts="2026-04-21T12:00:00+00:00"):
+        msg = parse_email_str(_make_raw(subject="[PATCH] net: fix foo",
+                                        message_id="<msg1@test>"))
+        process_email(msg, "<msg1@test>", "2026-04-20T10:00:00+00:00",
+                      self.config, self.db, self.templates)
+        msg = parse_email_str(_make_raw(subject="[PATCH v2] net: fix foo",
+                                        message_id="<msg2@test>"))
+        process_email(msg, "<msg2@test>", v2_ts,
+                      self.config, self.db, self.templates)
+
+    @staticmethod
+    def _ai_warns(mock_send):
+        return [c for c in mock_send.call_args_list
+                if c[0][3].startswith('Wait for AI')]
+
+    @patch('agent.requests.get')
+    @patch('agent.send_email')
+    @patch('agent.check_known_developer', return_value=1)
+    def test_embargoed_warns(self, mock_known, mock_send, mock_get):
+        mock_get.return_value = MagicMock(
+            status_code=200, json=lambda: {'status': 'Embargoed'})
+        self._post_v1_v2()
+
+        mock_get.assert_called_once()
+        self.assertEqual(mock_get.call_args[1]['params'],
+                         {'id': 'msg1@test'})
+        warns = self._ai_warns(mock_send)
+        self.assertEqual(len(warns), 1)
+        self.assertEqual(
+            warns[0][0][3],
+            'Wait for AI: https://sashiko.example/#/patchset/msg1%40test')
+        self.assertEqual(warns[0][1]['tag'], 'pv')
+
+    @patch('agent.requests.get')
+    @patch('agent.send_email')
+    @patch('agent.check_known_developer', return_value=1)
+    def test_reviewed_no_warn(self, mock_known, mock_send, mock_get):
+        mock_get.return_value = MagicMock(
+            status_code=200, json=lambda: {'status': 'Reviewed'})
+        self._post_v1_v2()
+        self.assertEqual(len(self._ai_warns(mock_send)), 0)
+
+    @patch('agent.requests.get')
+    @patch('agent.send_email')
+    @patch('agent.check_known_developer', return_value=1)
+    def test_unknown_to_sashiko_no_warn(self, mock_known, mock_send,
+                                        mock_get):
+        mock_get.return_value = MagicMock(status_code=404)
+        self._post_v1_v2()
+        self.assertEqual(len(self._ai_warns(mock_send)), 0)
+
+    @patch('agent.requests.get')
+    @patch('agent.send_email')
+    @patch('agent.check_known_developer', return_value=1)
+    def test_24h_warn_takes_precedence(self, mock_known, mock_send,
+                                       mock_get):
+        mock_get.return_value = MagicMock(
+            status_code=200, json=lambda: {'status': 'Pending'})
+        self._post_v1_v2(v2_ts="2026-04-20T12:00:00+00:00")
+        self.assertEqual(len(self._ai_warns(mock_send)), 0)
+        mock_get.assert_not_called()
+
+    @patch('agent.requests.get')
+    @patch('agent.send_email')
+    @patch('agent.check_known_developer', return_value=1)
+    def test_no_url_configured(self, mock_known, mock_send, mock_get):
+        self.config.remove_option('ml-agent', 'sashiko-url')
+        self._post_v1_v2()
+        mock_get.assert_not_called()
+        self.assertEqual(len(self._ai_warns(mock_send)), 0)
+
+
 class TestPvBotRecording(unittest.TestCase):
     def setUp(self):
         self.db = AgentDB(":memory:")

@@ -1,0 +1,17 @@
+It looks like you posted a new version of this series before the
+AI review of the previous version was released:
+
+  {url}
+
+Please wait for the AI review of the previous posting to come out
+before posting a new version. This way you can address the AI feedback
+together with human review, rather than having the reviewers go over
+a version which is already known to be stale.
+
+Please *DO NOT REPOST* again just to address this warning.
+Please wait for review, and keep this message in mind when
+posting going forward.
+
+See https://www.kernel.org/doc/html/next/process/maintainer-netdev.html
+-- 
+pv-bot: ai-review

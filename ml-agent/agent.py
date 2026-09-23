@@ -15,8 +15,11 @@ import smtplib
 import subprocess
 import sys
 import time
+import urllib.parse
 
 from email.mime.text import MIMEText
+
+import requests
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from core import log_init
@@ -52,6 +55,7 @@ def load_templates():
         'welcome': load_template('welcome'),
         'resubmit-warn': load_template('resubmit-warn'),
         'threaded-warn': load_template('threaded-warn'),
+        'ai-review-warn': load_template('ai-review-warn'),
     }
 
 
@@ -101,6 +105,34 @@ def send_email(config, to, subject, body, in_reply_to=None, cc=None,
     except (smtplib.SMTPException, OSError) as e:
         print(f'  WARNING: failed to send email: {e}')
         return False
+
+
+# Sashiko states of a patchset whose review has not been released yet,
+# everything between getting queued and the embargo expiring.
+SASHIKO_UNRELEASED = {'Pending', 'Fetching', 'Applying', 'In Review',
+                      'Embargoed'}
+
+
+def sashiko_unreleased_url(config, message_id):
+    """Return the Sashiko UI link if the AI review is not out yet."""
+    base = config.get('ml-agent', 'sashiko-url', fallback='').rstrip('/')
+    if not base:
+        return None
+
+    mid = message_id.strip('<>')
+    try:
+        r = requests.get(f'{base}/api/patchset', params={'id': mid},
+                         timeout=30)
+        if r.status_code != 200:
+            return None
+        status = r.json().get('status')
+    except (requests.RequestException, ValueError) as e:
+        print(f'  WARNING: sashiko query failed for {mid}: {e}')
+        return None
+
+    if status not in SASHIKO_UNRELEASED:
+        return None
+    return f'{base}/#/patchset/{urllib.parse.quote(mid)}'
 
 
 def check_known_developer(config, db, identity_id):
@@ -194,6 +226,17 @@ def process_email(msg, message_id, timestamp, config, db, templates,
                        dry_run=dry_run, tag='pv')
             if decisions is not None:
                 decisions.append(('resubmit-warn', email_addr, title))
+        else:
+            prev = db.find_previous_version(identity_id, title, version)
+            url = sashiko_unreleased_url(config, prev[0]) if prev else None
+            if url:
+                db.set_submission_warned(message_id, 4)
+                send_email(config, send_to, f'Re: {subject}',
+                           templates['ai-review-warn'].format(url=url),
+                           in_reply_to=message_id, cc=send_cc,
+                           dry_run=dry_run, tag='pv')
+                if decisions is not None:
+                    decisions.append(('ai-review-warn', email_addr, title))
 
         known = check_known_developer(config, db, identity_id)
         if known == 2:
@@ -302,7 +345,7 @@ def check_range(tree, config, db, templates, since, until):
                       dry_run=True, decisions=decisions)
 
     sent = [d for d in decisions if d[0] in
-            ('welcome', 'resubmit-warn', 'threaded-warn')]
+            ('welcome', 'resubmit-warn', 'threaded-warn', 'ai-review-warn')]
     skipped = [d for d in decisions if d[0].startswith('skip-')]
 
     cur = db.conn.cursor()
