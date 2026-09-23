@@ -2,12 +2,35 @@
 
 """ Test Makefile, .gitignore and config format """
 
+import fnmatch
 import os
 import subprocess
 from typing import Tuple
 
 
 LOCAL_DIR = os.path.dirname(__file__)
+
+# Files which Makefiles pick up via $(wildcard ...), so they will never
+# be listed explicitly. Paths relative to tools/testing/selftests/
+MAKEFILE_WILDCARDS = [
+    "drivers/net/hw/lib/py/*.py",
+    "drivers/net/lib/py/*.py",
+    "drivers/net/lib/sh/*.sh",
+    "net/lib/py/*.py",
+    "net/lib/sh/*.sh",
+    "net/packetdrill/*.pkt",
+]
+
+
+def _makefile_wildcard_match(path):
+    """ Check if file is covered by a wildcard in some Makefile """
+    path = path.removeprefix("tools/testing/selftests/")
+    for pattern in MAKEFILE_WILDCARDS:
+        # Make wildcards don't cross directories, fnmatch's '*' would
+        if os.path.dirname(path) == os.path.dirname(pattern) and \
+           fnmatch.fnmatch(os.path.basename(path), os.path.basename(pattern)):
+            return True
+    return False
 
 
 def ret_merge(ret, nret):
@@ -34,6 +57,9 @@ def check_new_files_makefile(tree, new_files, log):
     cnt = 0
 
     for path in new_files:
+        if _makefile_wildcard_match(path):
+            log.append("makefile inclusion check ignoring wildcard match " + path)
+            continue
         if path.endswith(('.sh', '.py')):
             needle = path
         elif path.endswith(('.c')) and not path.endswith(('.bpf.c')):
