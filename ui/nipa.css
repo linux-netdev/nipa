@@ -61,8 +61,19 @@ tr:nth-child(even) {
 }
 
 .box {
-    position: absolute;
-    right: 1em;
+    margin-left: auto;
+    padding: 0 1em;
+}
+
+/* NETDEV logo in the top right corner, placed as the last item of a flex row */
+.nipa-logo {
+    margin-left: auto;
+    align-self: flex-start;
+}
+
+.nipa-logo img {
+    display: block;
+    height: 12em;
 }
 
 #contest-filters {

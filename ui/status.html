@@ -103,12 +103,16 @@
         </table>
     </div>
     <div class="column">
-        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+        <div style="display: flex; align-items: center;">
             <h3>Continuous testing results</h3>
-            <label>
+            <label style="margin-left: auto; margin-right: 1em;">
                 <input type="checkbox" id="contest-summary" checked />
                 Hide all-pass runs
             </label>
+            <picture class="nipa-logo" style="margin-left: 0;">
+                <source srcset="/LOGO_on_dark_background.svg" media="(prefers-color-scheme: dark)">
+                <img src="/logo_full.svg" alt="NETDEV Foundation" style="height: 6em;">
+            </picture>
         </div>
         <div id="contest-tables">
         </div>
