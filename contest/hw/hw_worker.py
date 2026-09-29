@@ -487,7 +487,8 @@ def setup_test_interfaces(test_dir):
 
     if config_lines:
         config_content = '\n'.join(config_lines) + '\n'
-        for subdir in ['drivers/net', 'drivers/net/hw']:
+        for subdir in ['drivers/net', 'drivers/net/hw',
+                       'drivers/net/perf']:
             config_dir = os.path.join(test_dir, subdir)
             if os.path.isdir(config_dir):
                 path = os.path.join(config_dir, 'net.config')
