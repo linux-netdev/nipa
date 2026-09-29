@@ -72,6 +72,38 @@ which takes a long time::
 		 patch/build_clang \
 		 patch/build_clang_rust
 
+Running hardware tests locally
+------------------------------
+
+How to run
+~~~~~~~~~~
+
+Requirements:
+
+* selftests in ``$linux`` are already built;
+* root SSH works from the local host to the DUT and peer;
+* the selected interfaces have global addresses;
+* both hosts provide ``iperf3``, ``/dev/udmabuf``, and ``kperf-server``;
+* the DUT also provides ``kperf-client``.
+
+Run iperf and kperf devmem::
+
+  cd $nipa
+  ./nipa local run \
+      --tree $linux \
+      --dut root@dut.example.com \
+      --peer root@peer.example.com \
+      --netif eth0 --peer-netif eth0 \
+      --test drivers/net/perf
+
+``net.config`` takes the addresses of the interfaces, pass ``--env KEY=VALUE``
+for others, e.g. ``LOCAL_PREFIX_V6``. The run fails if the worker detected a
+kernel crash or a test timeout.
+
+Results are written to ``$PWD/nipa-results/<timestamp>``. Use
+``target:program`` to select one program or ``--output`` to change the results
+directory.
+
 Structure
 =========
 
