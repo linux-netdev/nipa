@@ -12,6 +12,7 @@ import time
 from dataclasses import dataclass
 
 from lib.nipa import has_crash, extract_crash, namify, parse_nested_tests
+from lib.system_monitor import SystemMonitor
 
 
 # Default per-test wall-clock limit before we start tearing the test down
@@ -305,7 +306,7 @@ def _list_subtests(test_dir, target, prog, timeout):
 
 
 def _run_one_test(test_dir, output_dir, target, prog, timeout,
-                  case_name=None):
+                  monitor_config=None, case_name=None):
     """Run a single test and save stdout/stderr. Returns (retcode, elapsed).
 
     On timeout the test is asked to shut down gracefully (SIGINT, which
@@ -322,6 +323,16 @@ def _run_one_test(test_dir, output_dir, target, prog, timeout,
     is reached -- otherwise it is orphaned and lingers, poisoning the retry
     and later crashing on its own.
     """
+    monitor = None
+    case_start = None
+    if monitor_config:
+        try:
+            monitor = SystemMonitor(**monitor_config).start()
+            case_start = monitor.elapsed()
+        except Exception as error:  # pylint: disable=broad-except
+            print(f"  {target}:{prog}: system monitor unavailable: {error}")
+            monitor = None
+
     env = os.environ.copy()
     if case_name is not None:
         args_name = _test_args_name(prog)
@@ -329,14 +340,19 @@ def _run_one_test(test_dir, output_dir, target, prog, timeout,
 
     t1 = time.monotonic()
     # pylint: disable=consider-using-with
-    proc = subprocess.Popen(
-        ['./run_kselftest.sh', '-t', f'{target}:{prog}'],
-        cwd=test_dir,
-        env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        start_new_session=True,
-    )
+    try:
+        proc = subprocess.Popen(
+            ['./run_kselftest.sh', '-t', f'{target}:{prog}'],
+            cwd=test_dir,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            start_new_session=True,
+        )
+    except Exception:
+        if monitor is not None:
+            monitor.stop()
+        raise
     # With start_new_session the child is its own group leader (pgid == pid).
     pgid = proc.pid
     stop_kind = None
@@ -363,8 +379,22 @@ def _run_one_test(test_dir, output_dir, target, prog, timeout,
             _kill_session(proc.pid, signal.SIGKILL)
             out, err = proc.communicate()
 
+    t2 = time.monotonic()
     stdout = (out or b'').decode('utf-8', 'ignore')
     stderr = (err or b'').decode('utf-8', 'ignore')
+    if monitor is not None:
+        try:
+            monitor.write_case_metrics(
+                os.path.join(output_dir, 'system-metrics.json'), [{
+                    'name': case_name,
+                    'start': case_start,
+                    'end': monitor.elapsed(),
+                }])
+        except Exception as error:  # pylint: disable=broad-except
+            print(f"  {target}:{prog}: failed to save system metrics: {error}")
+        if monitor.error:
+            print(f"  {target}:{prog}: system monitor failed: {monitor.error}")
+
     if stop_kind is not None:
         # Preserve whatever the test printed, but mark the timeout in
         # both streams so it's visible whichever one is inspected.
@@ -373,7 +403,6 @@ def _run_one_test(test_dir, output_dir, target, prog, timeout,
         stderr += marker
     elif not stdout and not stderr:
         print(f"  {target}:{prog}: no output (rc={retcode})")
-    t2 = time.monotonic()
     elapsed = round(t2 - t1, 1)
 
     with open(os.path.join(output_dir, 'stdout'), 'w', encoding='utf-8') as fp:
@@ -392,7 +421,8 @@ def _read_output(path, name):
     return output
 
 
-def _run_performance_test(test_dir, output_dir, target, prog, timeout):
+def _run_performance_test(test_dir, output_dir, target, prog, timeout,
+                          monitor_config=None):
     """Run each case in a performance test program in its own process."""
     try:
         cases = _list_subtests(test_dir, target, prog, timeout)
@@ -411,6 +441,7 @@ def _run_performance_test(test_dir, output_dir, target, prog, timeout):
     stderr = []
     retcodes = []
     elapsed = 0.0
+    system_cases = []
 
     try:
         for index, case_name in enumerate(cases):
@@ -419,11 +450,23 @@ def _run_performance_test(test_dir, output_dir, target, prog, timeout):
             os.makedirs(case_dir)
             retcode, case_elapsed = _run_one_test(
                 test_dir, case_dir, target, prog, timeout,
-                case_name=case_name)
+                monitor_config=monitor_config, case_name=case_name)
             retcodes.append(retcode)
             elapsed += case_elapsed
             stdout.append(_read_output(case_dir, 'stdout'))
             stderr.append(_read_output(case_dir, 'stderr'))
+
+            metrics_path = os.path.join(case_dir, 'system-metrics.json')
+            if os.path.exists(metrics_path):
+                with open(metrics_path, encoding='utf-8') as fp:
+                    case_metrics = json.load(fp)
+                module = os.path.splitext(os.path.basename(prog))[0]
+                for case in case_metrics['cases']:
+                    case['name'] = f"{module}.{case['name']}"
+                    # Keep why the sampler left the case without metrics
+                    if case_metrics.get('error'):
+                        case['error'] = case_metrics['error']
+                system_cases.extend(case_metrics['cases'])
 
             if _hit_timeout(case_dir):
                 break
@@ -434,6 +477,11 @@ def _run_performance_test(test_dir, output_dir, target, prog, timeout):
         fp.write(''.join(stdout))
     with open(os.path.join(output_dir, 'stderr'), 'w', encoding='utf-8') as fp:
         fp.write(''.join(stderr))
+    if system_cases:
+        with open(os.path.join(output_dir, 'system-metrics.json'), 'w',
+                  encoding='utf-8') as fp:
+            json.dump({'version': 1, 'cases': system_cases}, fp,
+                      separators=(',', ':'))
 
     if any(retcode not in (0, 4) for retcode in retcodes):
         retcode = next(retcode for retcode in retcodes
@@ -445,15 +493,17 @@ def _run_performance_test(test_dir, output_dir, target, prog, timeout):
     return retcode, round(elapsed, 1)
 
 
-def _execute_test(test_dir, output_dir, target, prog, timeout):
+def _execute_test(test_dir, output_dir, target, prog, timeout,
+                  monitor_config=None):
     if target == PERFORMANCE_TARGET or \
             target.startswith(PERFORMANCE_TARGET + '/'):
         return _run_performance_test(
-            test_dir, output_dir, target, prog, timeout)
+            test_dir, output_dir, target, prog, timeout, monitor_config)
     return _run_one_test(test_dir, output_dir, target, prog, timeout)
 
 
-def run_tests(test_dir, results_dir, timeout=DEFAULT_TEST_TIMEOUT):
+def run_tests(test_dir, results_dir, timeout=DEFAULT_TEST_TIMEOUT,
+              monitor_config=None):
     """Execute kselftest in 'installed' form.
 
     For each test:
@@ -461,7 +511,7 @@ def run_tests(test_dir, results_dir, timeout=DEFAULT_TEST_TIMEOUT):
       2. Check if test_name is in .attempted -- if so, skip (crash recovery)
       3. Write test_name to .attempted + fsync (crash-safe bookkeeping)
       4. Run via: ./run_kselftest.sh -t <target>:<test>. Performance
-         programs run once per listed subtest.
+         programs run once per listed subtest with system monitoring.
       5. Capture stdout/stderr, save to results_dir/<dir_name>/
       6. Drain dmesg output produced during the test, save to dmesg file
       7. Save metadata (retcode, time, target, prog) to info file
@@ -524,7 +574,8 @@ def run_tests(test_dir, results_dir, timeout=DEFAULT_TEST_TIMEOUT):
 
         # Run the test
         retcode, elapsed = _execute_test(
-            test_dir, test_results_dir, target, prog, timeout)
+            test_dir, test_results_dir, target, prog, timeout,
+            monitor_config)
         with open(os.path.join(test_results_dir, 'stdout'),
                   encoding='utf-8') as fp:
             stdout = fp.read()
@@ -565,7 +616,8 @@ def run_tests(test_dir, results_dir, timeout=DEFAULT_TEST_TIMEOUT):
                 retry_dir = os.path.join(results_dir, f'{dir_name}-retry')
                 os.makedirs(retry_dir, exist_ok=True)
                 retry_retcode, _retry_elapsed = _execute_test(
-                    test_dir, retry_dir, target, prog, timeout)
+                    test_dir, retry_dir, target, prog, timeout,
+                    monitor_config)
                 if _hit_timeout(retry_dir):
                     tainted = True
                     print(f"[{test_idx+1}/{len(tests)}] {test_name}: retry hit "

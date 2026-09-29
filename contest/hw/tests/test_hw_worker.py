@@ -1177,7 +1177,7 @@ class TestPerformanceTestCases(unittest.TestCase):
             calls = []
 
             def run_case(_test_dir, case_dir, _target, _prog, _timeout,
-                         case_name=None):
+                         monitor_config=None, case_name=None):
                 calls.append(case_name)
                 Path(case_dir, 'stdout').write_text(
                     '# TAP version 13\n# 1..1\n'
@@ -1213,6 +1213,119 @@ class TestPerformanceTestCases(unittest.TestCase):
                 runner._execute_test(
                     temporary, temporary, 'drivers/net/hw',
                     'regular.py', 10)
+
+            performance.assert_called_once()
+            regular.assert_called_once_with(
+                temporary, temporary, 'drivers/net/hw', 'regular.py', 10)
+
+
+class FakeMonitor:
+    instances = []
+
+    def __init__(self, **_kwargs):
+        self.windows = None
+        self.elapsed_time = 0.0
+        self.error = None
+        self.__class__.instances.append(self)
+
+    def start(self):
+        return self
+
+    def elapsed(self):
+        self.elapsed_time += 1.0
+        return self.elapsed_time
+
+    def write_case_metrics(self, path, windows):
+        self.windows = windows
+        Path(path).write_text(json.dumps({
+            'version': 1,
+            'cases': [{**window, 'metrics': []} for window in windows],
+        }), encoding='utf-8')
+
+
+class TestMonitoredExecution(unittest.TestCase):
+    def test_uses_process_boundaries_for_one_subtest(self):
+        FakeMonitor.instances.clear()
+        with tempfile.TemporaryDirectory() as temporary:
+            test_dir = Path(temporary) / 'tests'
+            output_dir = Path(temporary) / 'output'
+            test_dir.mkdir()
+            output_dir.mkdir()
+
+            with mock.patch.object(runner, 'SystemMonitor', FakeMonitor), \
+                    mock.patch.object(runner.subprocess, 'Popen',
+                                      return_value=FakeProcess()) as popen:
+                retcode, _elapsed = runner._run_one_test(
+                    str(test_dir), str(output_dir),
+                    runner.PERFORMANCE_TARGET, 'example.py', 10,
+                    monitor_config={'ifname': 'eth0'},
+                    case_name='measured.case')
+
+            self.assertEqual(retcode, 0)
+            self.assertEqual(FakeMonitor.instances[0].windows, [{
+                'name': 'measured.case', 'start': 1.0, 'end': 2.0,
+            }])
+            environment = popen.call_args.kwargs['env']
+            self.assertEqual(environment['KSELFTEST_EXAMPLE_PY_ARGS'],
+                             '-t measured.case')
+            self.assertTrue((output_dir / 'system-metrics.json').exists())
+
+    def test_merges_system_metrics_of_each_subtest(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            test_dir = Path(temporary) / 'tests'
+            output_dir = Path(temporary) / 'output'
+            test_dir.mkdir()
+            output_dir.mkdir()
+            calls = []
+
+            def run_case(_test_dir, case_dir, _target, _prog, _timeout,
+                         monitor_config=None, case_name=None):
+                calls.append((case_name, monitor_config))
+                Path(case_dir, 'stdout').write_text('', encoding='utf-8')
+                Path(case_dir, 'stderr').write_text('', encoding='utf-8')
+                sidecar = {
+                    'version': 1,
+                    'cases': [{'name': case_name, 'metrics': []}],
+                }
+                if case_name == 'case.two':
+                    sidecar['error'] = 'sampler stopped'
+                Path(case_dir, 'system-metrics.json').write_text(
+                    json.dumps(sidecar), encoding='utf-8')
+                return 0, 1.0
+
+            with mock.patch.object(runner, '_list_subtests',
+                                   return_value=['case.one', 'case.two']), \
+                    mock.patch.object(runner, '_run_one_test',
+                                      side_effect=run_case):
+                runner._run_performance_test(
+                    str(test_dir), str(output_dir),
+                    runner.PERFORMANCE_TARGET, 'example.py', 10,
+                    {'ifname': 'eth0'})
+
+            self.assertEqual(calls, [
+                ('case.one', {'ifname': 'eth0'}),
+                ('case.two', {'ifname': 'eth0'}),
+            ])
+            with open(Path(output_dir, 'system-metrics.json'),
+                      encoding='utf-8') as fp:
+                metrics = json.load(fp)
+            self.assertEqual([case['name'] for case in metrics['cases']],
+                             ['example.case.one', 'example.case.two'])
+            self.assertEqual([case.get('error') for case in metrics['cases']],
+                             [None, 'sampler stopped'])
+
+    def test_monitoring_is_selected_by_target(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            with mock.patch.object(runner, '_run_performance_test',
+                                   return_value=(0, 1.0)) as performance, \
+                    mock.patch.object(runner, '_run_one_test',
+                                      return_value=(0, 1.0)) as regular:
+                runner._execute_test(
+                    temporary, temporary, runner.PERFORMANCE_TARGET,
+                    'perf.py', 10, {'ifname': 'eth0'})
+                runner._execute_test(
+                    temporary, temporary, 'drivers/net/hw',
+                    'regular.py', 10, {'ifname': 'eth0'})
 
             performance.assert_called_once()
             regular.assert_called_once_with(
