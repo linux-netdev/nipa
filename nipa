@@ -1,0 +1,19 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-2.0
+
+"""Small command-line entry point for local NIPA tools."""
+
+import sys
+
+from contest.hw.local import main as local_main
+
+
+def main():
+    if len(sys.argv) >= 2 and sys.argv[1] == 'local':
+        return local_main(sys.argv[2:])
+    print('usage: nipa local run ...', file=sys.stderr)
+    return 2
+
+
+if __name__ == '__main__':
+    sys.exit(main())
