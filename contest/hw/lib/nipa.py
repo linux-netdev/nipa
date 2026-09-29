@@ -5,6 +5,9 @@
 This module handles the sys.path setup so that other modules in
 contest/hw/ can simply ``from lib.nipa import ...`` without repeating
 the path manipulation.
+
+Fetcher and NipaLifetime need the dependencies of the services, they are
+imported on first use, so the worker on a DUT can use the rest.
 """
 
 import os
@@ -23,6 +26,16 @@ from contest.remote.lib.results import guess_indicators  # noqa: E402, F401
 from contest.remote.lib.results import result_from_indicators  # noqa: E402, F401
 from contest.remote.lib.results import parse_nested_tests  # noqa: E402, F401
 from contest.remote.lib.cbarg import CbArg  # noqa: E402, F401
-from contest.remote.lib.fetcher import Fetcher  # noqa: E402, F401
-from contest.remote.lib.fetcher import namify  # noqa: E402, F401
-from core import NipaLifetime  # noqa: E402, F401
+from contest.remote.lib.names import namify  # noqa: E402, F401
+
+
+def __getattr__(name):
+    if name == 'Fetcher':
+        from contest.remote.lib.fetcher import Fetcher
+        globals()['Fetcher'] = Fetcher
+    elif name == 'NipaLifetime':
+        from core import NipaLifetime
+        globals()['NipaLifetime'] = NipaLifetime
+    else:
+        raise AttributeError(name)
+    return globals()[name]

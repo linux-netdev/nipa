@@ -3,7 +3,6 @@
 import datetime
 import json
 import os
-import re
 import subprocess
 import time
 import urllib3
@@ -207,12 +206,3 @@ class Fetcher:
     def run(self):
         while self.life.next_poll():
             self._run_once()
-
-
-def namify(what):
-    if not what:
-        return "no-name"
-    name = re.sub(r'[^0-9a-zA-Z]+', '-', what)
-    if name[-1] == '-':
-        name = name[:-1]
-    return name
