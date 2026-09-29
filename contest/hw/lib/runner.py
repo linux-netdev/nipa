@@ -5,6 +5,7 @@
 import json
 import os
 import re
+import shutil
 import signal
 import subprocess
 import time
@@ -20,6 +21,7 @@ DEFAULT_TEST_TIMEOUT = 1200
 # How long to wait for a timed-out test to shut down gracefully after the
 # first (SIGINT) signal before we force-kill its whole process tree.
 GRACEFUL_KILL_WAIT = 60
+PERFORMANCE_TARGET = 'drivers/net/perf'
 
 # A test which dies with its *own* uncaught subprocess.TimeoutExpired never
 # runs its cleanup / __exit__, so netns, interfaces, XDP progs, qdiscs and
@@ -270,7 +272,40 @@ def _kill_session(sid, sig):
             pass
 
 
-def _run_one_test(test_dir, output_dir, target, prog, timeout):
+def _test_args_name(prog):
+    """Return run_kselftest.sh's per-program argument variable name."""
+    name = re.sub(r'[^A-Za-z0-9_]', '_', os.path.basename(prog)).upper()
+    return f'KSELFTEST_{name}_ARGS'
+
+
+def _list_subtests(test_dir, target, prog, timeout):
+    """List Python kselftest cases without executing their test bodies."""
+    test_path = os.path.join(test_dir, target, prog)
+    env = os.environ.copy()
+    env['NO_COLOR'] = '1'
+    # The arguments for run_kselftest.sh may filter the cases, split them the
+    # way it does
+    args = env.get(_test_args_name(prog), '').split()
+    completed = subprocess.run(
+        [test_path, '-l', *args], cwd=os.path.dirname(test_path), env=env,
+        capture_output=True, text=True, timeout=min(timeout, 60), check=False)
+    if completed.returncode:
+        error = completed.stderr.strip() or completed.stdout.strip() or \
+            f'exit code {completed.returncode}'
+        raise RuntimeError(f'failed to list {target}:{prog} subtests: {error}')
+    cases = []
+    for line in completed.stdout.splitlines():
+        line = line.strip()
+        # Test setup may emit KTAP diagnostics before ksft_run() handles -l.
+        if line and not line.startswith('#'):
+            cases.append(line)
+    if not cases:
+        raise RuntimeError(f'{target}:{prog} did not list any subtests')
+    return cases
+
+
+def _run_one_test(test_dir, output_dir, target, prog, timeout,
+                  case_name=None):
     """Run a single test and save stdout/stderr. Returns (retcode, elapsed).
 
     On timeout the test is asked to shut down gracefully (SIGINT, which
@@ -287,11 +322,17 @@ def _run_one_test(test_dir, output_dir, target, prog, timeout):
     is reached -- otherwise it is orphaned and lingers, poisoning the retry
     and later crashing on its own.
     """
+    env = os.environ.copy()
+    if case_name is not None:
+        args_name = _test_args_name(prog)
+        env[args_name] = f'-t {case_name}'
+
     t1 = time.monotonic()
     # pylint: disable=consider-using-with
     proc = subprocess.Popen(
         ['./run_kselftest.sh', '-t', f'{target}:{prog}'],
         cwd=test_dir,
+        env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         start_new_session=True,
@@ -343,6 +384,75 @@ def _run_one_test(test_dir, output_dir, target, prog, timeout):
     return retcode, elapsed
 
 
+def _read_output(path, name):
+    with open(os.path.join(path, name), encoding='utf-8') as fp:
+        output = fp.read()
+    if output and not output.endswith('\n'):
+        output += '\n'
+    return output
+
+
+def _run_performance_test(test_dir, output_dir, target, prog, timeout):
+    """Run each case in a performance test program in its own process."""
+    try:
+        cases = _list_subtests(test_dir, target, prog, timeout)
+    except (OSError, RuntimeError, subprocess.TimeoutExpired) as error:
+        with open(os.path.join(output_dir, 'stdout'), 'w',
+                  encoding='utf-8') as fp:
+            fp.write('')
+        with open(os.path.join(output_dir, 'stderr'), 'w',
+                  encoding='utf-8') as fp:
+            fp.write(f'{error}\n')
+        return 1, 0.0
+
+    case_root = os.path.join(output_dir, '.subtests')
+    os.makedirs(case_root, exist_ok=True)
+    stdout = []
+    stderr = []
+    retcodes = []
+    elapsed = 0.0
+
+    try:
+        for index, case_name in enumerate(cases):
+            print(f"  {target}:{prog}: running subtest {case_name}")
+            case_dir = os.path.join(case_root, str(index))
+            os.makedirs(case_dir)
+            retcode, case_elapsed = _run_one_test(
+                test_dir, case_dir, target, prog, timeout,
+                case_name=case_name)
+            retcodes.append(retcode)
+            elapsed += case_elapsed
+            stdout.append(_read_output(case_dir, 'stdout'))
+            stderr.append(_read_output(case_dir, 'stderr'))
+
+            if _hit_timeout(case_dir):
+                break
+    finally:
+        shutil.rmtree(case_root, ignore_errors=True)
+
+    with open(os.path.join(output_dir, 'stdout'), 'w', encoding='utf-8') as fp:
+        fp.write(''.join(stdout))
+    with open(os.path.join(output_dir, 'stderr'), 'w', encoding='utf-8') as fp:
+        fp.write(''.join(stderr))
+
+    if any(retcode not in (0, 4) for retcode in retcodes):
+        retcode = next(retcode for retcode in retcodes
+                       if retcode not in (0, 4))
+    elif any(retcode == 0 for retcode in retcodes):
+        retcode = 0
+    else:
+        retcode = 4
+    return retcode, round(elapsed, 1)
+
+
+def _execute_test(test_dir, output_dir, target, prog, timeout):
+    if target == PERFORMANCE_TARGET or \
+            target.startswith(PERFORMANCE_TARGET + '/'):
+        return _run_performance_test(
+            test_dir, output_dir, target, prog, timeout)
+    return _run_one_test(test_dir, output_dir, target, prog, timeout)
+
+
 def run_tests(test_dir, results_dir, timeout=DEFAULT_TEST_TIMEOUT):
     """Execute kselftest in 'installed' form.
 
@@ -350,7 +460,8 @@ def run_tests(test_dir, results_dir, timeout=DEFAULT_TEST_TIMEOUT):
       1. Check dmesg for crash from previous test -- if found, stop
       2. Check if test_name is in .attempted -- if so, skip (crash recovery)
       3. Write test_name to .attempted + fsync (crash-safe bookkeeping)
-      4. Run via: ./run_kselftest.sh -t <target>:<test>
+      4. Run via: ./run_kselftest.sh -t <target>:<test>. Performance
+         programs run once per listed subtest.
       5. Capture stdout/stderr, save to results_dir/<dir_name>/
       6. Drain dmesg output produced during the test, save to dmesg file
       7. Save metadata (retcode, time, target, prog) to info file
@@ -412,8 +523,8 @@ def run_tests(test_dir, results_dir, timeout=DEFAULT_TEST_TIMEOUT):
         os.makedirs(test_results_dir, exist_ok=True)
 
         # Run the test
-        retcode, elapsed = _run_one_test(test_dir, test_results_dir,
-                                         target, prog, timeout)
+        retcode, elapsed = _execute_test(
+            test_dir, test_results_dir, target, prog, timeout)
         with open(os.path.join(test_results_dir, 'stdout'),
                   encoding='utf-8') as fp:
             stdout = fp.read()
@@ -453,7 +564,7 @@ def run_tests(test_dir, results_dir, timeout=DEFAULT_TEST_TIMEOUT):
             if not skip_retry:
                 retry_dir = os.path.join(results_dir, f'{dir_name}-retry')
                 os.makedirs(retry_dir, exist_ok=True)
-                retry_retcode, _retry_elapsed = _run_one_test(
+                retry_retcode, _retry_elapsed = _execute_test(
                     test_dir, retry_dir, target, prog, timeout)
                 if _hit_timeout(retry_dir):
                     tainted = True

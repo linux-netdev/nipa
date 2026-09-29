@@ -6,6 +6,7 @@ import signal
 import subprocess
 import tempfile
 import unittest
+from pathlib import Path
 from unittest import mock
 
 import sys
@@ -18,6 +19,7 @@ from lib.runner import (find_newest_test, load_attempted,
                         _hit_timeout, _run_one_test,
                         _known_bad_retry_decision)
 from lib.nipa import namify
+from lib import runner
 
 
 # What a Python kselftest leaves in its output when one of *its* subprocess
@@ -1107,6 +1109,114 @@ class TestEnableHwGro(unittest.TestCase):
     def test_unknown_driver_is_left_alone(self):
         self._run(None, (False, True)).assert_not_called()
 
+
+class FakeProcess:
+    def __init__(self):
+        self.pid = 1234
+        self.returncode = 0
+
+    def communicate(self, timeout=None):
+        return b'outer output\n', b''
+
+
+class TestPerformanceTestCases(unittest.TestCase):
+    def test_subtest_listing_ignores_ktap_diagnostics(self):
+        completed = mock.Mock(
+            returncode=0,
+            stdout=(
+                '# WARN: setup warning\n'
+                '  # Interface: eth0, driver: example\n'
+                'case.one\n'
+                'case.two\n'
+            ),
+            stderr='',
+        )
+        with mock.patch.object(runner.subprocess, 'run',
+                               return_value=completed):
+            cases = runner._list_subtests(
+                '/tests', runner.PERFORMANCE_TARGET, 'example.py', 10)
+
+        self.assertEqual(cases, ['case.one', 'case.two'])
+
+    def test_subtest_listing_honors_program_arguments(self):
+        completed = mock.Mock(returncode=0, stdout='case.two\n', stderr='')
+        with mock.patch.object(runner.subprocess, 'run',
+                               return_value=completed) as run, \
+                mock.patch.dict(runner.os.environ, {
+                    'KSELFTEST_EXAMPLE_PY_ARGS': '-t case.two'}):
+            cases = runner._list_subtests(
+                '/tests', runner.PERFORMANCE_TARGET, 'example.py', 10)
+
+        self.assertEqual(cases, ['case.two'])
+        self.assertEqual(run.call_args.args[0], [
+            os.path.join('/tests', runner.PERFORMANCE_TARGET, 'example.py'),
+            '-l', '-t', 'case.two'])
+
+    def test_runs_one_subtest_through_program_arguments(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            with mock.patch.object(runner.subprocess, 'Popen',
+                                   return_value=FakeProcess()) as popen:
+                retcode, _elapsed = runner._run_one_test(
+                    temporary, temporary, runner.PERFORMANCE_TARGET,
+                    'example.py', 10, case_name='measured.case')
+
+            self.assertEqual(retcode, 0)
+            environment = popen.call_args.kwargs['env']
+            self.assertEqual(environment['KSELFTEST_EXAMPLE_PY_ARGS'],
+                             '-t measured.case')
+            self.assertEqual(
+                Path(temporary, 'stdout').read_text(encoding='utf-8'),
+                'outer output\n')
+
+    def test_performance_program_runs_each_subtest_once(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            test_dir = Path(temporary) / 'tests'
+            output_dir = Path(temporary) / 'output'
+            test_dir.mkdir()
+            output_dir.mkdir()
+            calls = []
+
+            def run_case(_test_dir, case_dir, _target, _prog, _timeout,
+                         case_name=None):
+                calls.append(case_name)
+                Path(case_dir, 'stdout').write_text(
+                    '# TAP version 13\n# 1..1\n'
+                    f'# ok 1 {case_name}\n', encoding='utf-8')
+                Path(case_dir, 'stderr').write_text('', encoding='utf-8')
+                return 0, 1.0
+
+            with mock.patch.object(runner, '_list_subtests',
+                                   return_value=['case.one', 'case.two']), \
+                    mock.patch.object(runner, '_run_one_test',
+                                      side_effect=run_case):
+                retcode, elapsed = runner._run_performance_test(
+                    str(test_dir), str(output_dir),
+                    runner.PERFORMANCE_TARGET, 'example.py', 10)
+
+            self.assertEqual(retcode, 0)
+            self.assertEqual(elapsed, 2.0)
+            self.assertEqual(calls, ['case.one', 'case.two'])
+            output = Path(output_dir, 'stdout').read_text(encoding='utf-8')
+            self.assertIn('# ok 1 case.one', output)
+            self.assertIn('# ok 1 case.two', output)
+            self.assertFalse(Path(output_dir, '.subtests').exists())
+
+    def test_performance_target_runs_cases_one_at_a_time(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            with mock.patch.object(runner, '_run_performance_test',
+                                   return_value=(0, 1.0)) as performance, \
+                    mock.patch.object(runner, '_run_one_test',
+                                      return_value=(0, 1.0)) as regular:
+                runner._execute_test(
+                    temporary, temporary, runner.PERFORMANCE_TARGET,
+                    'perf.py', 10)
+                runner._execute_test(
+                    temporary, temporary, 'drivers/net/hw',
+                    'regular.py', 10)
+
+            performance.assert_called_once()
+            regular.assert_called_once_with(
+                temporary, temporary, 'drivers/net/hw', 'regular.py', 10)
 
 if __name__ == '__main__':
     unittest.main()
