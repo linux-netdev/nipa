@@ -104,6 +104,19 @@ Results are written to ``$PWD/nipa-results/<timestamp>``. Use
 ``target:program`` to select one program or ``--output`` to change the results
 directory.
 
+How to view
+~~~~~~~~~~~
+
+Serve all results under ``$PWD/nipa-results``::
+
+  cd $nipa
+  ./nipa local view
+
+Pass a path after ``view`` to select another directory or one result. The
+server listens on ``[::]:44109`` and prints the URL without opening a browser.
+History is grouped by Linux branch and executor. Regression evaluation uses
+up to five prior successful values.
+
 Structure
 =========
 

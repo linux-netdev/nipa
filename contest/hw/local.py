@@ -4,21 +4,28 @@
 
 import argparse
 import datetime
+import http.server
 import json
 import os
 from pathlib import Path
 import shlex
 import shutil
+import socket
+import socketserver
 import subprocess
 import sys
 import tempfile
+import urllib.parse
 import uuid
 
+from contest.backend.result_metrics import evaluate_regressions, \
+    extract_result_metrics
 from contest.hw.lib.result_parser import parse_results
 
 
 HW_DIR = Path(__file__).resolve().parent
 ROOT_DIR = HW_DIR.parent.parent
+UI_DIR = ROOT_DIR / 'ui'
 
 
 SSH_OPTIONS = [
@@ -26,6 +33,18 @@ SSH_OPTIONS = [
     '-o', 'StrictHostKeyChecking=no',
     '-o', 'BatchMode=yes',
 ]
+
+
+class _ThreadingTCPServer(socketserver.ThreadingTCPServer):
+    allow_reuse_address = True
+
+
+class _ThreadingTCPServerV6(_ThreadingTCPServer):
+    address_family = socket.AF_INET6
+
+    def server_bind(self):
+        self.socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
+        super().server_bind()
 
 
 def _run(command, **kwargs):
@@ -394,6 +413,154 @@ def _local_run(args):
     return 1 if problems else 0
 
 
+def _find_results(path):
+    path = Path(path).expanduser().resolve()
+    if path.is_file():
+        return [path]
+    return sorted(path.rglob('result.json'))
+
+
+def _metric_rows(result_paths):
+    overview = []
+    details = []
+    artifact_roots = {}
+    next_id = 1
+
+    loaded = []
+    for path in result_paths:
+        with open(path, encoding='utf-8') as fp:
+            loaded.append((path, json.load(fp)))
+    loaded.sort(key=lambda item: (item[1]['start'], str(item[0])))
+
+    for artifact_id, (path, data) in enumerate(loaded):
+        artifact_roots[str(artifact_id)] = path.parent
+        for row in extract_result_metrics(data):
+            link = row.get('link')
+            if link and not urllib.parse.urlparse(link).scheme:
+                relative = link.lstrip('./')
+                row['link'] = f'/artifacts/{artifact_id}/{relative}'
+            branch = data['branch']
+            if data['remote'] == 'local':
+                branch = f"{branch}-{data['branch_date']}"
+            row.update({
+                'id': next_id,
+                'branch': branch,
+                'branch_date': data['branch_date'],
+                'remote': data['remote'],
+                'executor': data['executor'],
+                'start': data['start'],
+            })
+            details.append(row)
+            overview.append({key: value for key, value in row.items()
+                             if key != 'full_json'})
+            next_id += 1
+
+    overview = evaluate_regressions(overview)
+    evaluated = {row['id']: row['short_json'] for row in overview}
+    for row in details:
+        row['short_json'] = evaluated[row['id']]
+    return overview, details, artifact_roots
+
+
+def _handler(results_path):
+    class LocalHandler(http.server.SimpleHTTPRequestHandler):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, directory=str(UI_DIR), **kwargs)
+
+        def _send_json(self, data):
+            payload = json.dumps(data, separators=(',', ':')).encode()
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Content-Length', str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+
+        @staticmethod
+        def _load_metrics():
+            return _metric_rows(_find_results(results_path))
+
+        def do_GET(self):  # pylint: disable=invalid-name
+            parsed = urllib.parse.urlparse(self.path)
+            path = parsed.path
+            params = urllib.parse.parse_qsl(
+                parsed.query, keep_blank_values=True)
+            if path in ('/', '/metric-table.html') and \
+                    not any(key == 'data' for key, _value in params):
+                params.extend([
+                    ('data', '/local/result-metrics.json'),
+                    ('detail-data', '/local/result-metric-details.json'),
+                ])
+                location = '/metric-table.html?' + urllib.parse.urlencode(params)
+                self.send_response(302)
+                self.send_header('Location', location)
+                self.send_header('Content-Length', '0')
+                self.end_headers()
+                return
+            if path == '/local/result-metrics.json':
+                overview, _details, _artifact_roots = self._load_metrics()
+                self._send_json(overview)
+                return
+            if path == '/local/result-metric-details.json':
+                _overview, details, _artifact_roots = self._load_metrics()
+                self._send_json(details)
+                return
+            if path.startswith('/artifacts/'):
+                _overview, _details, artifact_roots = self._load_metrics()
+                parts = path.split('/', 3)
+                root = artifact_roots.get(parts[2]) if len(parts) > 3 else None
+                if root is None:
+                    self.send_error(404)
+                    return
+                requested = (root / urllib.parse.unquote(parts[3])).resolve()
+                if root != requested and root not in requested.parents:
+                    self.send_error(403)
+                    return
+                if requested.is_dir():
+                    requested = requested / 'stdout'
+                if not requested.is_file():
+                    self.send_error(404)
+                    return
+                self.send_response(200)
+                self.send_header('Content-Type', self.guess_type(str(requested)))
+                self.send_header('Content-Length', str(requested.stat().st_size))
+                self.end_headers()
+                with open(requested, 'rb') as fp:
+                    shutil.copyfileobj(fp, self.wfile)
+                return
+            super().do_GET()
+
+    return LocalHandler
+
+
+def _local_view(args):
+    result_paths = _find_results(args.results)
+    if not result_paths:
+        raise RuntimeError(f'no result.json files found under {args.results}')
+    overview, _details, _artifact_roots = _metric_rows(result_paths)
+    if not overview:
+        raise RuntimeError('no testcase metrics found in the selected results')
+
+    handler = _handler(args.results)
+    server_class = _ThreadingTCPServerV6 if ':' in args.host else \
+        _ThreadingTCPServer
+    with server_class((args.host, args.port), handler) as server:
+        host, port = server.server_address[:2]
+        url_host = f'[{host}]' if ':' in host else host
+        query = urllib.parse.urlencode({
+            'data': '/local/result-metrics.json',
+            'detail-data': '/local/result-metric-details.json',
+        })
+        url = f'http://{url_host}:{port}/metric-table.html?{query}'
+        print(f'Serving {len(overview)} metric attempts from '
+              f'{len(result_paths)} runs')
+        print(url)
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            print()
+    return 0
+
+
 def _parser():
     parser = argparse.ArgumentParser(prog='nipa local')
     subcommands = parser.add_subparsers(dest='command', required=True)
@@ -416,6 +583,12 @@ def _parser():
     run.add_argument('--output')
     run.add_argument('--executor')
     run.set_defaults(func=_local_run)
+
+    view = subcommands.add_parser('view', help='view local result.json files')
+    view.add_argument('results', nargs='?', default='nipa-results')
+    view.add_argument('--host', default='::')
+    view.add_argument('--port', type=int, default=44109)
+    view.set_defaults(func=_local_view)
     return parser
 
 

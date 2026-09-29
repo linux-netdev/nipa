@@ -13,7 +13,8 @@ function metric_case_name(run)
 
 function metric_run_date(run)
 {
-    return run.branch_date.slice(0, 10);
+    return run.remote === 'local' ? run.branch_date :
+        run.branch_date.slice(0, 10);
 }
 
 function metric_detail_data_source()

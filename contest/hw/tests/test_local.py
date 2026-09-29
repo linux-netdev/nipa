@@ -8,8 +8,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from contest.hw.local import _prepare_route, _remove_peer_key, _remove_routes, \
-    _resolve_tests, _select_installed_tests, _worker_problems
+from contest.hw.local import _metric_rows, _prepare_route, _remove_peer_key, \
+    _remove_routes, _resolve_tests, _select_installed_tests, _worker_problems
 
 
 class TestLocalRoutes(unittest.TestCase):
@@ -170,6 +170,47 @@ class TestLocalTestPaths(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError,
                                         r'target\[:program\]'):
                 _resolve_tests(tree, ['drivers/net/perf:'])
+
+
+class TestLocalMetricStore(unittest.TestCase):
+    def test_reads_result_json_without_database(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'result.json'
+            path.write_text(json.dumps({
+                'branch': 'local-test',
+                'branch_date': '2026-09-16--12-00',
+                'remote': 'local',
+                'executor': 'dut',
+                'start': '2026-09-16T12:00:00+00:00',
+                'results': [{
+                    'group': 'selftests-net',
+                    'test': 'example-py',
+                    'result': 'pass',
+                    'link': '.',
+                    'results': [{
+                        'test': 'case-one',
+                        'result': 'pass',
+                        'metrics': [{
+                            'name': 'throughput',
+                            'type': 'scalar',
+                            'value': 10.0,
+                            'host': 'local',
+                            'summarize': 'p50',
+                        }],
+                    }],
+                }],
+            }), encoding='utf-8')
+
+            overview, details, roots = _metric_rows([path])
+            self.assertEqual(len(overview), 1)
+            self.assertEqual(overview[0]['executor'], 'dut')
+            self.assertEqual(
+                overview[0]['branch'],
+                'local-test-2026-09-16--12-00')
+            self.assertEqual(
+                overview[0]['short_json'][0]['summary']['p50'], 10.0)
+            self.assertEqual(details[0]['full_json'][0]['name'], 'throughput')
+            self.assertEqual(roots['0'], path.parent)
 
 
 if __name__ == '__main__':

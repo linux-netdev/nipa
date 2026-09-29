@@ -11,7 +11,7 @@ from contest.hw.local import main as local_main
 def main():
     if len(sys.argv) >= 2 and sys.argv[1] == 'local':
         return local_main(sys.argv[2:])
-    print('usage: nipa local run ...', file=sys.stderr)
+    print('usage: nipa local {run,view} ...', file=sys.stderr)
     return 2
 
 
