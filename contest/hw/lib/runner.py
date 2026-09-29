@@ -503,8 +503,11 @@ def _execute_test(test_dir, output_dir, target, prog, timeout,
 
 
 def run_tests(test_dir, results_dir, timeout=DEFAULT_TEST_TIMEOUT,
-              monitor_config=None):
+              monitor_config=None, booted=True):
     """Execute kselftest in 'installed' form.
+
+    Without booted, the kernel was not booted for this run, and the messages
+    it logged before belong to someone else.
 
     For each test:
       1. Check dmesg for crash from previous test -- if found, stop
@@ -536,7 +539,7 @@ def run_tests(test_dir, results_dir, timeout=DEFAULT_TEST_TIMEOUT,
     known_bad = load_known_bad(test_dir)
 
     # Open dmesg once, drain boot messages
-    dmesg = DmesgReader()
+    dmesg = DmesgReader(skip_existing=not booted)
     boot_lines = dmesg.drain()
     if boot_lines:
         boot_path = os.path.join(results_dir, 'boot-dmesg')
@@ -671,18 +674,24 @@ class DmesgReader:
     all lines accumulated since the last drain.  Not threaded — the
     caller is expected to drain between tests.
 
-    /dev/kmsg gives each opener its own read position.  It does not
-    support seek(), so we just read from wherever the kernel puts us
-    (typically the start of the ring buffer) and drain forward.
+    /dev/kmsg gives each opener its own read position, starting at the
+    oldest record in the ring buffer, and we drain forward from there.
+    With skip_existing, we start after the newest record instead.
     """
 
-    def __init__(self):
+    def __init__(self, skip_existing=False):
         self._fd = None
         try:
             # O_RDONLY | O_NONBLOCK so reads return EAGAIN instead of blocking
             self._fd = os.open('/dev/kmsg', os.O_RDONLY | os.O_NONBLOCK)
         except (PermissionError, FileNotFoundError, OSError) as e:
             print(f"DmesgReader: cannot open /dev/kmsg: {e}")
+            return
+        if skip_existing:
+            try:
+                os.lseek(self._fd, 0, os.SEEK_END)
+            except OSError:
+                self.drain()
 
     def drain(self):
         """Read all available lines from /dev/kmsg.

@@ -19,6 +19,7 @@ from lib.runner import (find_newest_test, load_attempted,
                         _hit_timeout, _run_one_test,
                         _known_bad_retry_decision)
 from lib.nipa import namify
+import hw_worker
 from lib import runner
 
 
@@ -378,6 +379,29 @@ class TestRunTests(unittest.TestCase):
 
             info = self._read_info(results_dir)
             self.assertEqual(info['retcode'], 0)
+            mock_dmesg_cls.assert_called_once_with(skip_existing=False)
+
+    @mock.patch('lib.runner.DmesgReader')
+    @mock.patch('subprocess.Popen')
+    def test_skips_older_kernel_messages_without_boot(self, mock_popen,
+                                                      mock_dmesg_cls):
+        mock_dmesg_cls.return_value.drain.return_value = ''
+        mock_popen.return_value = _fake_popen(
+            returncode=0, stdout=b'ok 1 test_name\n', stderr=b'')
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_dir = os.path.join(tmpdir, 'tests')
+            results_dir = os.path.join(tmpdir, 'results')
+            os.makedirs(test_dir)
+            os.makedirs(results_dir)
+            with open(os.path.join(test_dir, 'kselftest-list.txt'), 'w') as fp:
+                fp.write('net:test1.sh\n')
+
+            outcome = run_tests(test_dir, results_dir, booted=False)
+
+        mock_dmesg_cls.assert_called_once_with(skip_existing=True)
+        mock_popen.assert_called_once()
+        self.assertFalse(outcome.crashed)
 
     @mock.patch('lib.runner.DmesgReader')
     @mock.patch('subprocess.Popen')
@@ -850,6 +874,19 @@ class TestDmesgReader(unittest.TestCase):
         dmesg._fd = None
         dmesg.close()  # should not raise
 
+    @mock.patch('lib.runner.os.lseek')
+    @mock.patch('lib.runner.os.open', return_value=1234)
+    def test_skip_existing_starts_after_newest_record(self, _mock_open,
+                                                      mock_lseek):
+        DmesgReader(skip_existing=True)
+        mock_lseek.assert_called_once_with(1234, 0, os.SEEK_END)
+
+    @mock.patch('lib.runner.os.lseek')
+    @mock.patch('lib.runner.os.open', return_value=1234)
+    def test_reads_whole_buffer_by_default(self, _mock_open, mock_lseek):
+        DmesgReader()
+        mock_lseek.assert_not_called()
+
 
 class TestMainFlow(_MainTestCase):
     def test_no_tests(self):
@@ -1269,6 +1306,102 @@ class TestMonitoredExecution(unittest.TestCase):
             performance.assert_called_once()
             regular.assert_called_once_with(
                 temporary, temporary, 'drivers/net/hw', 'regular.py', 10)
+
+
+class TestDirectWorkerMode(unittest.TestCase):
+    def test_preserves_existing_network_configuration(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            test_dir = Path(temporary) / 'tests'
+            results_dir = Path(temporary) / 'results'
+            config = test_dir / 'drivers' / 'net' / 'hw' / 'net.config'
+            config.parent.mkdir(parents=True)
+            config.write_text('LOCAL_V6=fd00::1\n', encoding='utf-8')
+            (test_dir / 'kselftest-list.txt').write_text(
+                'drivers/net/hw:example.py\n', encoding='utf-8')
+            (test_dir / 'nic-test.env').write_text(
+                'NIPA_SKIP_NET_SETUP=yes\nNETIF=eth0\n', encoding='utf-8')
+
+            with mock.patch.object(hw_worker, 'setup_test_interfaces') as setup, \
+                    mock.patch.object(hw_worker, '_collect_device_info',
+                                      return_value=None), \
+                    mock.patch.object(hw_worker, 'run_tests') as run_tests:
+                hw_worker._run_test_dir(str(test_dir), str(results_dir),
+                                        booted=False)
+
+            setup.assert_not_called()
+            run_tests.assert_called_once()
+            self.assertIs(run_tests.call_args.kwargs['booted'], False)
+            self.assertEqual(config.read_text(encoding='utf-8'),
+                             'LOCAL_V6=fd00::1\n')
+
+    def test_generates_config_from_existing_addresses(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            test_dir = Path(temporary)
+            target = test_dir / 'drivers/net/perf'
+            target.mkdir(parents=True)
+            (test_dir / 'kselftest-list.txt').write_text(
+                'drivers/net/perf:iperf.py\n', encoding='utf-8')
+            env = {
+                'NETIF': 'eth0',
+                'REMOTE_IFNAME': 'eth0',
+                'REMOTE_ARGS': 'root@peer',
+            }
+
+            with mock.patch.object(hw_worker, '_interface_addresses',
+                                   side_effect=[
+                                       {'inet': '192.0.2.1',
+                                        'inet6': 'fd00:1::1'},
+                                       {'inet': '192.0.2.2',
+                                        'inet6': 'fd00:1::2'},
+                                   ]) as addresses:
+                hw_worker._write_discovered_net_config(str(test_dir), env)
+
+            self.assertEqual(addresses.call_args_list, [
+                mock.call('eth0'), mock.call('eth0', host='root@peer'),
+            ])
+            config = (target / 'net.config').read_text(encoding='utf-8')
+            self.assertIn('NETIF=eth0\n', config)
+            self.assertIn('LOCAL_V4=192.0.2.1\n', config)
+            self.assertIn('REMOTE_V4=192.0.2.2\n', config)
+            self.assertIn('LOCAL_V6=fd00:1::1\n', config)
+            self.assertIn('REMOTE_V6=fd00:1::2\n', config)
+            self.assertNotIn('LOCAL_PREFIX_V6', config)
+            self.assertIn('REMOTE_ARGS=root@peer\n', config)
+
+    def test_given_values_replace_discovered_ones(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            test_dir = Path(temporary)
+            target = test_dir / 'drivers/net/perf'
+            target.mkdir(parents=True)
+            (test_dir / 'kselftest-list.txt').write_text(
+                'drivers/net/perf:iperf.py\n', encoding='utf-8')
+            env = {
+                'NETIF': 'eth0',
+                'REMOTE_IFNAME': 'eth0',
+                'REMOTE_ARGS': 'root@peer',
+                'LOCAL_V6': '2001:db8:1::1',
+                'LOCAL_PREFIX_V6': '2001:db8:2::/64',
+            }
+
+            with mock.patch.object(hw_worker, '_interface_addresses',
+                                   side_effect=[{'inet6': 'fd00:1::1'},
+                                                {'inet6': 'fd00:1::2'}]):
+                hw_worker._write_discovered_net_config(str(test_dir), env)
+
+            config = (target / 'net.config').read_text(encoding='utf-8')
+            self.assertIn('LOCAL_V6=2001:db8:1::1\n', config)
+            self.assertIn('REMOTE_V6=fd00:1::2\n', config)
+            self.assertIn('LOCAL_PREFIX_V6=2001:db8:2::/64\n', config)
+
+    def test_exports_test_variables_with_values(self):
+        env = {'DISRUPTIVE': '', 'KSFT_MACHINE_SLOW': 'yes',
+               'KSELFTEST_IPERF_PY_ARGS': '-t tcp', 'NETIF': 'eth0'}
+        with mock.patch.dict(hw_worker.os.environ, {}, clear=True):
+            hw_worker._export_test_env(env)
+            exported = dict(hw_worker.os.environ)
+
+        self.assertEqual(exported, {'KSFT_MACHINE_SLOW': 'yes',
+                                    'KSELFTEST_IPERF_PY_ARGS': '-t tcp'})
 
 
 if __name__ == '__main__':
