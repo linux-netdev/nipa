@@ -4,9 +4,54 @@
 
 import json
 import os
+from collections import defaultdict, deque
 
 from .nipa import guess_indicators, namify, parse_nested_tests, \
     result_from_indicators
+
+
+def _system_metrics(path):
+    if not os.path.exists(path):
+        return {}
+
+    try:
+        with open(path, encoding='utf-8') as fp:
+            data = json.load(fp)
+        if not isinstance(data, dict) or data.get('version') != 1 or \
+                not isinstance(data.get('cases'), list):
+            raise ValueError('unsupported system metrics format')
+
+        cases = defaultdict(deque)
+        for case in data['cases']:
+            if not isinstance(case, dict) or \
+                    not isinstance(case.get('name'), str) or \
+                    not isinstance(case.get('metrics'), list) or \
+                    not all(isinstance(metric, dict)
+                            for metric in case['metrics']):
+                raise ValueError('invalid system metrics case')
+            for metric in case['metrics']:
+                metric.setdefault('origin', 'system-monitor')
+            cases[namify(case['name'])].append(case['metrics'])
+        return cases
+    except (OSError, TypeError, ValueError) as error:
+        print(f'parse_results: ignoring {path}: {error}')
+        return {}
+
+
+def _set_metric_origin(nested):
+    for case in nested:
+        for field in ('metrics', 'retry_metrics'):
+            for metric in case.get(field, []):
+                metric.setdefault('origin', 'selftest')
+
+
+def _merge_system_metrics(nested, path, retry=False):
+    case_metrics = _system_metrics(path)
+    field = 'retry_metrics' if retry else 'metrics'
+    for case in nested:
+        matches = case_metrics.get(case['test'])
+        if matches:
+            case.setdefault(field, []).extend(matches.popleft())
 
 
 def parse_results(results_path, link):
@@ -77,6 +122,9 @@ def parse_results(results_path, link):
 
             # Parse nested subtests
             nested = parse_nested_tests(stdout, namify)
+            _set_metric_origin(nested)
+            _merge_system_metrics(
+                nested, os.path.join(test_dir, 'system-metrics.json'))
 
             # Determine retry result if present
             retry_result = None
@@ -95,6 +143,11 @@ def parse_results(results_path, link):
                     retry_nested = list(nested)
                     parse_nested_tests(retry_stdout, namify,
                                        prev_results=retry_nested)
+                _set_metric_origin(retry_nested or [])
+                _merge_system_metrics(
+                    retry_nested or [],
+                    os.path.join(retry_dir, 'system-metrics.json'),
+                    retry=True)
 
             safe_name = namify(prog)
 

@@ -4,8 +4,10 @@ import json
 import os
 import tempfile
 import unittest
+from pathlib import Path
 from unittest import mock
 
+from contest.hw.lib.result_parser import parse_results
 from contest.hw.lib.system_monitor import SystemMonitor, metrics_for_window
 
 
@@ -99,6 +101,75 @@ class TestSystemMetricWriter(unittest.TestCase):
             self.assertFalse(os.path.exists(path + '.tmp'))
             with open(path, encoding='utf-8') as fp:
                 self.assertEqual(json.load(fp), data)
+
+
+class TestSystemMetricMerge(unittest.TestCase):
+    def test_merges_sidecar_by_case_name(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            output = root / 'test-outputs' / '0-example-py'
+            output.mkdir(parents=True)
+            (output / 'info').write_text(json.dumps({
+                'retcode': 0,
+                'target': 'drivers/net/hw',
+                'prog': 'example.py',
+            }), encoding='utf-8')
+            (output / 'stdout').write_text(
+                'TAP version 13\n'
+                '1..1\n'
+                '# TAP version 13\n'
+                '# 1..1\n'
+                '# ok 1 first case\n'
+                'ok 1 selftests: drivers/net/hw: example.py\n',
+                encoding='utf-8')
+            metric = {
+                'name': 'cpu.utilization',
+                'type': 'per-cpu',
+                'time': 1.0,
+                'value': [50.0],
+                'host': 'local',
+                'summarize': 'p90',
+                'aggregation': 'busy-core-equivalents',
+            }
+            (output / 'system-metrics.json').write_text(json.dumps({
+                'version': 1,
+                'cases': [{'name': 'first case', 'metrics': [metric]}],
+            }), encoding='utf-8')
+
+            results = parse_results(str(root), '.')
+            metric['origin'] = 'system-monitor'
+            self.assertEqual(results[0]['results'][0]['metrics'], [metric])
+
+    def test_ignores_invalid_sidecar(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            output = root / 'test-outputs' / '0-example-py'
+            output.mkdir(parents=True)
+            (output / 'info').write_text(json.dumps({
+                'retcode': 0,
+                'target': 'drivers/net/hw',
+                'prog': 'example.py',
+            }), encoding='utf-8')
+            (output / 'stdout').write_text(
+                '# TAP version 13\n# 1..1\n# ok 1 first case\n',
+                encoding='utf-8')
+            sidecar = output / 'system-metrics.json'
+
+            invalid_data = (
+                '{',
+                json.dumps({
+                    'version': 1,
+                    'cases': [{'name': 'first case'}],
+                }),
+            )
+            for data in invalid_data:
+                with self.subTest(data=data):
+                    sidecar.write_text(data, encoding='utf-8')
+                    with mock.patch('builtins.print') as warning:
+                        results = parse_results(str(root), '.')
+                    warning.assert_called_once()
+                    self.assertNotIn(
+                        'metrics', results[0]['results'][0])
 
 
 if __name__ == '__main__':
