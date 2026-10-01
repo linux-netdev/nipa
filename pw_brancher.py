@@ -327,7 +327,7 @@ def create_new(pw, config, state, tree, tgt_remote) -> None:
     db_insert(config, state, branch_name)
 
     log_open_sec("Pushing out")
-    tree.git_push(tgt_remote, "HEAD:" + branch_name)
+    tree.git_push(tgt_remote, "HEAD:refs/heads/" + branch_name)
     log_end_sec()
 
     log_open_sec("Generate deltas")
