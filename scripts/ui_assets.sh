@@ -25,6 +25,9 @@ ASSETS=(
   "contest/branches-info-hw.json"
   "contest/filters.json"
   "contest/all-results.json"
+  "query/results?branches=10&pending=y"
+  "query/flaky-tests?group-pfx=1"
+  "mc/get_machine_info?caller=status-ui"
 )
 
 function usage() {
@@ -34,17 +37,21 @@ function usage() {
 function download() {
   mkdir -p "${LOCAL}/static/nipa"
   mkdir -p "${LOCAL}/contest"
+  mkdir -p "${LOCAL}/query"
+  mkdir -p "${LOCAL}/mc"
   for asset in "${ASSETS[@]}"; do
-    curl "${PROD}/${asset}" -o "${LOCAL}/${asset}"
+    curl "${PROD}/${asset}" -o "${LOCAL}/${asset%\?*}"
   done
 }
 
 function clean() {
   for asset in "${ASSETS[@]}"; do
-    rm -f "${LOCAL}/${asset}"
+    rm -f "${LOCAL}/${asset%\?*}"
   done
   rm -r "${LOCAL}/static"
   rm -r "${LOCAL}/contest"
+  rm -r "${LOCAL}/query"
+  rm -r "${LOCAL}/mc"
 }
 
 # Change dir to project root

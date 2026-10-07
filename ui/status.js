@@ -1309,7 +1309,7 @@ function do_it()
         $.get("contest/branch-results-hw.json", branch_res_doit)
     });
     $(document).ready(function() {
-        $.get("query/results?branches=10&pending=y", results_loaded)
+        $.get("query/results?branches=10&pending=y", results_loaded, "json")
     });
     $(document).ready(function() {
         $.get("contest/branches-info-nn.json", branches_loaded)
@@ -1318,10 +1318,10 @@ function do_it()
         $.get("contest/branches-info-hw.json", branches_loaded)
     });
     $(document).ready(function() {
-        $.get("query/flaky-tests?group-pfx=1", flakes_doit)
+        $.get("query/flaky-tests?group-pfx=1", flakes_doit, "json")
     });
     $(document).ready(function() {
-        $.get("mc/get_machine_info?caller=status-ui", hw_machines_loaded)
+        $.get("mc/get_machine_info?caller=status-ui", hw_machines_loaded, "json")
     });
     $(document).ready(function() {
         $.get("issues.json", issues_doit)
