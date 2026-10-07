@@ -1082,9 +1082,9 @@ function load_filters_table(data_raw)
     nipa_set_filters_json(data_raw);
 }
 
-let xfr_todo = 6;
+let xfr_todo = 7;
 let all_results = null;
-let all_filters = null;
+let all_filters = {};
 let branch_pull_status = {};
 let branches = new Set();
 let branch_results = {};
@@ -1113,7 +1113,13 @@ function results_loaded(data_raw)
 
 function filters_doit(data_raw)
 {
-    all_filters = data_raw;
+    $.each(data_raw, function(i, v) {
+	if (i in all_filters && Array.isArray(all_filters[i]))
+		all_filters[i] = all_filters[i].concat(v);
+	else
+		all_filters[i] = v;
+    });
+
     loaded_one();
 }
 
@@ -1308,6 +1314,9 @@ function do_it()
     });
     $(document).ready(function() {
         $.get("contest/filters.json", filters_doit)
+    });
+    $(document).ready(function() {
+        $.get("contest/filters-hw.json", filters_doit)
     });
     $(document).ready(function() {
         $.get("contest/branch-results.json", branch_res_doit)

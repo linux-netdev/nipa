@@ -24,6 +24,7 @@ ASSETS=(
   "contest/branches-info-nn.json"
   "contest/branches-info-hw.json"
   "contest/filters.json"
+  "contest/filters-hw.json"
   "contest/all-results.json"
   "query/results?branches=10&pending=y"
   "query/flaky-tests?group-pfx=1"
