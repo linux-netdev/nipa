@@ -1024,6 +1024,7 @@ function load_filters_table(data_raw)
 {
     let cf_crashes = document.getElementById("cf-crashes");
     let cf_execs = document.getElementById("cf-execs");
+    let cf_execs_disabled = document.getElementById("cf-execs-disabled");
     let cf_tests = document.getElementById("cf-tests");
     var output, sep = "";
 
@@ -1033,6 +1034,13 @@ function load_filters_table(data_raw)
 	sep = ", ";
     });
     cf_execs.innerHTML = output;
+
+    output = "<b>Remotes disabled:</b> ";
+    $.each(data_raw["remotes-disabled"], function(i, v) {
+	output += sep + v;
+	sep = ", ";
+    });
+    cf_execs_disabled.innerHTML = output;
 
     let keys_present = new Set();
     $.each(data_raw["ignore-results"], function(i, v) {
