@@ -1020,65 +1020,7 @@ function load_result_table(data_raw, reload)
     }
 }
 
-let xfr_todo = 6;
-let all_results = null;
-let branch_pull_status = {};
-let branches = new Set();
-let branch_results = {};
-
-function reload_results()
-{
-    load_result_table(all_results, true);
-}
-
-function loaded_one()
-{
-    if (!--xfr_todo) {
-	load_result_table(all_results, false);
-
-	let summary_checkbox = document.getElementById("contest-summary");
-	summary_checkbox.addEventListener("change", reload_results);
-    }
-}
-
-function results_loaded(data_raw)
-{
-    all_results = data_raw;
-    loaded_one();
-}
-
-function branch_res_doit(data_raw)
-{
-    $.each(data_raw, function(i, v) {
-	branch_results[i] = v.result;
-    });
-
-    loaded_one();
-}
-
-function add_one_test_filter_hdr(keys_present, key, hdr, row)
-{
-    if (!keys_present.has(key))
-	return false;
-
-    let th = document.createElement("th");
-    th.innerHTML = hdr;
-    row.appendChild(th);
-    return true;
-}
-
-function add_one_test_filter(keys_present, key, v, i, row)
-{
-    if (!keys_present.has(key))
-	return 0;
-
-    let cell = row.insertCell(i);
-    if (key in v)
-	cell.innerHTML = v[key];
-    return 1;
-}
-
-function filters_doit(data_raw)
+function load_filters_table(data_raw)
 {
     let cf_crashes = document.getElementById("cf-crashes");
     let cf_execs = document.getElementById("cf-execs");
@@ -1138,7 +1080,72 @@ function filters_doit(data_raw)
     cf_crashes.innerHTML = output;
 
     nipa_set_filters_json(data_raw);
+}
+
+let xfr_todo = 6;
+let all_results = null;
+let all_filters = null;
+let branch_pull_status = {};
+let branches = new Set();
+let branch_results = {};
+
+function reload_results()
+{
+    load_result_table(all_results, true);
+}
+
+function loaded_one()
+{
+    if (!--xfr_todo) {
+	load_filters_table(all_filters);
+	load_result_table(all_results, false);
+
+	let summary_checkbox = document.getElementById("contest-summary");
+	summary_checkbox.addEventListener("change", reload_results);
+    }
+}
+
+function results_loaded(data_raw)
+{
+    all_results = data_raw;
     loaded_one();
+}
+
+function filters_doit(data_raw)
+{
+    all_filters = data_raw;
+    loaded_one();
+}
+
+function branch_res_doit(data_raw)
+{
+    $.each(data_raw, function(i, v) {
+	branch_results[i] = v.result;
+    });
+
+    loaded_one();
+}
+
+function add_one_test_filter_hdr(keys_present, key, hdr, row)
+{
+    if (!keys_present.has(key))
+	return false;
+
+    let th = document.createElement("th");
+    th.innerHTML = hdr;
+    row.appendChild(th);
+    return true;
+}
+
+function add_one_test_filter(keys_present, key, v, i, row)
+{
+    if (!keys_present.has(key))
+	return 0;
+
+    let cell = row.insertCell(i);
+    if (key in v)
+	cell.innerHTML = v[key];
+    return 1;
 }
 
 function branches_loaded(data_raw)
