@@ -1036,6 +1036,7 @@ function load_filters_table(data_raw)
     cf_execs.innerHTML = output;
 
     output = "<b>Remotes disabled:</b> ";
+    sep = "";
     $.each(data_raw["remotes-disabled"], function(i, v) {
 	output += sep + v;
 	sep = ", ";
