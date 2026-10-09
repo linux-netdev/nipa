@@ -194,9 +194,10 @@ function results_update()
     load_result_table(loaded_data);
 }
 
-let xfr_todo = 3;
+let xfr_todo = 4;
 let loaded_data = null;
 let stability_set = null;
+let all_filters = {};
 
 function loaded_one()
 {
@@ -204,13 +205,14 @@ function loaded_one()
 	return;
 
     // We have all JSONs now, do processing.
+    nipa_set_filters_json(all_filters);
     nipa_input_set_from_url("fl-pw");
     results_update();
 }
 
 function filters_loaded(data_raw)
 {
-    nipa_set_filters_json(data_raw);
+    nipa_filters_merge(data_raw, all_filters);
     loaded_one();
 }
 
@@ -369,6 +371,9 @@ function do_it()
      */
     $(document).ready(function() {
         $.get("contest/filters.json", filters_loaded)
+    });
+    $(document).ready(function() {
+        $.get("contest/filters-hw.json", filters_loaded)
     });
     $(document).ready(function() {
         $.get("query/remotes", remotes_loaded, "json")
