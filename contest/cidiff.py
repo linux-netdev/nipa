@@ -233,7 +233,7 @@ html_template = """<!DOCTYPE html>
     </script>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
-    <script src="/nipa.js"></script>
+    <script src="/nipa.js?v=20261009"></script>
     <script>
         nipa_load_sitemap();
     </script>
