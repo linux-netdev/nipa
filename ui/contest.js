@@ -183,9 +183,10 @@ function results_update()
     load_result_table(loaded_data);
 }
 
-let xfr_todo = 2;
+let xfr_todo = 3;
 let branch_urls = {};
 let loaded_data = null;
+let all_filters = {};
 
 function reload_select_filters(first_load)
 {
@@ -228,6 +229,7 @@ function loaded_one()
     for (const th of headers) {
 	th.addEventListener("click", nipa_sort_key_set);
     }
+    nipa_set_filters_json(all_filters);
     reload_select_filters(true);
     nipa_filters_enable(reload_data, "ld-pw");
     nipa_filters_enable(results_update, "fl-pw");
@@ -237,7 +239,7 @@ function loaded_one()
 
 function filters_loaded(data_raw)
 {
-    nipa_set_filters_json(data_raw);
+    nipa_filters_merge(data_raw, all_filters);
     loaded_one();
 }
 
@@ -395,6 +397,9 @@ function do_it()
      */
     $(document).ready(function() {
         $.get("contest/filters.json", filters_loaded)
+    });
+    $(document).ready(function() {
+        $.get("contest/filters-hw.json", filters_loaded)
     });
     reload_data(null);
 }
