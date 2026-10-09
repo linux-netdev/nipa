@@ -1122,13 +1122,7 @@ function results_loaded(data_raw)
 
 function filters_doit(data_raw)
 {
-    $.each(data_raw, function(i, v) {
-	if (i in all_filters && Array.isArray(all_filters[i]))
-		all_filters[i] = all_filters[i].concat(v);
-	else
-		all_filters[i] = v;
-    });
-
+    nipa_filters_merge(data_raw, all_filters);
     loaded_one();
 }
 

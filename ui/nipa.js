@@ -163,6 +163,16 @@ function nipa_filter_add_options(data_raw, elem_id, field)
 
 let nipa_filters_json = null;
 
+function nipa_filters_merge(data_raw, filters)
+{
+    $.each(data_raw, function(i, v) {
+	if (i in filters && Array.isArray(filters[i]))
+	    filters[i] = filters[i].concat(v);
+	else
+	    filters[i] = v;
+    });
+}
+
 function nipa_set_filters_json(filters_json)
 {
     nipa_filters_json = filters_json;
