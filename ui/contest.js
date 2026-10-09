@@ -287,7 +287,7 @@ function reload_data(event)
 
     nipa_filters_disable(["ld-pw", "fl-pw"]);
     $(document).ready(function() {
-        $.get(req_url, results_loaded)
+        $.get(req_url, results_loaded, "json")
     });
 }
 

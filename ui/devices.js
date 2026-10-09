@@ -218,13 +218,13 @@ function do_it()
 	    dev_info = data_raw;
 	    if (!--xfr_todo)
 		load_tables();
-	})
+	}, "json")
     });
     $(document).ready(function() {
         $.get("query/stability?auto=1", function(data_raw) {
 	    stability = data_raw;
 	    if (!--xfr_todo)
 		load_tables();
-	})
+	}, "json")
     });
 }

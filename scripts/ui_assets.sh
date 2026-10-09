@@ -28,6 +28,9 @@ ASSETS=(
   "contest/all-results.json"
   "query/results?branches=10&pending=y"
   "query/flaky-tests?group-pfx=1"
+  "query/stability?auto=1"
+  "query/remotes"
+  "query/device-info"
   "mc/get_machine_info?caller=status-ui"
 )
 

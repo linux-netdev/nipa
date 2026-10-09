@@ -267,7 +267,7 @@ function maybe_load_stability()
 
     xfr_todo++;
     $(document).ready(function() {
-	$.get("query/stability?auto=1", stability_loaded)
+	$.get("query/stability?auto=1", stability_loaded, "json")
     });
 }
 
@@ -343,7 +343,7 @@ function reload_data()
 
     nipa_filters_disable(["ld-pw", "fl-pw"]);
     $(document).ready(function() {
-        $.get(req_url, results_loaded)
+        $.get(req_url, results_loaded, "json")
     });
 }
 
@@ -371,7 +371,7 @@ function do_it()
         $.get("contest/filters.json", filters_loaded)
     });
     $(document).ready(function() {
-        $.get("query/remotes", remotes_loaded)
+        $.get("query/remotes", remotes_loaded, "json")
     });
     reload_data();
 }
