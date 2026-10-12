@@ -1020,6 +1020,75 @@ function load_result_table(data_raw, reload)
     }
 }
 
+function flakes_add_summary(table, name, data)
+{
+    let row = table.insertRow();
+    let cell = row.insertCell(0);
+    cell.innerHTML = name;
+    cell.setAttribute("colspan", "3");
+    cell.setAttribute("style", "text-align: right; font-style: italic;");
+    for (let n = 0; n < 4; n++)
+	row.insertCell(n + 1).innerHTML = "<span style=\"font-style: italic;\">" + data[n] + "</span>";
+    row.insertCell(5).innerText = "";
+}
+
+function flakes_render(flakes, data)
+{
+    let reminder = [0, 0, 0, 0];
+    let total = [0, 0, 0, 0];
+
+    $.each(data, function(i, v) {
+	let row = flakes.insertRow();
+	let reported = nipa_pw_reported(v, v);
+	let ignored = "";
+
+	for (let n = 0; n < 4; n++)
+	    total[n] += v["count"][n];
+
+	if (v["count"][0] + v["count"][1] + v["count"][2] < 3 && reported) {
+	    for (let n = 0; n < 4; n++)
+		reminder[n] += v["count"][n];
+	    return 1;
+	}
+	if (!reported)
+	    ignored = "yes";
+
+	row.insertCell(0).innerText = v["remote"];
+	row.insertCell(1).innerText = v["executor"];
+	row.insertCell(2).innerText = v["test"];
+	row.insertCell(3).innerText = v["count"][0];
+	row.insertCell(4).innerText = v["count"][1];
+	row.insertCell(5).innerText = v["count"][2];
+	row.insertCell(6).innerText = v["count"][3];
+	row.insertCell(7).innerText = ignored;
+    });
+
+    flakes_add_summary(flakes, "reminder", reminder);
+    flakes_add_summary(flakes, "total", total);
+}
+
+function load_flakes_table(data_raw)
+{
+    let flakes = document.getElementById("flakes");
+    let flakes_hw = document.getElementById("flakes-hw");
+
+    data_raw.sort(function(a, b){
+	if (a["count"][0] != b["count"][0])
+	    return b["count"][0] - a["count"][0];
+	if (a["count"][1] != b["count"][1])
+	    return b["count"][1] - a["count"][1];
+	if (a["count"][2] != b["count"][2])
+	    return b["count"][2] - a["count"][2];
+	return 0;
+    })
+
+    // Split into HW and non-HW based on the branch prefix (see group-pfx)
+    let is_hw = (v) => (v["branch-pfx"] || "").includes("hw");
+
+    flakes_render(flakes, data_raw.filter((v) => !is_hw(v)));
+    flakes_render(flakes_hw, data_raw.filter(is_hw));
+}
+
 function load_filters_table(data_raw)
 {
     let cf_crashes = document.getElementById("cf-crashes");
@@ -1091,9 +1160,10 @@ function load_filters_table(data_raw)
     nipa_set_filters_json(data_raw);
 }
 
-let xfr_todo = 7;
+let xfr_todo = 8;
 let all_results = null;
 let all_filters = {};
+let all_flakes = null;
 let branch_pull_status = {};
 let branches = new Set();
 let branch_results = {};
@@ -1108,6 +1178,7 @@ function loaded_one()
     if (!--xfr_todo) {
 	load_filters_table(all_filters);
 	load_result_table(all_results, false);
+	load_flakes_table(all_flakes);
 
 	let summary_checkbox = document.getElementById("contest-summary");
 	summary_checkbox.addEventListener("change", reload_results);
@@ -1177,73 +1248,10 @@ function branches_loaded(data_raw)
     loaded_one();
 }
 
-function flakes_add_summary(table, name, data)
-{
-    let row = table.insertRow();
-    let cell = row.insertCell(0);
-    cell.innerHTML = name;
-    cell.setAttribute("colspan", "3");
-    cell.setAttribute("style", "text-align: right; font-style: italic;");
-    for (let n = 0; n < 4; n++)
-	row.insertCell(n + 1).innerHTML = "<span style=\"font-style: italic;\">" + data[n] + "</span>";
-    row.insertCell(5).innerText = "";
-}
-
-function flakes_render(flakes, data)
-{
-    let reminder = [0, 0, 0, 0];
-    let total = [0, 0, 0, 0];
-
-    $.each(data, function(i, v) {
-	let row = flakes.insertRow();
-	let reported = nipa_pw_reported(v, v);
-	let ignored = "";
-
-	for (let n = 0; n < 4; n++)
-	    total[n] += v["count"][n];
-
-	if (v["count"][0] + v["count"][1] + v["count"][2] < 3 && reported) {
-	    for (let n = 0; n < 4; n++)
-		reminder[n] += v["count"][n];
-	    return 1;
-	}
-	if (!reported)
-	    ignored = "yes";
-
-	row.insertCell(0).innerText = v["remote"];
-	row.insertCell(1).innerText = v["executor"];
-	row.insertCell(2).innerText = v["test"];
-	row.insertCell(3).innerText = v["count"][0];
-	row.insertCell(4).innerText = v["count"][1];
-	row.insertCell(5).innerText = v["count"][2];
-	row.insertCell(6).innerText = v["count"][3];
-	row.insertCell(7).innerText = ignored;
-    });
-
-    flakes_add_summary(flakes, "reminder", reminder);
-    flakes_add_summary(flakes, "total", total);
-}
-
 function flakes_doit(data_raw)
 {
-    let flakes = document.getElementById("flakes");
-    let flakes_hw = document.getElementById("flakes-hw");
-
-    data_raw.sort(function(a, b){
-	if (a["count"][0] != b["count"][0])
-	    return b["count"][0] - a["count"][0];
-	if (a["count"][1] != b["count"][1])
-	    return b["count"][1] - a["count"][1];
-	if (a["count"][2] != b["count"][2])
-	    return b["count"][2] - a["count"][2];
-	return 0;
-    })
-
-    // Split into HW and non-HW based on the branch prefix (see group-pfx)
-    let is_hw = (v) => (v["branch-pfx"] || "").includes("hw");
-
-    flakes_render(flakes, data_raw.filter((v) => !is_hw(v)));
-    flakes_render(flakes_hw, data_raw.filter(is_hw));
+    all_flakes = data_raw;
+    loaded_one();
 }
 
 function issues_doit(data_raw)
