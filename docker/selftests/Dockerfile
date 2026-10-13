@@ -122,7 +122,7 @@ RUN git clone "${IPROUTE2_GIT_URL}" iproute2 && \
 		cd .. && \
 	rm -rf iproute2
 
-ARG VIRTME_NG_VERSION="1.41"
+ARG VIRTME_NG_VERSION="1.42"
 RUN sudo pip3 install --no-cache-dir \
 	virtme-ng=="${VIRTME_NG_VERSION}"
 
