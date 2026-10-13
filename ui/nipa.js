@@ -195,7 +195,7 @@ function nipa_pw_reported(v, r)
 	}
     }
 
-    return true;
+    return nipa_filters_json["remotes"].includes(v.remote);
 }
 
 function nipa_load_sitemap()
