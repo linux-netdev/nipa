@@ -4,9 +4,10 @@ import datetime
 import json
 import os
 import re
-import requests
 import subprocess
 import time
+import urllib3
+from urllib3.util.retry import Retry
 
 
 class Fetcher:
@@ -26,6 +27,9 @@ class Fetcher:
         self._tree_path = tree_path
         self._patches_path = patches_path
 
+        self._http = urllib3.PoolManager(timeout=30,
+                                         retries=Retry(connect=10, backoff_factor=1))
+
         # Set last date to something old
         self._last_date = datetime.datetime.now(datetime.UTC) - datetime.timedelta(weeks=1)
         if first_run == "force":
@@ -33,8 +37,8 @@ class Fetcher:
             pass
         elif first_run == "continue":
             try:
-                r = requests.get(self._branches_url, timeout=30)
-                branches = json.loads(r.content.decode('utf-8'))
+                r = self._http.request('GET', self._branches_url)
+                branches = json.loads(r.data.decode('utf-8'))
                 branch_date = {}
                 for b in branches:
                     branch_date[b["branch"]] = datetime.datetime.fromisoformat(b["date"])
@@ -49,7 +53,7 @@ class Fetcher:
 
                     self._last_date = max(branch_date[result["branch"]], self._last_date)
                 print("INFO: Last run date:", self._last_date)
-            except FileNotFoundError:
+            except (FileNotFoundError, urllib3.exceptions.HTTPError, ValueError):
                 pass
         elif first_run == "next":
             # unless there's a crazy race or time error this will skip newest branch
@@ -134,12 +138,11 @@ class Fetcher:
 
     def _run_once(self):
         try:
-            r = requests.get(self._branches_url, timeout=30)
-        except requests.exceptions.RequestException as e:
+            r = self._http.request('GET', self._branches_url)
+            branches = json.loads(r.data.decode('utf-8'))
+        except (urllib3.exceptions.HTTPError, ValueError) as e:
             print(f'WARN: Failed to fetch branches: {e}')
             return
-
-        branches = json.loads(r.content.decode('utf-8'))
 
         to_test = None
         newest = self._last_date
