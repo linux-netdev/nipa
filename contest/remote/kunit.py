@@ -108,7 +108,7 @@ def summary_flat(expected, got, sub_path=""):
         results.append({'test': sub_path + name,
                         'result': code_to_str[code]})
         if code:
-            bad_tests.append(f"{got['name']} {name} {case['status']}")
+            bad_tests.append(f"{got['name']} {case['name']} {case['status']}")
 
     for sub_group in got["sub_groups"]:
         ov, bt, res = summary_flat(expected, sub_group, sub_path + sub_group["name"])
