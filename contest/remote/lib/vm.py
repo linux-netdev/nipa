@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
 import unicodedata
-import requests
 import subprocess
 import fcntl
 import json
@@ -11,6 +10,8 @@ import select
 import shutil
 import signal
 import time
+import urllib3
+from urllib3.util.retry import Retry
 from .crash import has_crash, extract_crash
 
 
@@ -67,6 +68,9 @@ class VM:
         self.tree_path = config.get('local', 'tree_path')
 
         self.cfg_boot_to = int(config.get('vm', 'boot_timeout'))
+
+        self._http = urllib3.PoolManager(timeout=30,
+                                         retries=Retry(connect=10, backoff_factor=1))
 
         self.filter_data = None
         self.has_kmemleak = None
@@ -384,8 +388,12 @@ class VM:
             url = self.config.get("remote", "filters", fallback=None)
             if not url:
                 return None
-            r = requests.get(url)
-            self.filter_data = json.loads(r.content.decode('utf-8'))
+            try:
+                r = self._http.request('GET', url)
+                self.filter_data = json.loads(r.data.decode('utf-8'))
+            except (urllib3.exceptions.HTTPError, ValueError) as e:
+                print(f"WARN{self.print_pfx} failed to fetch filters: {e}")
+                return None
         return self.filter_data
 
     def extract_crash(self, out_path):
