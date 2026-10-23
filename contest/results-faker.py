@@ -15,7 +15,7 @@ It holds no history, only live branches will show up.
 Config:
 
 [input]
-branches=/path/to/branches.json,/path/to/branches2.json
+branches=/path/to/branches.json
 [output]
 dir=/path/to/output
 url_pfx=relative/within/server
@@ -25,11 +25,9 @@ def main() -> None:
     config = configparser.ConfigParser()
     config.read(['faker.config'])
 
-    branches = []
-    paths = config.get("input", "branches")
-    for path in paths.split(','):
-        with open(path, "r") as fp:
-            branches += json.load(fp)
+    path = config.get("input", "branches")
+    with open(path, "r") as fp:
+        branches = json.load(fp)
 
     branches = sorted(branches, key=lambda x: x["date"])
 
@@ -63,7 +61,7 @@ def main() -> None:
         if br["url"].startswith('https://github.com') and tail > 0:
             br_url = br["url"][:tail] + "/commits/" + br["url"][tail + 5:]
         else:
-            br_url = "https://netdev.bots.linux.dev/contest/branches.json"
+            br_url = "https://netdev.bots.linux.dev/contest/" + os.path.basename(path)
 
         run["results"] = [
             {"test": "branch-created", "group": "---", "result": "pass", "link": br_url}
