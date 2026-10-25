@@ -84,6 +84,17 @@ class Tree:
         finally:
             self.lock.release()
 
+    def git_retry(self, cmd, err_msg, n=10, sleep=30):
+        last = n - 1
+        for i in range(n):
+            try:
+                return self.git(cmd)
+            except CMD.CmdError as e:
+                core.log(f"{err_msg} (attempt {i + 1})", repr(e))
+                if i == last:
+                    raise
+                time.sleep(sleep)
+
     def git_am(self, patch):
         return self.git(["am", "-s", "--", patch])
 
@@ -101,7 +112,7 @@ class Tree:
 
     def git_push(self, remote, spec):
         cmd = ["push", remote, spec]
-        return self.git(cmd)
+        return self.git_retry(cmd, "Pushing failed")
 
     def git_status(self, untracked=None, short=False):
         cmd = ["status"]
@@ -118,14 +129,7 @@ class Tree:
         return self.git(cmd)
 
     def git_fetch(self, remote):
-        for i in range(10):
-            try:
-                return self.git(['fetch', remote])
-            except CMD.CmdError as e:
-                core.log(f"Fetching failed (attempt {i + 1})", repr(e))
-                time.sleep(30)
-                if i >= 9:
-                    raise
+        return self.git_retry(['fetch', remote], "Fetching failed")
 
     def git_reset(self, target, hard=False):
         cmd = ['reset', target]
