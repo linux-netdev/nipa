@@ -84,8 +84,10 @@ class Tree:
         finally:
             self.lock.release()
 
-    def git_retry(self, cmd, err_msg, n=10, sleep=30):
+    def git_retry(self, cmd, err_msg, n=10, sleep_init=30):
         last = n - 1
+        sleep = sleep_init
+
         for i in range(n):
             try:
                 return self.git(cmd)
@@ -93,7 +95,9 @@ class Tree:
                 core.log(f"{err_msg} (attempt {i + 1})", repr(e))
                 if i == last:
                     raise
-                time.sleep(sleep)
+                # with n = 10, max 32.5 minutes
+                time.sleep(min(sleep, sleep_init * 10))
+                sleep *= 2
 
     def git_am(self, patch):
         return self.git(["am", "-s", "--", patch])
