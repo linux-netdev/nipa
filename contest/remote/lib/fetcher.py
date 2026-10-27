@@ -181,7 +181,7 @@ class Fetcher:
                            shell=True)
 
         # For now assume URL is in one of the remotes
-        self._git_fetch_all()
+        self._git_fetch_all(10)
 
         # After upgrading git 2.40.1 -> 2.47.1 CI hits a race in git,
         # where tree is locked, even though previous command has finished.
