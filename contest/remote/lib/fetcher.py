@@ -136,6 +136,22 @@ class Fetcher:
             print("Unexpected number of branches found:", branches)
         return branches[0]
 
+    def _git_fetch_all(self, n):
+        last = n - 1
+        sleep = 30
+
+        for i in range(n):
+            try:
+                subprocess.run('git fetch --all --prune', cwd=self._tree_path,
+                               shell=True, check=True)
+            except subprocess.CalledProcessError as e:
+                print(f"Fetching failed (attempt {i + 1})", repr(e))
+                if i == last:
+                    raise
+                # with n = 10, max 32.5 minutes
+                time.sleep(min(sleep, 300))
+                sleep *= 2
+
     def _run_once(self):
         try:
             r = self._http.request('GET', self._branches_url)
@@ -165,8 +181,7 @@ class Fetcher:
                            shell=True)
 
         # For now assume URL is in one of the remotes
-        subprocess.run('git fetch --all --prune', cwd=self._tree_path,
-                       shell=True, check=True)
+        self._git_fetch_all()
 
         # After upgrading git 2.40.1 -> 2.47.1 CI hits a race in git,
         # where tree is locked, even though previous command has finished.
