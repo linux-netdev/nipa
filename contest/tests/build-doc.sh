@@ -19,7 +19,7 @@ make cleandocs
 make -Oline htmldocs 2> >(tee $tmpfile_o >&2) || exit 1
 
 echo " === Building the new tree ==="
-git checkout -q $BRANCH
+git checkout -q --detach $full_branch
 make cleandocs
 make -Oline htmldocs 2> >(tee $tmpfile_n >&2) || exit 1
 
