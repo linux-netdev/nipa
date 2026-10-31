@@ -5,6 +5,15 @@ tmpfile_o=$(mktemp)
 tmpfile_n=$(mktemp)
 rc=0
 
+clean_up_output() {
+    local file=$1
+
+    # Parallel Sphinx reports a duplicate C declaration either while reading
+    # the doc or while merging results from the workers, depending on timing.
+    # The merge also warns about each param of the function (as c:None).
+    sed -i '$!N;/Duplicate C declaration.*\nDeclaration is .\.\. c:None:: /d;P;D' $file
+}
+
 # rev-parse wants the branch with remote path
 full_branch=$(git branch -a --list "*$BRANCH" | tail -1)
 
@@ -22,6 +31,9 @@ echo " === Building the new tree ==="
 git checkout -q --detach $full_branch
 make cleandocs
 make -Oline htmldocs 2> >(tee $tmpfile_n >&2) || exit 1
+
+clean_up_output $tmpfile_o
+clean_up_output $tmpfile_n
 
 incumbent=$(grep -i -c "\(warn\|error\)" $tmpfile_o)
 current=$(grep -i -c "\(warn\|error\)" $tmpfile_n)
