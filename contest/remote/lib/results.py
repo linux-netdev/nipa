@@ -6,7 +6,24 @@ Functions in this module are used by both vmksft-p (VM testing) and
 hwksft (HW testing) to interpret test output.
 """
 
+import json
 import re
+
+
+_METRIC_PREFIX = '# ktap-metric-json: '
+
+
+def _parse_metric_json(line):
+    try:
+        metric = json.loads(line[len(_METRIC_PREFIX):])
+        # Strict JSON consumers, like the result database, reject NaN and
+        # Infinity
+        json.dumps(metric, allow_nan=False)
+    except (RecursionError, ValueError):
+        return None
+    if not isinstance(metric, dict) or not isinstance(metric.get('name'), str):
+        return None
+    return metric
 
 
 def guess_indicators(output):
@@ -60,6 +77,7 @@ def parse_nested_tests(full_run, namify_fn, prev_results=None):
     """
     tests = []
     nested_tests = False
+    pending_metrics = []
 
     result_re = re.compile(
         r"(not )?ok (\d+)( \d+)?( -)? ([^#]*[^ ])( +# +)?([^ ].*)?$")
@@ -72,11 +90,19 @@ def parse_nested_tests(full_run, namify_fn, prev_results=None):
                 line = line[2:]
             else:
                 nested_tests = False
+                pending_metrics = []
         elif line.startswith("# TAP version "):
             nested_tests = True
+            pending_metrics = []
             continue
 
         if not nested_tests:
+            continue
+
+        if line.startswith(_METRIC_PREFIX):
+            metric = _parse_metric_json(line)
+            if metric is not None:
+                pending_metrics.append(metric)
             continue
 
         if line.startswith("ok "):
@@ -85,6 +111,9 @@ def parse_nested_tests(full_run, namify_fn, prev_results=None):
             result = "fail"
         else:
             continue
+
+        metrics = pending_metrics
+        pending_metrics = []
 
         match = result_re.match(line)
         if match is None:
@@ -109,13 +138,19 @@ def parse_nested_tests(full_run, namify_fn, prev_results=None):
             for entry in prev_results:
                 if entry['test'] == r['test']:
                     entry['retry'] = result
+                    if metrics:
+                        entry['retry_metrics'] = metrics
                     break
             else:
                 # the first run didn't validate this test: add it to the list
                 r['result'] = 'skip'
                 r['retry'] = result
+                if metrics:
+                    r['retry_metrics'] = metrics
                 prev_results.append(r)
         else:
+            if metrics:
+                r['metrics'] = metrics
             tests.append(r)
 
     # return an empty list when there are prev results: no replacement needed

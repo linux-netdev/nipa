@@ -69,6 +69,21 @@ def _parse_env_file(path):
     return env
 
 
+def _system_monitor_config(env):
+    """Return system monitor arguments for performance tests."""
+    if not env.get('NETIF'):
+        return None
+
+    config = {'ifname': env['NETIF']}
+    if env.get('REMOTE_TYPE') == 'ssh' and env.get('REMOTE_ARGS') and \
+            env.get('REMOTE_IFNAME'):
+        config.update({
+            'remote': env['REMOTE_ARGS'],
+            'remote_ifname': env['REMOTE_IFNAME'],
+        })
+    return config
+
+
 def _test_timeout(env):
     """Per-test timeout from nic-test.env, or the runner default.
 
@@ -406,6 +421,82 @@ def _setup_irq_affinity(netif):
             print(f"WARN: could not restore combined channels on {netif}")
 
 
+def _interface_addresses(ifname, host=None):
+    """Return existing global IPv4 and IPv6 addresses on an interface."""
+    result = _ip(f'-json address show dev {ifname}', host=host)
+    try:
+        links = json.loads(result.stdout)
+    except json.JSONDecodeError as error:
+        raise RuntimeError(f'failed to read addresses for {ifname}') from error
+
+    addresses = {}
+    for address in links[0]['addr_info']:
+        family = address['family']
+        if address['scope'] == 'global' and family in ('inet', 'inet6') \
+                and family not in addresses:
+            addresses[family] = address['local']
+    return addresses
+
+
+def _selected_targets(test_dir):
+    path = os.path.join(test_dir, 'kselftest-list.txt')
+    with open(path, encoding='utf-8') as fp:
+        return {line.strip().partition(':')[0] for line in fp}
+
+
+def _write_discovered_net_config(test_dir, env):
+    """Describe existing DUT and peer networking without changing it."""
+    targets = []
+    for target in _selected_targets(test_dir):
+        target_dir = os.path.join(test_dir, target)
+        config_path = os.path.join(target_dir, 'net.config')
+        if os.path.isdir(target_dir) and not os.path.exists(config_path):
+            targets.append((target, config_path))
+    if not targets:
+        return
+
+    ifname = env.get('NETIF')
+    remote_ifname = env.get('REMOTE_IFNAME')
+    remote = env.get('REMOTE_ARGS')
+    if not ifname or not remote_ifname or not remote:
+        raise RuntimeError('local mode requires DUT and peer interfaces')
+
+    local = _interface_addresses(ifname)
+    peer = _interface_addresses(remote_ifname, host=remote)
+    config = {
+        'NETIF': ifname,
+        'REMOTE_TYPE': 'ssh',
+        'REMOTE_ARGS': remote,
+    }
+    if 'inet' in local and 'inet' in peer:
+        config['LOCAL_V4'] = local['inet']
+        config['REMOTE_V4'] = peer['inet']
+    if 'inet6' in local and 'inet6' in peer:
+        config['LOCAL_V6'] = local['inet6']
+        config['REMOTE_V6'] = peer['inet6']
+    # Given values win, and a prefix routed to the DUT, LOCAL_PREFIX_V6, can
+    # only be given
+    for key in _NET_CONFIG_KEYS:
+        if env.get(key):
+            config[key] = env[key]
+    if 'LOCAL_V4' not in config and 'LOCAL_V6' not in config:
+        raise RuntimeError('DUT and peer have no common global address family')
+
+    content = ''.join(f'{key}={value}\n' for key, value in config.items())
+    for _target, path in targets:
+        with open(path, 'w', encoding='utf-8') as fp:
+            fp.write(content)
+        print(f"Wrote {path} from existing interface addresses")
+
+
+def _export_test_env(env):
+    """Export runner-independent kselftest environment variables."""
+    for key, value in env.items():
+        # ksft cannot parse an empty DISRUPTIVE, leave unset what is empty
+        if value and (key in _ENV_ONLY_KEYS or key.startswith('KSELFTEST_')):
+            os.environ[key] = value
+
+
 def setup_test_interfaces(test_dir):
     """Configure test NICs and write net.config from nic-test.env.
 
@@ -487,7 +578,8 @@ def setup_test_interfaces(test_dir):
 
     if config_lines:
         config_content = '\n'.join(config_lines) + '\n'
-        for subdir in ['drivers/net', 'drivers/net/hw']:
+        for subdir in ['drivers/net', 'drivers/net/hw',
+                       'drivers/net/perf']:
             config_dir = os.path.join(test_dir, subdir)
             if os.path.isdir(config_dir):
                 path = os.path.join(config_dir, 'net.config')
@@ -495,10 +587,7 @@ def setup_test_interfaces(test_dir):
                     fp.write(config_content)
                 print(f"Wrote {path}")
 
-    # Export env-only variables (not net.config) for the test framework
-    for key in _ENV_ONLY_KEYS:
-        if env.get(key):
-            os.environ[key] = env[key]
+    _export_test_env(env)
 
 
 def _find_initrd():
@@ -536,6 +625,33 @@ def _kexec_local(bzimage):
     subprocess.run(['kexec', '-e'], check=False)
 
 
+def _run_test_dir(test_dir, results_dir, booted=True):
+    """Configure and execute one installed kselftest directory."""
+    env = _parse_env_file(os.path.join(test_dir, 'nic-test.env'))
+    if env.get('NIPA_SKIP_NET_SETUP') == 'yes':
+        print("Using the existing host network configuration")
+        _write_discovered_net_config(test_dir, env)
+        _export_test_env(env)
+    else:
+        setup_test_interfaces(test_dir)
+    os.makedirs(results_dir, exist_ok=True)
+
+    netif = env.get('NETIF')
+    if netif:
+        dev_info = _collect_device_info(netif)
+        if dev_info:
+            with open(os.path.join(results_dir, 'device-info.json'), 'w',
+                      encoding='utf-8') as fp:
+                json.dump(dev_info, fp)
+            print(f"Collected device info for {netif}")
+        else:
+            print(f"Warning: could not collect device info for {netif}")
+
+    return run_tests(
+        test_dir, results_dir, timeout=_test_timeout(env),
+        monitor_config=_system_monitor_config(env), booted=booted)
+
+
 def main():
     """Find pending tests, run them, and write results."""
     sys.stdout = _TeeWriter(sys.stdout)
@@ -553,6 +669,10 @@ def main():
     # on-DUT equivalent of deployer.kexec_machine().
     group.add_argument('--kexec-only', metavar='DIR',
                        help="load DIR/bzImage and boot into it, then exit")
+    group.add_argument('--run-only', metavar='DIR',
+                       help="run an installed kselftest directory directly")
+    parser.add_argument('--results-dir', metavar='DIR',
+                        help="result directory for --run-only")
     args = parser.parse_args()
 
     if args.prep_only:
@@ -570,6 +690,21 @@ def main():
             print(f"No bzImage found in {args.kexec_only}")
             sys.exit(1)
         _kexec_local(bzimage)
+        return
+
+    if args.run_only:
+        test_dir = os.path.abspath(args.run_only)
+        if not os.path.isfile(os.path.join(test_dir, 'run_kselftest.sh')):
+            print(f"No run_kselftest.sh found in {test_dir}")
+            sys.exit(1)
+        results_dir = args.results_dir or os.path.join(test_dir, 'results')
+        print(test_dir, "Starting tests directly")
+        outcome = _run_test_dir(test_dir, os.path.abspath(results_dir),
+                                booted=False)
+        if outcome.crashed:
+            print("NIPA DETECTED SYSTEM CRASH")
+        if outcome.tainted:
+            print("NIPA DETECTED TEST TIMEOUT")
         return
 
     tests_dir = TESTS_DIR
@@ -601,27 +736,9 @@ def main():
 
     print(test_dir, "Starting tests")
 
-    # Configure test interfaces and write net.config
-    setup_test_interfaces(test_dir)
-
     reservation_id = os.path.basename(test_dir)
     results_dir = os.path.join(results_base, reservation_id)
-    os.makedirs(results_dir, exist_ok=True)
-
-    # Collect devlink device info for the test NIC
-    env = _parse_env_file(os.path.join(test_dir, 'nic-test.env'))
-    netif = env.get('NETIF')
-    if netif:
-        dev_info = _collect_device_info(netif)
-        if dev_info:
-            with open(os.path.join(results_dir, 'device-info.json'), 'w',
-                      encoding='utf-8') as fp:
-                json.dump(dev_info, fp)
-            print(f"Collected device info for {netif}")
-        else:
-            print(f"Warning: could not collect device info for {netif}")
-
-    outcome = run_tests(test_dir, results_dir, timeout=_test_timeout(env))
+    outcome = _run_test_dir(test_dir, results_dir)
 
     print(f"Completed, results in {results_dir}")
     # Sentinels for the orchestrator -- it greps our journal for these and

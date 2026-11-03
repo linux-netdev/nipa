@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>NIPA result metrics</title>
+    <link rel="shortcut icon" href="/favicon-perf.png" type="image/png" />
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="nipa.js?v=20261013"></script>
+    <script src="metrics.js"></script>
+    <script>
+        nipa_load_sitemap();
+        nipa_load_sponsors();
+    </script>
+    <link rel="stylesheet" href="nipa.css">
+    <style>
+        #metric-charts {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 2em;
+        }
+        .metric-chart-box {
+            height: 24em;
+            min-width: 0;
+        }
+        @media screen and (max-width: 900px) {
+            #metric-charts {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body onload="do_it();">
+<div id="sitemap"></div>
+<h2 id="metric-title">Performance history</h2>
+
+<p id="metric-status">Loading...</p>
+<div id="metric-charts"></div>
+</body>
+</html>

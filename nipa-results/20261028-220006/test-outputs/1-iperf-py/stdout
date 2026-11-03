@@ -1,0 +1,14 @@
+TAP version 13
+1..1
+# timeout set to 0
+# selftests: drivers/net/perf: iperf.py
+# # WARN: net.ipv6.conf.beth0.keep_addr_on_down not set
+# # WARN: LOCAL_V6 2401:db00:255a:4a:bace::b not configured with nodad
+# # Interface: beth0, driver: mlx5_core
+# TAP version 13
+# 1..1
+# # ktap-metric-json: {"goal":"higher","name":"throughput","value":47.156028641630904}
+# ok 1 iperf.tcp
+# # Totals: pass:1 fail:0 xfail:0 xpass:0 skip:0 error:0
+ok 1 selftests: drivers/net/perf: iperf.py
+# Totals: pass:1 fail:0 xfail:0 xpass:0 skip:0 error:0

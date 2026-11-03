@@ -31,6 +31,7 @@ ASSETS=(
   "query/stability?auto=1"
   "query/remotes"
   "query/device-info"
+  "query/metrics"
   "mc/get_machine_info?caller=status-ui"
 )
 
