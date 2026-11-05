@@ -92,15 +92,15 @@ def pwe_set_apply_error(pw, entry, branch_name, desc, e, series_id=None):
     log_end_sec()
 
 
-def pwe_has_all_checks(pw, entry) -> bool:
+def pwe_has_all_checks(pw, entry) -> tuple[bool, bool]:
     if "checks" not in entry:
-        return False
+        return True, False
     checks = pw.request_all(entry["checks"])
-    found = dict.fromkeys(gate_checks, 0)
+    found = {}
     for c in checks:
         if c["context"] in gate_checks:
             found[c["context"]] = int(c["state"] == "success")
-    return sum(found.values()) == len(gate_checks)
+    return all(value == 1 for value in found.values()), len(found) == len(gate_checks)
 
 
 def pwe_series_id_or_none(entry) -> int:
@@ -125,16 +125,27 @@ def pwe_get_pending(pw, config) -> List:
     log_end_sec()
 
     log_open_sec("Filter by checks")
-    skip_check_series = set()
+    skip_check_fail_series = set()
+    skip_check_missing_series = set()
     res = []
     for entry in things:
         series_id = pwe_series_id_or_none(entry)
-        if series_id in skip_check_series:
-            log("Skip because of failing/missing check elsewhere in the series: " + entry["name"])
-        elif not pwe_has_all_checks(pw, entry):
-            log("Skip because of failing/missing check: " + entry["name"])
+        if series_id in skip_check_fail_series:
+            log("Skip because of failing check elsewhere in the series: " + entry["name"])
+            continue
+        elif series_id in skip_check_missing_series:
+            log("Skip because of missing check elsewhere in the series: " + entry["name"])
+            continue
+
+        passed, present = pwe_has_all_checks(pw, entry)
+        if not passed:
+            log("Skip because of failing check: " + entry["name"])
             if series_id:
-                skip_check_series.add(series_id)
+                skip_check_fail_series.add(series_id)
+        elif not present:
+            log("Skip because of missing check: " + entry["name"])
+            if series_id:
+                skip_check_missing_series.add(series_id)
         else:
             res.append(entry)
     things = res
@@ -143,8 +154,11 @@ def pwe_get_pending(pw, config) -> List:
     log_open_sec("Filter by checks by other patches in the series")
     res = []
     for entry in things:
-        if pwe_series_id_or_none(entry) in skip_check_series:
+        series_id = pwe_series_id_or_none(entry)
+        if series_id in skip_check_fail_series:
             log("Skip because of failing check elsewhere in the series: " + entry["name"])
+        elif series_id in skip_check_missing_series:
+            log("Skip because of missing check elsewhere in the series: " + entry["name"])
         else:
             res.append(entry)
     things = res
