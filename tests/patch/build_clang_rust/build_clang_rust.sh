@@ -89,6 +89,9 @@ git log -1 --pretty='%h ("%s")' HEAD~
 
 echo "Baseline building the tree"
 
+# Remove possibly buggy new header files from previous runs
+rm -rf "$output_dir/usr/include"
+
 prep_config
 make LLVM=1 O=$output_dir $build_flags
 
