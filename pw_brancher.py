@@ -59,6 +59,39 @@ def hour_timestamp(when=None) -> int:
     return int(ts / (60 * 60))
 
 
+def pwe_has_contest_check(pw, entry, desc) -> bool:
+    if "checks" not in entry:
+        return False
+
+    checks = pw.request_all(entry["checks"])
+    last_desc = ""
+    for c in checks:
+        # Take the last one
+        if c["context"] == "contest":
+            last_desc = c.get("description", "")
+
+    return last_desc.startswith(desc)
+
+
+def pwe_post_check(pw, entry, branch_name, desc, e):
+    log("Setting 'fail' contest state for: " + entry["name"])
+    pw.post_check(entry["id"], name="contest", state="fail", url="",
+                  desc=f"{desc} ({branch_name}):\n{e}")
+
+
+def pwe_set_apply_error(pw, entry, branch_name, desc, e, series_id=None):
+    log_open_sec("Set PW 'contest' check state")
+    if pwe_has_contest_check(pw, entry, desc):
+        log("Skip: already has 'contest' check")
+    elif series_id is not None:
+        series_pw = pw.get("series", series_id)
+        for patch in series_pw["patches"]:
+            pwe_post_check(pw, patch, branch_name, desc, e)
+    else:
+        pwe_post_check(pw, entry, branch_name, desc, e)
+    log_end_sec()
+
+
 def pwe_has_all_checks(pw, entry) -> bool:
     if "checks" not in entry:
         return False
@@ -118,39 +151,6 @@ def pwe_get_pending(pw, config) -> List:
     log_end_sec()
 
     return things
-
-
-def pwe_has_contest_check(pw, entry, desc) -> bool:
-    if "checks" not in entry:
-        return False
-
-    checks = pw.request_all(entry["checks"])
-    last_desc = ""
-    for c in checks:
-        # Take the last one
-        if c["context"] == "contest":
-            last_desc = c.get("description", "")
-
-    return last_desc.startswith(desc)
-
-
-def pwe_post_check(pw, entry, branch_name, desc, e):
-    log("Setting 'fail' contest state for: " + entry["name"])
-    pw.post_check(entry["id"], name="contest", state="fail", url="",
-                  desc=f"{desc} ({branch_name}):\n{e}")
-
-
-def pwe_set_apply_error(pw, entry, branch_name, desc, e, series_id=None):
-    log_open_sec("Set PW 'contest' check state")
-    if pwe_has_contest_check(pw, entry, desc):
-        log("Skip: already has 'contest' check")
-    elif series_id is not None:
-        series_pw = pw.get("series", series_id)
-        for patch in series_pw["patches"]:
-            pwe_post_check(pw, patch, branch_name, desc, e)
-    else:
-        pwe_post_check(pw, entry, branch_name, desc, e)
-    log_end_sec()
 
 
 def apply_pending_patches(pw, config, tree, branch_name) -> Tuple[List, List]:
