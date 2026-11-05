@@ -43,6 +43,7 @@ psql_conn = None
 ignore_delegate = {}
 gate_checks = {}
 conflict_msg = "Conflicts with pending/net patches"
+gate_fail_msg = "Failed gate checks"
 
 
 def write_json_atomic(path, data):
@@ -59,11 +60,12 @@ def hour_timestamp(when=None) -> int:
     return int(ts / (60 * 60))
 
 
-def pwe_has_contest_check(pw, entry, desc) -> bool:
+def pwe_has_contest_check(pw, entry, desc, checks=None) -> bool:
     if "checks" not in entry:
         return False
 
-    checks = pw.request_all(entry["checks"])
+    if checks is None:
+        checks = pw.request_all(entry["checks"])
     last_desc = ""
     for c in checks:
         # Take the last one
@@ -93,15 +95,22 @@ def pwe_set_apply_error(pw, entry, cmt, desc, e=None, series_id=None):
     log_end_sec()
 
 
-def pwe_has_all_checks(pw, entry) -> tuple[bool, bool]:
+def pwe_has_all_checks(pw, entry) -> tuple[bool, bool, bool]:
     if "checks" not in entry:
-        return True, False
+        return True, False, False
     checks = pw.request_all(entry["checks"])
     found = {}
     for c in checks:
         if c["context"] in gate_checks:
             found[c["context"]] = int(c["state"] == "success")
-    return all(value == 1 for value in found.values()), len(found) == len(gate_checks)
+
+    # Note: the gate checks are currently only reporting success or failure
+    passed = all(value == 1 for value in found.values())
+    present = len(found) == len(gate_checks)
+    has_contest = (not passed and
+                   pwe_has_contest_check(pw, entry, gate_fail_msg, checks))
+
+    return passed, present, has_contest
 
 
 def pwe_series_id_or_none(entry) -> int:
@@ -133,16 +142,22 @@ def pwe_get_pending(pw, config) -> List:
         series_id = pwe_series_id_or_none(entry)
         if series_id in skip_check_fail_series:
             log("Skip because of failing check elsewhere in the series: " + entry["name"])
+            pwe_post_check(pw, entry, "earlier in the series", gate_fail_msg)
             continue
         elif series_id in skip_check_missing_series:
             log("Skip because of missing check elsewhere in the series: " + entry["name"])
             continue
 
-        passed, present = pwe_has_all_checks(pw, entry)
+        passed, present, has_contest = pwe_has_all_checks(pw, entry)
         if not passed:
             log("Skip because of failing check: " + entry["name"])
+            pwe_post_check(pw, entry, "here", gate_fail_msg)
             if series_id:
-                skip_check_fail_series.add(series_id)
+                if has_contest:
+                    log("Adding in missing list not to recheck PW contest each time: " + entry["name"])
+                    skip_check_missing_series.add(series_id)
+                else:
+                    skip_check_fail_series.add(series_id)
         elif not present:
             log("Skip because of missing check: " + entry["name"])
             if series_id:
@@ -158,6 +173,7 @@ def pwe_get_pending(pw, config) -> List:
         series_id = pwe_series_id_or_none(entry)
         if series_id in skip_check_fail_series:
             log("Skip because of failing check elsewhere in the series: " + entry["name"])
+            pwe_post_check(pw, entry, "later in the series", gate_fail_msg)
         elif series_id in skip_check_missing_series:
             log("Skip because of missing check elsewhere in the series: " + entry["name"])
         else:
