@@ -24,6 +24,51 @@ from pw import Patchwork
 from pw import PwSeries
 import core
 
+"""
+Config:
+
+[patchwork]
+server=patchwork.kernel.org
+use_ssl=True
+project=netdev
+token=<api-token>
+user=<user-id>
+user-agent=nipa
+[trees]
+# name=prefix, fs path (under [dirs] trees), remote, [branch]
+net-next=net-next, net-next, origin, origin/main
+[dirs]
+trees=/path/to/trees/
+results=/path/to/results/
+workers=/path/to/workers/
+tests=/path/to/tests/
+[workers]
+# number of workers per tree (default 1)
+net-next=2
+[poller]
+recheck_period=3
+recheck_lookback=9
+tree_update_period=3
+local_sock_path=/path/to/poller.sock
+[list]
+# see netdev/tree_match.py for the list module, which is imported here
+module=netdev
+[tests]
+# include=patch/checkpatch
+exclude=patch/signed,series/ai-review
+# file with "<user ID> <YYYY-MM-DD>" lines (ban until that date), '#' = comment
+ban_file=/path/to/ban.list
+[life]
+sigusr1=True
+nipa_version=True
+poll_ival=60
+single_shot=False
+[log]
+dir=/path/to/logs/
+type=org
+file=poller.org
+"""
+
 
 class IncompleteSeries(Exception):
     pass
