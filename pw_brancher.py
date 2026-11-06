@@ -8,8 +8,6 @@ import os
 import psycopg2
 import subprocess
 import time
-from typing import List, Tuple
-import uuid
 
 from core import NIPA_DIR
 from core import log, log_open_sec, log_end_sec, log_init
@@ -118,7 +116,7 @@ def pwe_series_id_or_none(entry) -> int:
         return entry["series"][0]["id"]
 
 
-def pwe_get_pending(pw, config) -> List:
+def pwe_get_pending(pw, config) -> list:
     log_open_sec("Loading patches")
     things = pw.get_patches_all(action_required=True)
     log_end_sec()
@@ -135,7 +133,7 @@ def pwe_get_pending(pw, config) -> List:
     log_end_sec()
 
     log_open_sec("Filter by checks")
-    skip_check_fail_series = set()
+    skip_check_fail_series = {}
     skip_check_missing_series = set()
     reported_fail_series = set()
     res = []
@@ -144,7 +142,8 @@ def pwe_get_pending(pw, config) -> List:
         if series_id in skip_check_fail_series:
             log("Skip because of failing check elsewhere in the series: " + entry["name"])
             if series_id not in reported_fail_series:
-                pwe_post_check(pw, entry, "earlier in the series", gate_fail_msg)
+                cmt = f"elsewhere in the series (id: {skip_check_fail_series[series_id]})"
+                pwe_post_check(pw, entry, cmt, gate_fail_msg)
             continue
         elif series_id in skip_check_missing_series:
             log("Skip because of missing check elsewhere in the series: " + entry["name"])
@@ -160,7 +159,7 @@ def pwe_get_pending(pw, config) -> List:
             else:
                 pwe_post_check(pw, entry, "here", gate_fail_msg)
             if series_id:
-                skip_check_fail_series.add(series_id)
+                skip_check_fail_series[series_id] = entry["id"]
         elif not present:
             log("Skip because of missing check: " + entry["name"])
             if series_id:
@@ -177,7 +176,8 @@ def pwe_get_pending(pw, config) -> List:
         if series_id in skip_check_fail_series:
             log("Skip because of failing check elsewhere in the series: " + entry["name"])
             if series_id not in reported_fail_series:
-                pwe_post_check(pw, entry, "later in the series", gate_fail_msg)
+                cmt = f"elsewhere in the series (id: {skip_check_fail_series[series_id]})"
+                pwe_post_check(pw, entry, cmt, gate_fail_msg)
         elif series_id in skip_check_missing_series:
             log("Skip because of missing check elsewhere in the series: " + entry["name"])
         else:
@@ -188,7 +188,7 @@ def pwe_get_pending(pw, config) -> List:
     return things
 
 
-def apply_pending_patches(pw, config, tree, branch_name) -> Tuple[List, List]:
+def apply_pending_patches(pw, config, tree, branch_name) -> tuple[list, list]:
     log_open_sec("Get pending submissions from patchwork")
     things = pwe_get_pending(pw, config)
     log(f"Have {len(things)} pending things from patchwork")
@@ -249,7 +249,7 @@ def _apply_local_patch(path, tree, dir_path=None) -> bool:
     log_end_sec()
     return success
 
-def apply_local_patches(config, tree) -> List:
+def apply_local_patches(config, tree) -> list:
     extras = []
     for entry in config.get("local", "patches", fallback="").split(','):
         if not entry:
@@ -308,7 +308,7 @@ def generate_deltas(config, tree, name):
 
 
 def get_change_from_last(tree, branch_list) -> bool:
-    branch_list = list(sorted(branch_list))
+    branch_list = sorted(branch_list)
     if len(branch_list) < 2:
         return True
 
