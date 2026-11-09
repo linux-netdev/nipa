@@ -41,9 +41,6 @@ make O=$output_dir $build_flags -C tools/testing/selftests/ clean
 # Hard-clean YNL, too, otherwise YNL-related build problems may be masked
 make -C tools/net/ynl/ distclean
 
-# Remove possibly buggy new header files from previous runs
-rm -rf "$output_dir/usr/include"
-
 pr "Baseline building the tree"
 git checkout -q HEAD~
 make O=$output_dir $build_flags headers

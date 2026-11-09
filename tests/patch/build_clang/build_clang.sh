@@ -34,9 +34,6 @@ then
 else
     echo "Baseline building the tree"
 
-    # Remove possibly buggy new header files from previous runs
-    rm -rf "$output_dir/usr/include"
-
     prep_config
     make LLVM=1 O=$output_dir CC="$cc" $build_flags
 fi
