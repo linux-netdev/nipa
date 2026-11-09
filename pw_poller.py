@@ -79,7 +79,6 @@ class PwPoller:
         self._worker_id = 0
         self._async_workers = []
 
-        self.ban_file = config.get('tests', 'ban_file', fallback=None)
         self.result_dir = config.get('dirs', 'results', fallback=os.path.join(NIPA_DIR, "results"))
         self.worker_dir = config.get('dirs', 'workers', fallback=os.path.join(NIPA_DIR, "workers"))
         tree_dir = config.get('dirs', 'trees', fallback=os.path.join(NIPA_DIR, "../"))
@@ -203,25 +202,6 @@ class PwPoller:
 
         return ret
 
-    def _read_bans(self) -> Dict[int, datetime.date]:
-        bans = {}
-        if not self.ban_file or not os.path.isfile(self.ban_file):
-            return bans
-        try:
-            with open(self.ban_file, 'r', encoding='utf-8') as fp:
-                for line in fp:
-                    line = line.strip()
-                    if not line or line.startswith('#'):
-                        continue
-                    parts = line.split()
-                    try:
-                        bans[int(parts[0])] = datetime.date.fromisoformat(parts[1])
-                    except (ValueError, IndexError):
-                        log("Bad ban file line", line)
-        except OSError as e:
-            log("Failed to read ban file", str(e))
-        return bans
-
     def _process_series(self, pw_series, force_tree=None) -> None:
         s = PwSeries(self._pw, pw_series)
 
@@ -239,17 +219,9 @@ class PwPoller:
             s.tree_mark_expected = None
             s.tree_marked = True
         else:
+            comment = self.series_determine_tree(s)
             if not s['received_all']:
                 raise IncompleteSeries
-
-            ban_until = self._read_bans().get(s['submitter']['id'])
-            if ban_until and ban_until > datetime.date.today():
-                core.write_tree_selection_result(self.result_dir, s,
-                                                "user is currently banned")
-                core.mark_done(self.result_dir, s)
-                return
-
-            comment = self.series_determine_tree(s)
 
         s.need_async = self.list_module.series_needs_async(s)
         if s.need_async:
