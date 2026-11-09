@@ -56,8 +56,6 @@ module=netdev
 [tests]
 # include=patch/checkpatch
 exclude=patch/signed,series/ai-review
-# file with "<user ID> <YYYY-MM-DD>" lines (ban until that date), '#' = comment
-ban_file=/path/to/ban.list
 [life]
 sigusr1=True
 nipa_version=True
