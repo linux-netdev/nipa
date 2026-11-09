@@ -46,9 +46,6 @@ then
 else
     echo "Baseline building the tree"
 
-    # Remove possibly buggy new header files from previous runs
-    rm -rf "$output_dir/usr/include"
-
     prep_config
     make CC="$cc" O=$output_dir $build_flags
 fi
