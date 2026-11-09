@@ -12,7 +12,7 @@ import shutil
 import socket
 import time
 import queue
-import re
+from typing import Dict
 from importlib import import_module
 
 from core import NIPA_DIR
@@ -56,9 +56,7 @@ module=netdev
 [tests]
 # include=patch/checkpatch
 exclude=patch/signed,series/ai-review
-# file with "<user ID or email regex> <YYYY-MM-DD>" lines (ban until that
-# date), '#' = comment. Non-numeric entries are case-insensitive regexes
-# searched in the submitter's email address.
+# file with "<user ID> <YYYY-MM-DD>" lines (ban until that date), '#' = comment
 ban_file=/path/to/ban.list
 [life]
 sigusr1=True
@@ -205,33 +203,24 @@ class PwPoller:
 
         return ret
 
-    def _banned_until(self, submitter) -> datetime.date | None:
-        """Latest ban date matching the submitter (by ID, or email regex)."""
+    def _read_bans(self) -> Dict[int, datetime.date]:
+        bans = {}
         if not self.ban_file or not os.path.isfile(self.ban_file):
-            return None
-        until = None
+            return bans
         try:
             with open(self.ban_file, 'r', encoding='utf-8') as fp:
                 for line in fp:
                     line = line.strip()
                     if not line or line.startswith('#'):
                         continue
+                    parts = line.split()
                     try:
-                        who, date = line.rsplit(None, 1)
-                        date = datetime.date.fromisoformat(date)
-                        if who.isdigit():
-                            match = int(who) == submitter['id']
-                        else:
-                            match = re.search(who, submitter.get('email') or '',
-                                              re.IGNORECASE)
-                    except (ValueError, re.error):
+                        bans[int(parts[0])] = datetime.date.fromisoformat(parts[1])
+                    except (ValueError, IndexError):
                         log("Bad ban file line", line)
-                        continue
-                    if match and (not until or date > until):
-                        until = date
         except OSError as e:
             log("Failed to read ban file", str(e))
-        return until
+        return bans
 
     def _process_series(self, pw_series, force_tree=None) -> None:
         s = PwSeries(self._pw, pw_series)
@@ -253,7 +242,7 @@ class PwPoller:
             if not s['received_all']:
                 raise IncompleteSeries
 
-            ban_until = self._banned_until(s['submitter'])
+            ban_until = self._read_bans().get(s['submitter']['id'])
             if ban_until and ban_until > datetime.date.today():
                 core.write_tree_selection_result(self.result_dir, s,
                                                 "user is currently banned")
