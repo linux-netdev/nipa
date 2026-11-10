@@ -174,6 +174,10 @@ class PwPoller:
         else:
             log_open_sec('Series okay without a tree designation')
 
+        if not s.tree_mark_expected and len(s.patches) > 15:
+            log("No tree designation found, large series", "")
+            return "Large cross-tree series, skip"
+
         if self.list_module.current_tree in self._trees and \
            self.list_module.series_is_a_fix_for(s, self._trees[self.list_module.current_tree]):
             s.tree_name = self.list_module.current_tree
