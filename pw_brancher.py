@@ -96,9 +96,9 @@ def pwe_set_apply_error(pw, entry, check_name, cmt, desc, e=None,
     log_end_sec()
 
 
-def pwe_has_all_checks(pw, entry, check_name) -> tuple[bool, bool, bool]:
+def pwe_has_all_checks(pw, entry, check_name) -> tuple[list[str], bool, bool]:
     if "checks" not in entry:
-        return True, False, False
+        return [], False, False
     checks = pw.request_all(entry["checks"])
     found = {}
     for c in checks:
@@ -106,13 +106,13 @@ def pwe_has_all_checks(pw, entry, check_name) -> tuple[bool, bool, bool]:
             found[c["context"]] = int(c["state"] == "success")
 
     # Note: the gate checks are currently only reporting success or failure
-    passed = all(value == 1 for value in found.values())
+    failed = [name for name, value in found.items() if value != 1]
     present = len(found) == len(gate_checks)
-    has_contest = (not passed and
+    has_contest = (bool(failed) and
                    pwe_has_contest_check(pw, entry, check_name, gate_fail_msg,
                                          checks))
 
-    return passed, present, has_contest
+    return failed, present, has_contest
 
 
 def pwe_series_id_or_none(entry) -> int:
@@ -153,15 +153,16 @@ def pwe_get_pending(pw, check_name) -> list:
             log("Skip because of missing check elsewhere in the series: " + entry["name"])
             continue
 
-        passed, present, has_contest = pwe_has_all_checks(pw, entry, check_name)
-        if not passed:
+        failed, present, has_contest = pwe_has_all_checks(pw, entry, check_name)
+        if failed:
             log("Skip because of failing check: " + entry["name"])
             if has_contest:
                 log("Already reported on PW: " + entry["name"])
                 if series_id:
                     reported_fail_series.add(series_id)
             else:
-                pwe_post_check(pw, entry, check_name, "here", gate_fail_msg)
+                e = "blocked because of failures: " + ", ".join(failed)
+                pwe_post_check(pw, entry, check_name, "here", gate_fail_msg, e)
             if series_id:
                 skip_check_fail_series[series_id] = entry["id"]
         elif not present:
