@@ -75,15 +75,13 @@ def pwe_has_contest_check(pw, entry, check_name, desc, checks=None) -> bool:
     return last_desc.startswith(desc)
 
 
-def pwe_post_check(pw, entry, check_name, cmt, desc, e=None):
+def pwe_post_check(pw, entry, check_name, cmt, desc, e):
     log(f"Setting 'fail' {check_name} state for: " + entry["name"])
-    details = f":\n{e}" if e else ""
     pw.post_check(entry["id"], name=check_name, state="fail", url="",
-                  desc=f"{desc} ({cmt}){details}")
+                  desc=f"{desc} ({cmt}):\n{e}")
 
 
-def pwe_set_apply_error(pw, entry, check_name, cmt, desc, e=None,
-                        series_id=None):
+def pwe_set_apply_error(pw, entry, check_name, cmt, desc, e, series_id=None):
     log_open_sec(f"Set PW '{check_name}' check state")
     if pwe_has_contest_check(pw, entry, check_name, desc):
         log(f"Skip: already has '{check_name}' check")
@@ -146,8 +144,9 @@ def pwe_get_pending(pw, check_name) -> list:
         if series_id in skip_check_fail_series:
             log("Skip because of failing check elsewhere in the series: " + entry["name"])
             if series_id not in reported_fail_series:
-                cmt = f"elsewhere in the series (id: {skip_check_fail_series[series_id]})"
-                pwe_post_check(pw, entry, check_name, cmt, gate_fail_msg)
+                cmt = "elsewhere in the series"
+                e = skip_check_fail_series[series_id]
+                pwe_post_check(pw, entry, check_name, cmt, gate_fail_msg, e)
             continue
         elif series_id in skip_check_missing_series:
             log("Skip because of missing check elsewhere in the series: " + entry["name"])
@@ -164,7 +163,7 @@ def pwe_get_pending(pw, check_name) -> list:
                 e = "blocked because of failures: " + ", ".join(failed)
                 pwe_post_check(pw, entry, check_name, "here", gate_fail_msg, e)
             if series_id:
-                skip_check_fail_series[series_id] = entry["id"]
+                skip_check_fail_series[series_id] = f"patch id: {entry['id']}"
         elif not present:
             log("Skip because of missing check: " + entry["name"])
             if series_id:
@@ -181,8 +180,9 @@ def pwe_get_pending(pw, check_name) -> list:
         if series_id in skip_check_fail_series:
             log("Skip because of failing check elsewhere in the series: " + entry["name"])
             if series_id not in reported_fail_series:
-                cmt = f"elsewhere in the series (id: {skip_check_fail_series[series_id]})"
-                pwe_post_check(pw, entry, check_name, cmt, gate_fail_msg)
+                cmt = "elsewhere in the series"
+                e = skip_check_fail_series[series_id]
+                pwe_post_check(pw, entry, check_name, cmt, gate_fail_msg, e)
         elif series_id in skip_check_missing_series:
             log("Skip because of missing check elsewhere in the series: " + entry["name"])
         else:
