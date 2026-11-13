@@ -100,12 +100,15 @@ def pwe_has_all_checks(pw, entry, check_name) -> tuple[list[str], bool, bool]:
     checks = pw.request_all(entry["checks"])
     found = {}
     for c in checks:
+        # Take the last one
         if c["context"] in gate_checks:
-            found[c["context"]] = int(c["state"] == "success")
+            found[c["context"]] = c["state"]
 
-    # Note: the gate checks are currently only reporting success or failure
-    failed = [name for name, value in found.items() if value != 1]
-    present = len(found) == len(gate_checks)
+    failed = [name for name, state in found.items()
+              if state in ("fail", "warning")]
+    # Pending checks are not considered as present yet
+    present = all(found.get(name, "pending") != "pending"
+                  for name in gate_checks)
     has_contest = (bool(failed) and
                    pwe_has_contest_check(pw, entry, check_name, gate_fail_msg,
                                          checks))
