@@ -11,7 +11,20 @@ tmpfile_o=$(mktemp)
 tmpfile_n=$(mktemp)
 rc=0
 
+# Kbuild only removes stale UAPI headers from dirs still present in the
+# sources: drop the dirs that are gone, e.g. added by a previous patch.
+clean_orphan_uapi_dirs() {
+    local d
+    for d in "$output_dir"/usr/include/*/; do
+        [ -d "$d" ] || continue
+        d=$(basename "$d")
+        [ -d "include/uapi/$d" ] || [ -d "arch/x86/include/uapi/$d" ] ||
+            rm -rf "$output_dir/usr/include/$d"
+    done
+}
+
 prep_config() {
+  clean_orphan_uapi_dirs
   make CC="$cc" O=$output_dir ARCH=i386 allmodconfig
   ./scripts/config --file $output_dir/.config -d werror
   ./scripts/config --file $output_dir/.config -d drm_werror
