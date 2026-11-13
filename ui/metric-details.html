@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>NIPA metric details</title>
+    <link rel="shortcut icon" href="/favicon-perf.png" type="image/png" />
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="nipa.js?v=20261013"></script>
+    <script src="metric-details.js"></script>
+    <script>
+        nipa_load_sitemap();
+        nipa_load_sponsors();
+    </script>
+    <link rel="stylesheet" href="nipa.css">
+    <style>
+        #metric-metadata {
+            width: auto;
+            min-width: 35em;
+            margin-bottom: 1.5em;
+        }
+        #metric-metadata th {
+            width: 9em;
+        }
+        #sampled-charts {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 2em;
+        }
+        .metric-chart-box {
+            height: 26em;
+            min-width: 0;
+        }
+        @media screen and (max-width: 900px) {
+            #sampled-charts {
+                grid-template-columns: 1fr;
+            }
+            #metric-metadata {
+                min-width: 0;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body onload="do_it();">
+<div id="sitemap"></div>
+<h2>Metric details</h2>
+<p id="metric-status">Loading...</p>
+<table id="metric-metadata" hidden></table>
+
+<section id="sample-section" hidden>
+    <h3>Samples over time</h3>
+    <div id="sampled-charts"></div>
+</section>
+</body>
+</html>

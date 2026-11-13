@@ -82,6 +82,35 @@ CREATE TABLE metrics (
     value               double precision
 );
 
+CREATE TABLE result_metrics (
+    id                  bigserial PRIMARY KEY,
+    branch              varchar(80) NOT NULL,
+    branch_date         varchar(17) NOT NULL,
+    remote              varchar(80) NOT NULL,
+    executor            varchar(80) NOT NULL,
+    t_start             timestamp NOT NULL,
+    grp                 varchar(80) NOT NULL,
+    test                varchar(128) NOT NULL,
+    subtest             varchar(256) NOT NULL,
+    short_json          jsonb NOT NULL
+                            CHECK (jsonb_typeof(short_json) = 'array'),
+    full_json           jsonb NOT NULL
+                            CHECK (jsonb_typeof(full_json) = 'array'),
+    attempt             smallint NOT NULL DEFAULT 0
+                            CHECK (attempt IN (0, 1)),
+    result              varchar(8) NOT NULL,
+    link                text
+);
+
+CREATE UNIQUE INDEX result_metrics_unique ON result_metrics
+    (branch, remote, executor, grp, test, subtest, attempt);
+CREATE INDEX result_metrics_series ON result_metrics
+    (remote, executor, grp, test, subtest, branch_date DESC);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON result_metrics TO "nipa";
+GRANT USAGE, SELECT ON SEQUENCE result_metrics_id_seq TO "nipa";
+GRANT SELECT ON result_metrics TO "flask";
+
 CREATE TABLE stability (
     remote              varchar(80),
     executor            varchar(80),

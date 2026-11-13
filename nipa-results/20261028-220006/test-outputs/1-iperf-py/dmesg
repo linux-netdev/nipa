@@ -1,0 +1,4 @@
+[519975.710055] nipa-hw-worker: [1/2] drivers/net/perf:devmem.py: rc=0 (41.0s)
+[519975.710082] nipa-hw-worker: [2/2] Running drivers/net/perf:iperf.py
+[519976.394571] nipa-hw-worker:   drivers/net/perf:iperf.py: running subtest tcp
+[519976.708759] kselftest: Running tests in drivers/net/perf

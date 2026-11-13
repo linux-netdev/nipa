@@ -8,8 +8,11 @@ import functools
 import json
 import os
 import psycopg2
+from psycopg2.extras import Json, execute_values
 import requests
 import time
+
+from backend.result_metrics import extract_result_metrics
 
 
 """
@@ -29,6 +32,7 @@ stability-name=table-name
 results-name=table-name
 wip-name=table-name
 branches-name=table-name
+result-metrics-name=table-name
 """
 
 def result_flatten(full):
@@ -57,6 +61,16 @@ def result_flatten(full):
     return flat
 
 
+def result_strip_metrics(full):
+    """Return a copy of a result without the metrics stored in result_metrics."""
+    full = copy.deepcopy(full)
+    for test in full.get("results") or []:
+        for case in test.get("results") or []:
+            case.pop("metrics", None)
+            case.pop("retry_metrics", None)
+    return full
+
+
 class FetcherState:
     def __init__(self):
         self.config = configparser.ConfigParser()
@@ -69,6 +83,8 @@ class FetcherState:
         self.tbl_res = self.config.get("db", "results-name", fallback="results")
         self.tbl_wip = self.config.get("db", "wip-name", fallback="results_pending")
         self.tbl_brn = self.config.get("db", "branches-name", fallback="branches")
+        self.tbl_met = self.config.get("db", "result-metrics-name",
+                                       fallback="result_metrics")
 
         db_name = self.config.get("db", "db")
         self.psql_conn = psycopg2.connect(database=db_name)
@@ -123,9 +139,44 @@ class FetcherState:
                 print(f"ERROR: {type(e).__module__}.{type(e).__name__}: {e.diag.message_primary}")
                 print(f"ERROR: DETAIL: {e.diag.message_detail}")
 
+    def psql_insert_metrics(self, data):
+        rows = extract_result_metrics(data)
+        if not rows:
+            return
+
+        values = [
+            (data["branch"], data["branch"][-17:], data["remote"],
+             data["executor"], data["start"], row["group"], row["test"],
+             row["subtest"], Json(row["short_json"]),
+             Json(row["full_json"]), row["attempt"], row["result"],
+             row["link"])
+            for row in rows
+        ]
+        fields = """(
+            branch, branch_date, remote, executor, t_start,
+            grp, test, subtest, short_json, full_json,
+            attempt, result, link
+        )"""
+        conflict = """(
+            branch, remote, executor, grp, test, subtest, attempt
+        )"""
+        with self.psql_conn.cursor() as cur:
+            execute_values(
+                cur,
+                f"""INSERT INTO {self.tbl_met} {fields} VALUES %s
+                    ON CONFLICT {conflict} DO UPDATE SET
+                        branch_date = EXCLUDED.branch_date,
+                        t_start = EXCLUDED.t_start,
+                        short_json = EXCLUDED.short_json,
+                        full_json = EXCLUDED.full_json,
+                        result = EXCLUDED.result,
+                        link = EXCLUDED.link""",
+                values)
+
     def psql_json_split(self, data):
         # return "normal" and "full" as json string or None
         # "full" will be None if they are the same to save storage
+        data = result_strip_metrics(data)
         full_s = json.dumps(data)
         if data.get("results") is None: # WIP result
             return full_s, None
@@ -264,6 +315,14 @@ class FetcherState:
 
         self.psql_clear_wip(remote, run)
         self.insert_result_psql(data)
+        # Metrics come from the tests, which may print anything. The result
+        # is already stored, a failure here must not stop ingestion.
+        try:
+            self.psql_insert_metrics(data)
+        except Exception as e:  # pylint: disable=broad-except
+            print(f"ERROR: failed to store metrics of {data['remote']}/"
+                  f"{data['executor']} {data['branch']}: "
+                  f"{type(e).__module__}.{type(e).__name__}: {e}")
 
 
 def write_json_atomic(path, data):
@@ -286,7 +345,8 @@ def fetch_remote_run(fetcher, remote, run_info, remote_state):
 
     file = os.path.join(remote_state['dir'], os.path.basename(run_info['url']))
     with open(file, "w") as fp:
-        json.dump(data, fp)
+        # The combined results are built from these, keep them compact
+        json.dump(result_strip_metrics(data), fp)
     return True
 
 

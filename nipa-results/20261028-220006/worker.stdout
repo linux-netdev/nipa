@@ -1,0 +1,14 @@
+/tmp/nipa-local-20261028-220006-1803794/tests Starting tests directly
+Using the existing host network configuration
+Wrote /tmp/nipa-local-20261028-220006-1803794/tests/drivers/net/perf/net.config from existing interface addresses
+Collected device info for beth0
+Found 2 tests, per-test timeout 1200s
+Warning: no filters file at /tmp/nipa-local-20261028-220006-1803794/tests/filters.json
+Warning: no known-bad file at /tmp/nipa-local-20261028-220006-1803794/tests/known-bad.json
+Saved 14405 lines of boot dmesg
+[1/2] Running drivers/net/perf:devmem.py
+  drivers/net/perf:devmem.py: running subtest kperf
+[1/2] drivers/net/perf:devmem.py: rc=0 (41.0s)
+[2/2] Running drivers/net/perf:iperf.py
+  drivers/net/perf:iperf.py: running subtest tcp
+[2/2] drivers/net/perf:iperf.py: rc=0 (11.4s)
