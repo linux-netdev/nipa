@@ -6,6 +6,18 @@ ncpu=$(grep -c processor /proc/cpuinfo)
 build_flags="-Oline -j $ncpu"
 rc=0
 
+# Kbuild only removes stale UAPI headers from dirs still present in the
+# sources: drop the dirs that are gone, e.g. added by a previous patch.
+clean_orphan_uapi_dirs() {
+    local d
+    for d in "$output_dir"/usr/include/*/; do
+        [ -d "$d" ] || continue
+        d=$(basename "$d")
+        [ -d "include/uapi/$d" ] || [ -d "arch/x86/include/uapi/$d" ] ||
+            rm -rf "$output_dir/usr/include/$d"
+    done
+}
+
 pr() {
     echo " ====== $@ ======" | tee -a /dev/stderr
 }
@@ -43,6 +55,7 @@ make -C tools/net/ynl/ distclean
 
 pr "Baseline building the tree"
 git checkout -q HEAD~
+clean_orphan_uapi_dirs
 make O=$output_dir $build_flags headers
 make O=$output_dir $build_flags -C tools/testing/selftests/
 git checkout -q $HEAD
@@ -50,6 +63,7 @@ git checkout -q $HEAD
 pr "Building the tree before the patch"
 git checkout -q HEAD~
 
+clean_orphan_uapi_dirs
 make O=$output_dir $build_flags headers
 make O=$output_dir $build_flags -C tools/testing/selftests/ \
      2> >(tee -a $tmpfile_o >&2)
@@ -63,6 +77,7 @@ incumbent_dirt=$(git status -s | grep -c '^??')
 pr "Building the tree with the patch"
 git checkout -q $HEAD
 
+clean_orphan_uapi_dirs
 make O=$output_dir $build_flags headers
 make O=$output_dir $build_flags -C tools/testing/selftests/ \
      2> >(tee -a $tmpfile_n >&2)

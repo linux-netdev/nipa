@@ -9,7 +9,20 @@ ncpu=$(grep -c processor /proc/cpuinfo)
 build_flags="-Oline -j $ncpu W=1"
 rc=0
 
+# Kbuild only removes stale UAPI headers from dirs still present in the
+# sources: drop the dirs that are gone, e.g. added by a previous patch.
+clean_orphan_uapi_dirs() {
+    local d
+    for d in "$output_dir"/usr/include/*/; do
+        [ -d "$d" ] || continue
+        d=$(basename "$d")
+        [ -d "include/uapi/$d" ] || [ -d "arch/x86/include/uapi/$d" ] ||
+            rm -rf "$output_dir/usr/include/$d"
+    done
+}
+
 prep_config() {
+    clean_orphan_uapi_dirs
     make LLVM=1 O=$output_dir allmodconfig $build_flags
 
     # Disable -Werror so we get to see all the errors
