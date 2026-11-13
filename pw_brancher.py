@@ -17,6 +17,8 @@ from pw import Patchwork
 """
 Config:
 
+[patchwork]
+check_name=contest
 [filters]
 ignore_delegate=bpf
 gate_checks=build_clang,build_32bit,build_allmodconfig_warn
@@ -58,7 +60,7 @@ def hour_timestamp(when=None) -> int:
     return int(ts / (60 * 60))
 
 
-def pwe_has_contest_check(pw, entry, desc, checks=None) -> bool:
+def pwe_has_contest_check(pw, entry, check_name, desc, checks=None) -> bool:
     if "checks" not in entry:
         return False
 
@@ -67,33 +69,34 @@ def pwe_has_contest_check(pw, entry, desc, checks=None) -> bool:
     last_desc = ""
     for c in checks:
         # Take the last one
-        if c["context"] == "contest":
+        if c["context"] == check_name:
             last_desc = c.get("description", "")
 
     return last_desc.startswith(desc)
 
 
-def pwe_post_check(pw, entry, cmt, desc, e=None):
-    log("Setting 'fail' contest state for: " + entry["name"])
+def pwe_post_check(pw, entry, check_name, cmt, desc, e=None):
+    log(f"Setting 'fail' {check_name} state for: " + entry["name"])
     details = f":\n{e}" if e else ""
-    pw.post_check(entry["id"], name="contest", state="fail", url="",
+    pw.post_check(entry["id"], name=check_name, state="fail", url="",
                   desc=f"{desc} ({cmt}){details}")
 
 
-def pwe_set_apply_error(pw, entry, cmt, desc, e=None, series_id=None):
-    log_open_sec("Set PW 'contest' check state")
-    if pwe_has_contest_check(pw, entry, desc):
-        log("Skip: already has 'contest' check")
+def pwe_set_apply_error(pw, entry, check_name, cmt, desc, e=None,
+                        series_id=None):
+    log_open_sec(f"Set PW '{check_name}' check state")
+    if pwe_has_contest_check(pw, entry, check_name, desc):
+        log(f"Skip: already has '{check_name}' check")
     elif series_id is not None:
         series_pw = pw.get("series", series_id)
         for patch in series_pw["patches"]:
-            pwe_post_check(pw, patch, cmt, desc, e)
+            pwe_post_check(pw, patch, check_name, cmt, desc, e)
     else:
-        pwe_post_check(pw, entry, cmt, desc, e)
+        pwe_post_check(pw, entry, check_name, cmt, desc, e)
     log_end_sec()
 
 
-def pwe_has_all_checks(pw, entry) -> tuple[bool, bool, bool]:
+def pwe_has_all_checks(pw, entry, check_name) -> tuple[bool, bool, bool]:
     if "checks" not in entry:
         return True, False, False
     checks = pw.request_all(entry["checks"])
@@ -106,7 +109,8 @@ def pwe_has_all_checks(pw, entry) -> tuple[bool, bool, bool]:
     passed = all(value == 1 for value in found.values())
     present = len(found) == len(gate_checks)
     has_contest = (not passed and
-                   pwe_has_contest_check(pw, entry, gate_fail_msg, checks))
+                   pwe_has_contest_check(pw, entry, check_name, gate_fail_msg,
+                                         checks))
 
     return passed, present, has_contest
 
@@ -116,7 +120,7 @@ def pwe_series_id_or_none(entry) -> int:
         return entry["series"][0]["id"]
 
 
-def pwe_get_pending(pw, config) -> list:
+def pwe_get_pending(pw, check_name) -> list:
     log_open_sec("Loading patches")
     things = pw.get_patches_all(action_required=True)
     log_end_sec()
@@ -143,13 +147,13 @@ def pwe_get_pending(pw, config) -> list:
             log("Skip because of failing check elsewhere in the series: " + entry["name"])
             if series_id not in reported_fail_series:
                 cmt = f"elsewhere in the series (id: {skip_check_fail_series[series_id]})"
-                pwe_post_check(pw, entry, cmt, gate_fail_msg)
+                pwe_post_check(pw, entry, check_name, cmt, gate_fail_msg)
             continue
         elif series_id in skip_check_missing_series:
             log("Skip because of missing check elsewhere in the series: " + entry["name"])
             continue
 
-        passed, present, has_contest = pwe_has_all_checks(pw, entry)
+        passed, present, has_contest = pwe_has_all_checks(pw, entry, check_name)
         if not passed:
             log("Skip because of failing check: " + entry["name"])
             if has_contest:
@@ -157,7 +161,7 @@ def pwe_get_pending(pw, config) -> list:
                 if series_id:
                     reported_fail_series.add(series_id)
             else:
-                pwe_post_check(pw, entry, "here", gate_fail_msg)
+                pwe_post_check(pw, entry, check_name, "here", gate_fail_msg)
             if series_id:
                 skip_check_fail_series[series_id] = entry["id"]
         elif not present:
@@ -177,7 +181,7 @@ def pwe_get_pending(pw, config) -> list:
             log("Skip because of failing check elsewhere in the series: " + entry["name"])
             if series_id not in reported_fail_series:
                 cmt = f"elsewhere in the series (id: {skip_check_fail_series[series_id]})"
-                pwe_post_check(pw, entry, cmt, gate_fail_msg)
+                pwe_post_check(pw, entry, check_name, cmt, gate_fail_msg)
         elif series_id in skip_check_missing_series:
             log("Skip because of missing check elsewhere in the series: " + entry["name"])
         else:
@@ -190,7 +194,8 @@ def pwe_get_pending(pw, config) -> list:
 
 def apply_pending_patches(pw, config, tree, branch_name) -> tuple[list, list]:
     log_open_sec("Get pending submissions from patchwork")
-    things = pwe_get_pending(pw, config)
+    check_name = config.get('patchwork', 'check_name', fallback='contest')
+    things = pwe_get_pending(pw, check_name)
     log(f"Have {len(things)} pending things from patchwork")
     log_end_sec()
 
@@ -210,7 +215,7 @@ def apply_pending_patches(pw, config, tree, branch_name) -> tuple[list, list]:
                 tree.pull(entry["pull_url"], reset=False)
                 applied_prs.add(entry["id"])
             except PullError as e:
-                pwe_set_apply_error(pw, entry, branch_name, desc, e)
+                pwe_set_apply_error(pw, entry, check_name, branch_name, desc, e)
         else:
             log_open_sec("Applying: " + entry["series"][0]["name"])
             seen_series.add(series_id)
@@ -221,7 +226,8 @@ def apply_pending_patches(pw, config, tree, branch_name) -> tuple[list, list]:
                 tree.apply(p)
                 applied_series.add(series_id)
             except PatchApplyError as e:
-                pwe_set_apply_error(pw, entry, branch_name, desc, e, series_id)
+                pwe_set_apply_error(pw, entry, check_name, branch_name, desc, e,
+                                    series_id)
         log_end_sec()
     log_end_sec()
 
