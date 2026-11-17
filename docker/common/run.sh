@@ -26,7 +26,7 @@ if [ "${1}" = "--pull" ]; then
 fi
 
 DOCKER_IMG="${INPUT_PREFIX}/nipa-${DIR_NAME}:${INPUT_TAG}"
-echo "Using ${DOCKER_IMG} image" >&2
+test -t 2 && echo "Using ${DOCKER_IMG} image" >&2
 
 # $1: basedir
 add_git_worktree() {
