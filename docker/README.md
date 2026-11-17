@@ -72,3 +72,30 @@ using a Fedora base, so it is recommended to do the same.
 
 If you prefer to build container images locally, you can use the
 `docker/build.sh` script.
+
+## Podman
+
+Podman can be used instead of Docker: the scripts call `docker`, a command
+provided by the `podman-docker` package. With rootless Podman,
+`--userns=keep-id` is needed to keep the same UID/GID in the container, and be
+able to write to the mounted directories: the scripts set it by default, but it
+has to be added when using Podman directly.
+
+To use rootless Podman from a systemd service with `User=`, enable lingering for
+this user, and set its runtime directory in the unit, so Podman can use the
+user's systemd instance, e.g. for the UID 1000:
+
+```console
+$ sudo loginctl enable-linger <user>
+```
+
+```ini
+[Unit]
+Wants=user@1000.service
+After=user@1000.service
+
+[Service]
+User=<user>
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+```
+
