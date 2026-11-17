@@ -25,6 +25,17 @@ To use them, that's easy, either:
 - Use the same scripts followed by the same commands as before to execute them
   directly from the containers.
 
+- Wrap commands, e.g. to always execute `make` and `vng` from the selftests
+  container, create symlinks named after them, pointing to
+  `docker/selftests/wrapper.sh`, in a directory placed first in `$PATH`:
+
+  ```console
+  $ mkdir -p ~/nipa-bin
+  $ ln -s "${nipa}/docker/selftests/wrapper.sh" ~/nipa-bin/make
+  $ ln -s "${nipa}/docker/selftests/wrapper.sh" ~/nipa-bin/vng
+  $ export PATH="${HOME}/nipa-bin:${PATH}"
+  ```
+
 - Use Docker or Podman directly, e.g.
 
   ```console
