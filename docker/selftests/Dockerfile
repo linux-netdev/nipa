@@ -97,7 +97,7 @@ RUN git clone "${MTOOLS_GIT_URL}" mtools && \
 
 # Needed for net/packetdrill and net/netfilter targets
 ARG PACKETDRILL_GIT_URL="https://github.com/google/packetdrill.git"
-ARG PACKETDRILL_GIT_SHA="83f72d3f9085d0e26eb4d206fe4d7cfab5b6d872"
+ARG PACKETDRILL_GIT_SHA="2a8b4d80459e157d5bb7a99fe620c83e5ce036bb"
 RUN git clone "${PACKETDRILL_GIT_URL}" packetdrill && \
 	cd packetdrill/gtests/net/packetdrill && \
 		git checkout "${PACKETDRILL_GIT_SHA}" && \
@@ -112,7 +112,7 @@ RUN git clone "${PACKETDRILL_GIT_URL}" packetdrill && \
 ARG IPROUTE2_GIT_URL="https://github.com/linux-netdev/iproute2.git"
 # ARG IPROUTE2_GIT_URL="https://kernel.googlesource.com/pub/scm/network/iproute2/iproute2-next.git"
 # ARG IPROUTE2_GIT_URL="https://kernel.googlesource.com/pub/scm/network/iproute2/iproute2.git"
-ARG IPROUTE2_GIT_SHA="3de06c2e2774d0795c7dc2aac148b422e86174c6"
+ARG IPROUTE2_GIT_SHA="8dee4a69a474203bf50433f839bb0f9b81aab9e9"
 RUN git clone "${IPROUTE2_GIT_URL}" iproute2 && \
 	cd iproute2 && \
 		git checkout "${IPROUTE2_GIT_SHA}" && \
