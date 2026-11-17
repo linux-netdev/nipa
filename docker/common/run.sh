@@ -38,8 +38,10 @@ add_git_worktree() {
 }
 
 add_git_worktree .
-# trying to be smart: mounting directories passed in argument
+# trying to be smart: mounting directories passed in argument, or as values,
+# e.g. 'INSTALL_PATH=<dir>' or '--opt=<dir>'
 for arg in "${@}"; do
+	[ -d "${arg}" ] || arg="${arg##*=}"
 	if [ -d "${arg}" ]; then
 		d="$(realpath "${arg}")"
 		ARGS+=(-v "${d}:${d}:rw")
