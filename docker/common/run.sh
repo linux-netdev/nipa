@@ -4,6 +4,12 @@
 : "${INPUT_PREFIX:="ghcr.io/linux-netdev"}"
 : "${INPUT_TAG:="latest"}"
 
+# Rootless Podman: keep the same UID/GID in the container, to be able to write
+# to the mounted directories. This variable is ignored by Docker.
+if [ "$(id -u)" != 0 ]; then
+	export PODMAN_USERNS="${PODMAN_USERNS:-keep-id}"
+fi
+
 SCRIPT_DIR=$(cd "$(dirname "${0}")" && pwd)
 DIR_NAME="$(basename "${SCRIPT_DIR}")"
 CCACHE_DIR="${SCRIPT_DIR}/.ccache"
