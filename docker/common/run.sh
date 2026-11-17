@@ -24,6 +24,7 @@ ARGS=(
 	--group-add "$(grep "^kvm:" /etc/group | cut -d: -f3)"
 	--rm
 	-i
+	-e TERM
 	--init
 	--log-driver none
 	--privileged
