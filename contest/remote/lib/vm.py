@@ -81,7 +81,7 @@ class VM:
     def tree_popen(self, cmd):
         env = os.environ.copy()
         if self.config.get('env', 'paths'):
-            env['PATH'] += ':' + self.config.get('env', 'paths')
+            env['PATH'] = self.config.get('env', 'paths') + ':' + env['PATH']
 
         return subprocess.Popen(cmd, env=env, cwd=self.tree_path,
                                 stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
