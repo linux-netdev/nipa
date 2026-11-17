@@ -31,6 +31,12 @@ ARGS=(
 )
 test -t 1 && ARGS+=("-t")
 
+# Extra options for 'docker run', split on whitespace, e.g. '--network host'
+if [ -n "${DOCKER_EXTRA_ARGS:-}" ]; then
+	read -r -a EXTRA_ARGS <<< "${DOCKER_EXTRA_ARGS}"
+	ARGS+=("${EXTRA_ARGS[@]}")
+fi
+
 if [ "${1}" = "--pull" ]; then
 	ARGS+=(--pull always)
 	shift
