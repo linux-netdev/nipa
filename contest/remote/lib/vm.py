@@ -223,7 +223,8 @@ class VM:
             self.procs = proc.children(recursive=True) + [proc]
 
         print(f"INFO{self.print_pfx} reached initial prompt")
-        self.cmd("PS1='xx__-> '")
+        # Drop prompt hooks, e.g. systemd's OSC 3008 context escape sequences
+        self.cmd("unset PROMPT_COMMAND PS0; PS1='xx__-> '")
         self.drain_to_prompt()
 
         off = len(self.log_out)
