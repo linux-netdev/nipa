@@ -19,6 +19,7 @@ ARGS=(
 	--rm
 	-i
 	--init
+	--log-driver none
 	--privileged
 )
 test -t 1 && ARGS+=("-t")
