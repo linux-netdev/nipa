@@ -11,7 +11,8 @@ import subprocess
 import sys
 import time
 
-from lib.runner import DEFAULT_TEST_TIMEOUT, find_newest_test, run_tests
+from lib.runner import (DEFAULT_TEST_TIMEOUT, find_newest_test, list_tests,
+                        run_tests)
 
 
 TESTS_DIR = '/srv/hw-worker/tests'
@@ -406,6 +407,39 @@ def _setup_irq_affinity(netif):
             print(f"WARN: could not restore combined channels on {netif}")
 
 
+def _write_net_config(test_dir, env):
+    """Write net.config into every installed kselftest target.
+
+    The kselftest Python lib (drivers/net/lib/py/env.py) reads net.config
+    from the directory of the test being run, so each target needs its
+    own copy.  Take the targets from the installed test list instead of
+    hard-coding them, so whatever [ksft] target the orchestrator built
+    (drivers/net, drivers/net/hw, drivers/net/perf, ...) gets configured.
+    """
+    config_lines = [f'{key}={env[key]}' for key in _NET_CONFIG_KEYS
+                    if env.get(key)]
+    if not config_lines:
+        return
+    config_content = '\n'.join(config_lines) + '\n'
+
+    try:
+        targets = sorted({target for target, _prog in list_tests(test_dir)})
+    except (OSError, subprocess.TimeoutExpired) as e:
+        print(f"WARN: cannot list installed tests in {test_dir}: {e}")
+        targets = []
+    if not targets:
+        print(f"WARN: no installed tests in {test_dir}, net.config not written")
+
+    for target in targets:
+        config_dir = os.path.join(test_dir, target)
+        if not os.path.isdir(config_dir):
+            continue
+        path = os.path.join(config_dir, 'net.config')
+        with open(path, 'w', encoding='utf-8') as fp:
+            fp.write(config_content)
+        print(f"Wrote {path}")
+
+
 def setup_test_interfaces(test_dir):
     """Configure test NICs and write net.config from nic-test.env.
 
@@ -413,7 +447,8 @@ def setup_test_interfaces(test_dir):
     IP addresses, and remote connectivity info.  This function:
       1. Brings up the DUT and peer interfaces
       2. Adds IP addresses if not already configured
-      3. Writes drivers/net/net.config for the kselftest framework
+      3. Writes net.config into each installed target for the kselftest
+         framework
     """
     env = _parse_env_file(os.path.join(test_dir, 'nic-test.env'))
     if not env:
@@ -480,20 +515,7 @@ def setup_test_interfaces(test_dir):
             _wait_peer_reachable(netif, env['REMOTE_V6'])
 
     # Write net.config for the kselftest framework
-    config_lines = []
-    for key in _NET_CONFIG_KEYS:
-        if env.get(key):
-            config_lines.append(f'{key}={env[key]}')
-
-    if config_lines:
-        config_content = '\n'.join(config_lines) + '\n'
-        for subdir in ['drivers/net', 'drivers/net/hw']:
-            config_dir = os.path.join(test_dir, subdir)
-            if os.path.isdir(config_dir):
-                path = os.path.join(config_dir, 'net.config')
-                with open(path, 'w', encoding='utf-8') as fp:
-                    fp.write(config_content)
-                print(f"Wrote {path}")
+    _write_net_config(test_dir, env)
 
     # Export env-only variables (not net.config) for the test framework
     for key in _ENV_ONLY_KEYS:

@@ -756,6 +756,92 @@ class TestTestTimeoutConfig(unittest.TestCase):
                              DEFAULT_TEST_TIMEOUT)
 
 
+class TestWriteNetConfig(unittest.TestCase):
+    """net.config goes into every installed target, not a fixed list."""
+
+    ENV = {'NETIF': 'eth0', 'LOCAL_V4': '192.0.2.1', 'DISRUPTIVE': '0',
+           'NIPA_TEST_TIMEOUT': '60'}
+    CONTENT = 'NETIF=eth0\nLOCAL_V4=192.0.2.1\n'
+
+    def _make_tree(self, test_dir, listed, dirs):
+        for subdir in dirs:
+            os.makedirs(os.path.join(test_dir, subdir))
+        with open(os.path.join(test_dir, 'kselftest-list.txt'), 'w') as fp:
+            fp.write(''.join(f'{entry}\n' for entry in listed))
+
+    def _net_config(self, test_dir, subdir):
+        path = os.path.join(test_dir, subdir, 'net.config')
+        if not os.path.exists(path):
+            return None
+        with open(path, encoding='utf-8') as fp:
+            return fp.read()
+
+    def test_all_listed_targets(self):
+        from hw_worker import _write_net_config
+
+        with tempfile.TemporaryDirectory() as test_dir:
+            self._make_tree(test_dir,
+                            ['drivers/net:ping.py', 'drivers/net:stats.py',
+                             'drivers/net/hw:rss_ctx.py',
+                             'drivers/net/perf:tput.py'],
+                            ['drivers/net/hw', 'drivers/net/perf'])
+
+            _write_net_config(test_dir, self.ENV)
+
+            # Only net.config keys, not env-only vars or runner knobs
+            for subdir in ('drivers/net', 'drivers/net/hw',
+                           'drivers/net/perf'):
+                self.assertEqual(self._net_config(test_dir, subdir),
+                                 self.CONTENT)
+
+    def test_unlisted_dir_skipped(self):
+        """drivers/net exists for the shared libs, but has no tests here."""
+        from hw_worker import _write_net_config
+
+        with tempfile.TemporaryDirectory() as test_dir:
+            self._make_tree(test_dir, ['drivers/net/perf:tput.py'],
+                            ['drivers/net/lib/py', 'drivers/net/perf'])
+
+            _write_net_config(test_dir, self.ENV)
+
+            self.assertEqual(self._net_config(test_dir, 'drivers/net/perf'),
+                             self.CONTENT)
+            self.assertIsNone(self._net_config(test_dir, 'drivers/net'))
+
+    def test_missing_target_dir(self):
+        from hw_worker import _write_net_config
+
+        with tempfile.TemporaryDirectory() as test_dir:
+            self._make_tree(test_dir, ['drivers/net/perf:tput.py'], [])
+
+            _write_net_config(test_dir, self.ENV)
+
+            self.assertFalse(os.path.exists(
+                os.path.join(test_dir, 'drivers/net/perf')))
+
+    def test_no_test_list(self):
+        """No kselftest-list.txt and no run_kselftest.sh: warn, don't crash."""
+        from hw_worker import _write_net_config
+
+        with tempfile.TemporaryDirectory() as test_dir:
+            os.makedirs(os.path.join(test_dir, 'drivers/net'))
+
+            _write_net_config(test_dir, self.ENV)
+
+            self.assertIsNone(self._net_config(test_dir, 'drivers/net'))
+
+    def test_no_net_config_keys(self):
+        from hw_worker import _write_net_config
+
+        with tempfile.TemporaryDirectory() as test_dir:
+            self._make_tree(test_dir, ['drivers/net:ping.py'],
+                            ['drivers/net'])
+
+            _write_net_config(test_dir, {'DISRUPTIVE': '0'})
+
+            self.assertIsNone(self._net_config(test_dir, 'drivers/net'))
+
+
 class TestTimeoutHandling(unittest.TestCase):
     @mock.patch('lib.runner.os.killpg')
     @mock.patch('subprocess.Popen')
