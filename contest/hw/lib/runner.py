@@ -97,7 +97,7 @@ def mark_attempted(test_dir, test_name):
     os.rename(tmp_path, path)
 
 
-def _list_tests(test_dir):
+def list_tests(test_dir):
     """List available tests from the installed kselftest layout.
 
     Reads kselftest-list.txt if present, otherwise scans for
@@ -359,7 +359,7 @@ def run_tests(test_dir, results_dir, timeout=DEFAULT_TEST_TIMEOUT):
     a test died with its own subprocess.TimeoutExpired (leaving the machine
     in an unknown state, so the harness must reboot it).
     """
-    tests = _list_tests(test_dir)
+    tests = list_tests(test_dir)
     if not tests:
         print("No tests found")
         return RunOutcome()
