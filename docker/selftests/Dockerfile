@@ -97,7 +97,7 @@ RUN git clone "${MTOOLS_GIT_URL}" mtools && \
 
 # Needed for net/packetdrill and net/netfilter targets
 ARG PACKETDRILL_GIT_URL="https://github.com/google/packetdrill.git"
-ARG PACKETDRILL_GIT_SHA="2a8b4d80459e157d5bb7a99fe620c83e5ce036bb"
+ARG PACKETDRILL_GIT_SHA="15ab46aedd01a5e664ec5cfb2b1888328cdd3901"
 RUN git clone "${PACKETDRILL_GIT_URL}" packetdrill && \
 	cd packetdrill/gtests/net/packetdrill && \
 		git checkout "${PACKETDRILL_GIT_SHA}" && \
