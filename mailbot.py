@@ -694,6 +694,12 @@ def check_new(tree, pw, dr):
         do_mail_file(os.path.join(tree.path, 'm'), pw, dr)
 
 
+def config_list(section, option):
+    """ Comma-separated list, ignoring empty entries """
+    val = config.get(section, option, fallback='')
+    return {x.strip() for x in val.split(',') if x.strip()}
+
+
 def main():
     # Init state
     global config
@@ -715,14 +721,9 @@ def main():
     if ua:
         http_headers = {"user-agent":ua}
 
-    users = config.get('mailbot', 'authorized')
-    authorized_users.update(set(users.split(',')))
-
-    users = config.get('mailbot', 'error-bots')
-    auto_changes_requested.update(set(users.split(',')))
-
-    users = config.get('mailbot', 'awaiting-upstream')
-    auto_awaiting_upstream.update(set(users.split(',')))
+    authorized_users.update(config_list('mailbot', 'authorized'))
+    auto_changes_requested.update(config_list('mailbot', 'error-bots'))
+    auto_awaiting_upstream.update(config_list('mailbot', 'awaiting-upstream'))
 
     tree_dir = config.get('dirs', 'trees', fallback=os.path.join(NIPA_DIR, "../"))
     mail_repos = {}
