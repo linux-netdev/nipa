@@ -3,15 +3,20 @@
 
 # Expect we were booted into a virtme-ng VM with "--net loop"
 
-IFC0=enp0s1
-IFC1=enp0s2
+# Interface names depend on the QEMU machine type and the PCI slots
+virtio_ifcs=$(for ifc in /sys/class/net/*; do
+    drv=$(readlink -f "$ifc/device/driver")
+    [ "${drv##*/}" = virtio_net ] || continue
+    echo "$(readlink -f "$ifc/device") ${ifc##*/}"
+done | sort | cut -d' ' -f2)
 
-for ifc in $IFC0 $IFC1; do
-    if ! ethtool -i "$ifc" | grep -q virtio; then
-	echo "Error: $ifc is not virtio"
-	exit 1
-    fi
-done
+if [ "$(echo "$virtio_ifcs" | wc -l)" -ne 2 ]; then
+    echo "Error: expected 2 virtio interfaces, found: $(echo $virtio_ifcs)"
+    exit 1
+fi
+
+IFC0=$(echo "$virtio_ifcs" | sed -n 1p)
+IFC1=$(echo "$virtio_ifcs" | sed -n 2p)
 
 ip netns add ns-remote
 ip link set dev $IFC1 netns ns-remote
