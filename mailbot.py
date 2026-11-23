@@ -281,20 +281,24 @@ class MlEmail:
         Email is hard, get_body() doesn't decode base64, get_payload() does but
         it's too MIME-aware. Luckily ML traffic is not multi-part 99% of the time.
         And it's not base64 90% of the time. So hopefully we'll cover 99.9% here..
+        When the part is base64-encoded, decode it with get_content().
         """
         if self.msg.is_multipart():
             body = self.msg.get_body(preferencelist=('plain',))
             if body is None:
                 return None
-
-            try:
-                body_str = body.as_string()
-            except LookupError as e:
-                print('', '', "ERROR: can't parse body", e)
-                return None
-            return body_str
         else:
-            return self.msg.get_payload()
+            body = self.msg
+
+        try:
+            if body.get('Content-Transfer-Encoding', '').strip().lower() == 'base64':
+                return body.get_content()
+            if body is self.msg:
+                return body.get_payload()
+            return body.as_string()
+        except (LookupError, ValueError) as e:
+            print('', '', "ERROR: can't parse body", e)
+            return None
 
     def user_authorized(self, pw=None):
         if self._authorized is None:
@@ -429,7 +433,8 @@ class MlEmail:
             return
 
         if self.user_authorized(pw) or self.self_reply(pw):
-            lines = self._body().split('\n')
+            body_str = self._body() or ''
+            lines = body_str.split('\n')
             for line in lines:
                 if line.startswith('pw-bot:'):
                     self.actions.append(line)
