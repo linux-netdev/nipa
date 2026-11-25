@@ -811,7 +811,10 @@ function load_result_table_one(data_raw, table, reported, avgs)
 		var remain = expect - passed;
 		var color = "pink";
 
-		if (v.end == 0) {
+		if (Array.isArray(v.results) && v.results.length == 0) {
+		    pend = "filtered";
+		    color = "gray";
+		} else if (v.end == 0) {
 		    pend = "no result";
 		    if (passed > 1000 * 60 * 15 /* 15 min */)
 			color = "red";
